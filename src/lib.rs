@@ -1,4 +1,11 @@
-use axum::{http::StatusCode, response::Html, routing::get, Router};
+use axum::{
+    extract::{Form, Json},
+    http::StatusCode,
+    response::Html,
+    routing::{get, post},
+    Router,
+};
+use serde::Deserialize;
 use std::future::Future;
 
 pub fn run(listener: std::net::TcpListener) -> impl Future<Output = hyper::Result<()>> {
@@ -7,6 +14,7 @@ pub fn run(listener: std::net::TcpListener) -> impl Future<Output = hyper::Resul
         Router::new()
         .route("/", get(index))
         .route("/health_check", get(health_check))
+        .route("/subscriptions", post(subscribe))
     ;
 
     println!("listening on {}", listener.local_addr().unwrap());
@@ -20,5 +28,15 @@ async fn index() -> Html<&'static str> {
 }
 
 async fn health_check() -> StatusCode {
+    StatusCode::OK
+}
+
+#[derive(Deserialize)]
+struct SubscribeUser {
+    email: String,
+    name: String,
+}
+
+async fn subscribe(Form(payload): Form<SubscribeUser>) -> StatusCode {
     StatusCode::OK
 }
