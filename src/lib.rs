@@ -1,7 +1,8 @@
 use axum::{http::StatusCode, response::Html, routing::get, Router};
+use std::future::Future;
 use std::net::SocketAddr;
 
-pub async fn run() {
+pub fn run() -> impl Future<Output = hyper::Result<()>> {
     #[rustfmt::skip]
     let app =
         Router::new()
@@ -11,10 +12,7 @@ pub async fn run() {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     println!("listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    axum::Server::bind(&addr).serve(app.into_make_service())
 }
 
 async fn index() -> Html<&'static str> {
