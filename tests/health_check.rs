@@ -1,4 +1,4 @@
-use api_aga_in;
+use api_aga_in::startup::run;
 use hyper::StatusCode;
 
 #[tokio::test]
@@ -20,7 +20,7 @@ fn spawn_app() -> String {
     // trying to bind port 0 will trigger an OS scan for an available port
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
-    let server = api_aga_in::run(listener);
+    let server = run(listener);
     let _ = tokio::spawn(server);
     format!("http://127.0.0.1:{}", port)
 }

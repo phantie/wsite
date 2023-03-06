@@ -1,4 +1,4 @@
-use api_aga_in::run;
+use api_aga_in::startup::run;
 
 #[tokio::main]
 async fn main() -> hyper::Result<()> {
