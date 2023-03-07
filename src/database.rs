@@ -1,3 +1,5 @@
+use crate::configuration::get_configuration;
+
 use bonsaidb::core::schema::Collection;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::Storage;
@@ -15,7 +17,8 @@ pub struct Subscription {
 }
 
 pub fn storage_configuration(memory_only: bool) -> StorageConfiguration {
-    let mut conf = StorageConfiguration::new("basic.bonsaidb");
+    let configuration = get_configuration();
+    let mut conf = StorageConfiguration::new(configuration.database.dir);
     conf.memory_only = memory_only;
     conf.with_schema::<Subscription>().unwrap()
 }

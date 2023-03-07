@@ -4,10 +4,14 @@ pub struct Settings {
 }
 
 #[derive(serde::Deserialize)]
-pub struct DatabaseSettings {}
+pub struct DatabaseSettings {
+    pub dir: String,
+}
 
-pub fn get_configuration() -> Result<config::Config, config::ConfigError> {
-    config::Config::builder()
+pub fn get_configuration() -> Settings {
+    let config = config::Config::builder()
         .add_source(config::File::with_name("configuration"))
-        .build()
+        .build();
+
+    config.unwrap().try_deserialize().unwrap()
 }

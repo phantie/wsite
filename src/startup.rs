@@ -18,7 +18,7 @@ pub struct AppState {}
 pub fn run(
     listener: std::net::TcpListener,
 ) -> impl std::future::Future<Output = hyper::Result<()>> {
-    let _configuration = get_configuration().unwrap();
+    let configuration = get_configuration();
 
     let app_state = AppState::default();
 
