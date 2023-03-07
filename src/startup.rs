@@ -5,6 +5,8 @@ use axum::{
     Router, Server,
 };
 
+use std::sync::Arc;
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health_check", get(health_check))
@@ -12,15 +14,18 @@ pub fn router() -> Router<AppState> {
         .route("/subscriptions", get(all_subscriptions))
 }
 
-#[derive(Clone, Default)]
-pub struct AppState {}
+#[derive(Clone)]
+pub struct AppState {
+    pub storage: Arc<bonsaidb::local::AsyncStorage>,
+}
 
 pub fn run(
     listener: std::net::TcpListener,
+    storage: Arc<bonsaidb::local::AsyncStorage>,
 ) -> impl std::future::Future<Output = hyper::Result<()>> {
     let configuration = get_configuration();
 
-    let app_state = AppState::default();
+    let app_state = AppState { storage };
 
     let app = router().with_state(app_state);
 

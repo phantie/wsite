@@ -2,12 +2,12 @@ use crate::configuration::get_configuration;
 
 use bonsaidb::core::schema::Collection;
 use bonsaidb::local::config::StorageConfiguration;
-use bonsaidb::local::Storage;
 use serde::{Deserialize, Serialize};
 
 pub use bonsaidb::core::connection::StorageConnection;
 pub use bonsaidb::core::schema::SerializedCollection;
 pub use bonsaidb::local::config::Builder;
+pub use bonsaidb::local::AsyncStorage;
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
 #[collection(name = "users")]
@@ -23,10 +23,10 @@ pub fn storage_configuration(memory_only: bool) -> StorageConfiguration {
     conf.with_schema::<Subscription>().unwrap()
 }
 
-pub fn storage_with_config(configuration: StorageConfiguration) -> Storage {
-    Storage::open(configuration).expect("Should succeed")
+pub async fn storage_with_config(configuration: StorageConfiguration) -> AsyncStorage {
+    AsyncStorage::open(configuration).await.unwrap()
 }
 
-pub fn storage(memory_only: bool) -> Storage {
-    storage_with_config(storage_configuration(memory_only))
+pub async fn storage(memory_only: bool) -> AsyncStorage {
+    storage_with_config(storage_configuration(memory_only)).await
 }

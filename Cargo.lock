@@ -278,6 +278,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecb37006ff9a83ab73d7831591278df20ee1a9fd2b3d829fbcb7d4953c230ccd"
 dependencies = [
+ "async-trait",
  "bincode",
  "bonsaidb-core",
  "bonsaidb-utils",
@@ -285,6 +286,7 @@ dependencies = [
  "derive-where",
  "easy-parallel",
  "flume",
+ "futures",
  "itertools",
  "log",
  "nebari",
@@ -295,6 +297,7 @@ dependencies = [
  "serde",
  "sysinfo",
  "thiserror",
+ "tokio",
  "transmog-versions",
  "watchable",
 ]
