@@ -1,22 +1,29 @@
-#![allow(dead_code)]
+use bonsaidb::core::schema::Collection;
+use bonsaidb::local::config::StorageConfiguration;
+use bonsaidb::local::Storage;
+use serde::{Deserialize, Serialize};
 
-type Id = String;
-type Name = String;
+pub use bonsaidb::core::connection::StorageConnection;
+pub use bonsaidb::core::schema::SerializedCollection;
+pub use bonsaidb::local::config::Builder;
 
-type UserEntry = (Id, Name);
-
-#[derive(Default, Clone)]
-pub struct UserDatabase {
-    pub data: Vec<UserEntry>,
+#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
+#[collection(name = "users")]
+pub struct Subscription {
+    pub name: String,
+    pub email: String,
 }
 
-impl UserDatabase {
-    pub fn add_user(&mut self, entry: UserEntry) {
-        self.data.push(entry);
-    }
+pub fn storage_configuration(memory_only: bool) -> StorageConfiguration {
+    let mut conf = StorageConfiguration::new("basic.bonsaidb");
+    conf.memory_only = memory_only;
+    conf.with_schema::<Subscription>().unwrap()
+}
 
-    pub fn get_user_by_id(&self, id: impl Into<Id>) -> Option<&UserEntry> {
-        let id: Id = id.into();
-        self.data.iter().find(|&(id_, _)| id_ == &id)
-    }
+pub fn storage_with_config(configuration: StorageConfiguration) -> Storage {
+    Storage::open(configuration).expect("Should succeed")
+}
+
+pub fn storage(memory_only: bool) -> Storage {
+    storage_with_config(storage_configuration(memory_only))
 }

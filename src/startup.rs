@@ -1,28 +1,19 @@
 use crate::configuration::get_configuration;
-use crate::database::UserDatabase;
 use crate::routes::*;
 use axum::{
-    extract::FromRef,
     routing::{get, post},
     Router, Server,
 };
-
-#[derive(Clone, Default)]
-pub struct AppState {
-    user_database: UserDatabase,
-}
-
-impl FromRef<AppState> for UserDatabase {
-    fn from_ref(app_state: &AppState) -> UserDatabase {
-        app_state.user_database.clone()
-    }
-}
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
+        .route("/subscriptions", get(all_subscriptions))
 }
+
+#[derive(Clone, Default)]
+pub struct AppState {}
 
 pub fn run(
     listener: std::net::TcpListener,
