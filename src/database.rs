@@ -11,11 +11,12 @@ pub struct UserDatabase {
 }
 
 impl UserDatabase {
-    fn add_user(&mut self, entry: UserEntry) {
+    pub fn add_user(&mut self, entry: UserEntry) {
         self.data.push(entry);
     }
 
-    fn get_user_by_id(&self, id: Id) -> Option<&UserEntry> {
+    pub fn get_user_by_id(&self, id: impl Into<Id>) -> Option<&UserEntry> {
+        let id: Id = id.into();
         self.data.iter().find(|&(id_, _)| id_ == &id)
     }
 }

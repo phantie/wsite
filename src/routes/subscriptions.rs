@@ -1,4 +1,4 @@
-use crate::database::UserDatabase;
+use crate::{database::UserDatabase, startup::AppState};
 use axum::{
     extract::{Form, State},
     http::StatusCode,
@@ -12,8 +12,9 @@ pub struct FormData {
 }
 
 pub async fn subscribe(
-    Form(_payload): Form<FormData>,
-    // State(state): State<UserDatabase>,
+    State(mut user_database): State<UserDatabase>,
+    Form(form): Form<FormData>,
 ) -> StatusCode {
+    user_database.add_user(("null".to_owned(), form.name.to_owned()));
     StatusCode::OK
 }
