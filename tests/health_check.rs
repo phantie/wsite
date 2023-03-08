@@ -6,6 +6,12 @@ use std::sync::Arc;
 // serial needed to run tests that spawn app
 // because only one handle to database can be held at a time,
 // otherwise the second such test would hang for almost a minute and then panic
+//
+// either to use one database at a time
+// or create several databases to acesss them concurrently
+//
+// I selected the first approach because the neccesity
+// to generate paths and create repositories for databases dissappears
 use serial_test::serial;
 
 struct TestApp {
