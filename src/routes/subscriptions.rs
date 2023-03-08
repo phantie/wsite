@@ -5,12 +5,6 @@ use crate::startup::AppState;
 use axum::extract::State;
 use axum::{extract::Form, http::StatusCode, Json};
 
-use bonsaidb::core::connection::{AsyncConnection, AsyncStorageConnection};
-use bonsaidb::core::schema::SerializedCollection;
-use bonsaidb::core::transaction::{Operation, Transaction};
-use bonsaidb::local::config::{Builder, StorageConfiguration};
-use bonsaidb::local::AsyncStorage;
-
 #[derive(serde::Deserialize)]
 #[allow(dead_code)]
 pub struct FormData {
@@ -19,13 +13,7 @@ pub struct FormData {
 }
 
 pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>) -> StatusCode {
-    let storage = AsyncStorage::open(
-        StorageConfiguration::new("my-db.bonsaidb")
-            .with_schema::<Subscription>()
-            .unwrap(),
-    )
-    .await
-    .unwrap();
+    let storage = &state.storage;
 
     let subscriptions_collection = storage
         .create_database::<Subscription>("users", true)
@@ -43,8 +31,6 @@ pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>
     StatusCode::OK
 }
 
-use serde::{Deserialize, Serialize};
-
 pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscription>> {
     let storage = state.storage;
 
@@ -61,6 +47,6 @@ pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscr
         .iter()
         .map(|doc| doc.contents.clone())
         .collect::<Vec<_>>();
-
+    println!("get~/all_subscriptions");
     Json(res)
 }

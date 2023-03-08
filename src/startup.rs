@@ -23,7 +23,7 @@ pub fn run(
     listener: std::net::TcpListener,
     storage: Arc<bonsaidb::local::AsyncStorage>,
 ) -> impl std::future::Future<Output = hyper::Result<()>> {
-    let configuration = get_configuration();
+    let _configuration = get_configuration();
 
     let app_state = AppState { storage };
 
