@@ -74,9 +74,13 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .await
         .unwrap();
 
-    let res = subscriptions_docs.iter().count();
+    assert_eq!(subscriptions_docs.iter().count(), 1);
 
-    assert_eq!(res, 1);
+    // verify the fields of the saved entry
+    let Subscription { name, email } = &subscriptions_docs.iter().next().unwrap().contents;
+
+    assert_eq!(name, "le guin");
+    assert_eq!(email, "ursula_le_guin@gmail.com");
 }
 
 #[tokio::test]
@@ -116,7 +120,5 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
         .await
         .unwrap();
 
-    let res = subscriptions_docs.iter().count();
-
-    assert_eq!(res, 0);
+    assert_eq!(subscriptions_docs.iter().count(), 0);
 }
