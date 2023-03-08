@@ -1,25 +1,30 @@
-use api_aga_in::database::storage;
+use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use api_aga_in::startup::run;
 use hyper::StatusCode;
 use std::sync::Arc;
+// serial needed to run tests that spawn app
+// because only one handle to database can be held at a time,
+// otherwise the second such test would hang for almost a minute and then panic
+use serial_test::serial;
 
 struct TestApp {
     address: String,
     storage: Arc<AsyncStorage>,
 }
 
-async fn test_storage(name: &str) -> AsyncStorage {
-    let dir = format!("target/tmp/test/databases/{}", name);
-    storage(&dir, true).await
+async fn test_storage() -> AsyncStorage {
+    let configuration = get_configuration();
+    storage(&configuration.testing.database.dir, true).await
 }
 
-async fn spawn_app(storage_name: &str) -> TestApp {
+async fn spawn_app() -> TestApp {
     // trying to bind port 0 will trigger an OS scan for an available port
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind free random port");
     let port = listener.local_addr().unwrap().port();
 
-    let storage = test_storage(storage_name).await;
+    let storage = test_storage().await;
 
     let storage = Arc::new(storage);
 
@@ -34,9 +39,10 @@ async fn spawn_app(storage_name: &str) -> TestApp {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn health_check_works() {
-    let app = spawn_app("health_check_works").await;
+    let app = spawn_app().await;
 
     let client = reqwest::Client::new();
     let response = client
@@ -49,9 +55,10 @@ async fn health_check_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
+#[serial]
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
-    let app = spawn_app("subscribe_returns_a_200_for_valid_form_data").await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
@@ -83,9 +90,10 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(email, "ursula_le_guin@gmail.com");
 }
 
+#[serial]
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-    let app = spawn_app("subscribe_returns_a_400_when_data_is_missing").await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),

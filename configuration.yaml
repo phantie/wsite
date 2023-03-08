@@ -1,2 +1,6 @@
 database:
     dir: "basic.bonsaidb"
+
+testing:
+    database:
+        dir: "target/tmp/test/basic.bonsaidb"

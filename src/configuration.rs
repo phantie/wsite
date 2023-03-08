@@ -1,11 +1,19 @@
-#[derive(serde::Deserialize)]
+use serde::Deserialize;
+
+#[derive(Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
+    pub testing: Testing,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct DatabaseSettings {
     pub dir: String,
+}
+
+#[derive(Deserialize)]
+pub struct Testing {
+    pub database: DatabaseSettings,
 }
 
 pub fn get_configuration() -> Settings {
