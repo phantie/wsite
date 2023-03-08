@@ -16,7 +16,7 @@ use serial_test::serial;
 
 struct TestApp {
     address: String,
-    storage: Arc<AsyncStorage>,
+    database: Arc<Database>,
 }
 
 async fn test_storage() -> AsyncStorage {
@@ -34,14 +34,16 @@ async fn spawn_app() -> TestApp {
 
     let storage = Arc::new(storage);
 
-    let server = run(listener, storage.clone());
+    let database = Arc::new(Database::init(storage.clone()).await);
+
+    let server = run(listener, database.clone());
 
     let _ = tokio::spawn(server);
     let address = format!("http://127.0.0.1:{}", port);
 
     TestApp {
         address,
-        storage: storage.clone(),
+        database: database.clone(),
     }
 }
 
@@ -77,13 +79,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .expect("Failed to execute request.");
     assert_eq!(StatusCode::OK, response.status());
 
-    let subscriptions_collection = app
-        .storage
-        .create_database::<Subscription>("users", true)
-        .await
-        .unwrap();
-
-    let subscriptions_docs = Subscription::all_async(&subscriptions_collection)
+    let subscriptions_docs = Subscription::all_async(&app.database.collections.subscriptions)
         .await
         .unwrap();
 
@@ -124,13 +120,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
         );
     }
 
-    let subscriptions_collection = app
-        .storage
-        .create_database::<Subscription>("users", true)
-        .await
-        .unwrap();
-
-    let subscriptions_docs = Subscription::all_async(&subscriptions_collection)
+    let subscriptions_docs = Subscription::all_async(&app.database.collections.subscriptions)
         .await
         .unwrap();
 

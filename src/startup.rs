@@ -1,5 +1,5 @@
-use crate::configuration::get_configuration;
 use crate::routes::*;
+use crate::{configuration::get_configuration, database::Database};
 use axum::{
     routing::{get, post},
     Router, Server,
@@ -16,16 +16,16 @@ pub fn router() -> Router<AppState> {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub storage: Arc<bonsaidb::local::AsyncStorage>,
+    pub database: Arc<Database>,
 }
 
 pub fn run(
     listener: std::net::TcpListener,
-    storage: Arc<bonsaidb::local::AsyncStorage>,
+    database: Arc<Database>,
 ) -> impl std::future::Future<Output = hyper::Result<()>> {
     let _configuration = get_configuration();
 
-    let app_state = AppState { storage };
+    let app_state = AppState { database };
 
     let app = router().with_state(app_state);
 

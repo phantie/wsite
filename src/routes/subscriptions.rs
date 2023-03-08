@@ -13,18 +13,11 @@ pub struct FormData {
 }
 
 pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>) -> StatusCode {
-    let storage = &state.storage;
-
-    let subscriptions_collection = storage
-        .create_database::<Subscription>("users", true)
-        .await
-        .unwrap();
-
     let _document = Subscription {
         name: form.name,
         email: form.email,
     }
-    .push_into_async(&subscriptions_collection)
+    .push_into_async(&state.database.collections.subscriptions)
     .await
     .unwrap();
 
@@ -32,14 +25,7 @@ pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>
 }
 
 pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscription>> {
-    let storage = state.storage;
-
-    let subscriptions_collection = storage
-        .create_database::<Subscription>("users", true)
-        .await
-        .unwrap();
-
-    let subscriptions_docs = Subscription::all_async(&subscriptions_collection)
+    let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
         .await
         .unwrap();
 

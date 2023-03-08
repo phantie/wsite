@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use bonsaidb::core::schema::Collection;
 use bonsaidb::local::config::StorageConfiguration;
+use bonsaidb::local::AsyncDatabase;
 use serde::{Deserialize, Serialize};
 
 pub use bonsaidb::core::connection::AsyncStorageConnection;
@@ -21,4 +24,31 @@ pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     let configuration = configuration.with_schema::<Subscription>().unwrap();
 
     AsyncStorage::open(configuration).await.unwrap()
+}
+
+#[derive(Clone)]
+pub struct Database {
+    pub storage: Arc<AsyncStorage>,
+    pub collections: Collections,
+}
+
+#[derive(Clone)]
+pub struct Collections {
+    pub subscriptions: AsyncDatabase,
+}
+
+impl Database {
+    pub async fn init(storage: Arc<AsyncStorage>) -> Self {
+        let collections = Collections {
+            subscriptions: storage
+                .create_database::<Subscription>("users", true)
+                .await
+                .unwrap(),
+        };
+
+        Self {
+            storage,
+            collections,
+        }
+    }
 }

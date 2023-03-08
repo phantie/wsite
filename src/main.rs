@@ -8,6 +8,6 @@ async fn main() -> hyper::Result<()> {
     let configuration = get_configuration();
     let listener = std::net::TcpListener::bind("127.0.0.1:8000").unwrap();
     let storage = Arc::new(storage(&configuration.database.dir, false).await);
-
-    run(listener, storage).await
+    let database = Arc::new(Database::init(storage.clone()).await);
+    run(listener, database).await
 }
