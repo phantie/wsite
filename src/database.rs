@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::connection::StorageConnection;
+pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
 pub use bonsaidb::local::config::Builder;
 pub use bonsaidb::local::AsyncStorage;

@@ -1,7 +1,9 @@
 use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use api_aga_in::startup::run;
+use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use hyper::StatusCode;
+use once_cell::sync::Lazy;
 use std::sync::Arc;
 // serial needed to run tests that spawn app
 // because only one handle to database can be held at a time,
@@ -14,6 +16,19 @@ use std::sync::Arc;
 // to generate paths and create repositories for databases dissappears
 use serial_test::serial;
 
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let default_filter_level = "info".to_string();
+    let subscriber_name = "test".to_string();
+
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::sink);
+        init_subscriber(subscriber);
+    };
+});
+
 struct TestApp {
     address: String,
     database: Arc<Database>,
@@ -25,6 +40,8 @@ async fn test_storage() -> AsyncStorage {
 }
 
 async fn spawn_app() -> TestApp {
+    Lazy::force(&TRACING);
+
     // trying to bind port 0 will trigger an OS scan for an available port
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind free random port");

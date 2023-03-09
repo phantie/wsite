@@ -4,6 +4,8 @@ use axum::{
     routing::{get, post},
     Router, Server,
 };
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 
 use std::sync::Arc;
 
@@ -12,6 +14,7 @@ pub fn router() -> Router<AppState> {
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
         .route("/subscriptions", get(all_subscriptions))
+        .layer(ServiceBuilder::new().layer(TraceLayer::new_for_http()))
 }
 
 #[derive(Clone)]
