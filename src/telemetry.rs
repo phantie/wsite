@@ -1,5 +1,3 @@
-// TODO add AUTO request ID to tracing if possible
-
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};

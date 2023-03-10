@@ -14,8 +14,6 @@ pub struct FormData {
     name = "Adding a new subscriber",
     skip(form, state),
     fields(
-        // fields, such as request_id field propagate
-        request_id = %uuid::Uuid::new_v4(),
         subscriber_email = %form.email,
         subscriber_name= %form.name
     )
@@ -46,13 +44,7 @@ pub async fn insert_subscriber(
     .await
 }
 
-#[tracing::instrument(
-    name = "Getting all the subscribers",
-    skip(state),
-    fields( 
-        request_id = %uuid::Uuid::new_v4(),
-    )
-)]
+#[tracing::instrument(name = "Getting all the subscribers", skip(state))]
 pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscription>> {
     let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
         .await
