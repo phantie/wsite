@@ -1,4 +1,6 @@
 use serde::Deserialize;
+// to deserialize variables set via env vars
+use serde_aux::field_attributes::deserialize_number_from_string;
 
 #[derive(Deserialize)]
 pub struct Settings {
@@ -9,6 +11,7 @@ pub struct Settings {
 
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
