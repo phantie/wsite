@@ -1,2 +1,4 @@
-/target/
-/basic.bonsaidb/
+.env
+target/
+tests/
+Dockerfile
