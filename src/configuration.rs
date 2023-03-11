@@ -46,15 +46,10 @@ pub fn get_configuration() -> Settings {
             config::File::with_name(&conf_path(&configuration_directory, environment.as_str()))
                 .required(true),
         )
+        .add_source(config::Environment::with_prefix("app").separator("__"))
         .build();
 
-    config
-        .expect(&format!(
-            "path not found. Current path: {:?}",
-            std::env::current_dir().unwrap()
-        ))
-        .try_deserialize()
-        .unwrap()
+    config.unwrap().try_deserialize().unwrap()
 }
 
 pub enum Environment {
