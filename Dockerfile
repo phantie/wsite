@@ -24,8 +24,8 @@ RUN apt-get update -y \
 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/api_aga_in api_aga_in
 COPY configuration configuration
-# Copy the database
-COPY basic.bonsaidb basic.bonsaidb
+# # Copy the database
+# COPY basic.bonsaidb basic.bonsaidb
 ENV APP_ENVIRONMENT production
 # When `docker run` is executed, launch the binary
 ENTRYPOINT ["./api_aga_in"]
