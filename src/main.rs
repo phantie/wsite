@@ -10,7 +10,13 @@ async fn main() -> hyper::Result<()> {
     init_subscriber(subscriber);
 
     let configuration = get_configuration();
-    let listener = std::net::TcpListener::bind("127.0.0.1:8000").unwrap();
+    let address = format!(
+        "{}:{}",
+        configuration.application.host, configuration.application.port
+    );
+    let listener = std::net::TcpListener::bind(&address).unwrap();
+    tracing::info!("Listening on {}", address);
+
     let storage = Arc::new(storage(&configuration.database.dir, false).await);
     let database = Arc::new(Database::init(storage.clone()).await);
     run(listener, database).await

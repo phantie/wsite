@@ -1,0 +1,3 @@
+cargo chef prepare --recipe-path recipe.json
+docker build --tag api_aga_in --file Dockerfile .
+docker rm $(docker stop $(docker ps -a -q --filter ancestor=api_aga_in --format="{{.ID}}"))

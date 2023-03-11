@@ -52,7 +52,6 @@ pub fn run(
 
     let app = router().with_state(app_state);
 
-    println!("listening on {}", listener.local_addr().unwrap());
     Server::from_tcp(listener)
         .unwrap()
         .serve(app.into_make_service())
