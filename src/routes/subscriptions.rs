@@ -1,5 +1,5 @@
 use crate::database::*;
-use crate::domain::{NewSubscriber, SubscriberName};
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::startup::AppState;
 use axum::extract::State;
 use axum::{extract::Form, http::StatusCode, Json};
@@ -27,6 +27,11 @@ pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>
         Err(_) => return StatusCode::BAD_REQUEST,
     };
 
+    let email = match SubscriberEmail::parse(email) {
+        Ok(email) => email,
+        Err(_) => return StatusCode::BAD_REQUEST,
+    };
+
     let new_subscriber = NewSubscriber { email, name };
 
     let result = insert_subscriber(&state, &new_subscriber).await;
@@ -50,7 +55,7 @@ pub async fn insert_subscriber(
 ) -> Result<CollectionDocument<Subscription>, bonsaidb::core::schema::InsertError<Subscription>> {
     Subscription {
         name: new_subscriber.name.as_ref().to_owned(),
-        email: new_subscriber.email.clone(),
+        email: new_subscriber.email.as_ref().to_owned(),
     }
     .push_into_async(&state.database.collections.subscriptions)
     .await
