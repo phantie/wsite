@@ -1,5 +1,6 @@
 use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
+use api_aga_in::email_client::EmailClient;
 use api_aga_in::startup::run;
 use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use hyper::StatusCode;
@@ -44,6 +45,17 @@ async fn test_storage() -> AsyncStorage {
 async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
+    let configuration = get_configuration();
+
+    let sender_email = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+    let email_client = Arc::new(EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email,
+    ));
+
     // trying to bind port 0 will trigger an OS scan for an available port
     let listener =
         std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind free random port");
@@ -55,7 +67,7 @@ async fn spawn_app() -> TestApp {
 
     let database = Arc::new(Database::init(storage.clone()).await);
 
-    let server = run(listener, database.clone());
+    let server = run(listener, database.clone(), email_client);
 
     let _ = tokio::spawn(server);
     let address = format!("http://127.0.0.1:{}", port);
