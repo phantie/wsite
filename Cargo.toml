@@ -27,6 +27,7 @@ tower-request-id = "0.2.1"
 serde-aux = "4.1.2"
 unicode-segmentation = "1.10.1"
 validator = "0.16.0"
+fake = "2.5.0"
 
 [features]
 
