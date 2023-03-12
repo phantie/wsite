@@ -26,6 +26,7 @@ tracing-subscriber = { version = "0.3.16", features = ["registry", "env-filter"]
 tower-request-id = "0.2.1"
 serde-aux = "4.1.2"
 unicode-segmentation = "1.10.1"
+validator = "0.16.0"
 
 [features]
 
