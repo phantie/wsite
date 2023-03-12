@@ -7,3 +7,7 @@ database:
 testing:
     database:
         dir: "target/tmp/test/basic.bonsaidb"
+
+email_client:
+    base_url: "localhost"
+    sender_email: "test@gmail.com"

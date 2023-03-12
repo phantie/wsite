@@ -1,3 +1,4 @@
+use crate::email_client::EmailClient;
 use crate::{configuration::get_configuration, database::Database};
 use axum::{
     routing::{get, post},
@@ -40,15 +41,20 @@ pub fn router() -> Router<AppState> {
 #[derive(Clone)]
 pub struct AppState {
     pub database: Arc<Database>,
+    pub email_client: Arc<EmailClient>,
 }
 
 pub fn run(
     listener: std::net::TcpListener,
     database: Arc<Database>,
+    email_client: Arc<EmailClient>,
 ) -> impl std::future::Future<Output = hyper::Result<()>> {
     let _configuration = get_configuration();
 
-    let app_state = AppState { database };
+    let app_state = AppState {
+        database,
+        email_client,
+    };
 
     let app = router().with_state(app_state);
 
