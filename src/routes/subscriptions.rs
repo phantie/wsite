@@ -1,9 +1,10 @@
 use crate::database::*;
+use crate::domain::{NewSubscriber, SubscriberName};
 use crate::startup::AppState;
 use axum::extract::State;
 use axum::{extract::Form, http::StatusCode, Json};
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 #[allow(dead_code)]
 pub struct FormData {
     name: String,
@@ -19,26 +20,37 @@ pub struct FormData {
     )
 )]
 pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>) -> StatusCode {
-    let _document = insert_subscriber(&state, &form).await;
+    let FormData { email, name } = form.clone();
 
-    if let Err(e) = _document {
-        tracing::error!("Failed to execute query: {:?}", e);
+    let name = match SubscriberName::parse(name) {
+        Ok(name) => name,
+        Err(_) => return StatusCode::BAD_REQUEST,
+    };
+
+    let new_subscriber = NewSubscriber { email, name };
+
+    let result = insert_subscriber(&state, &new_subscriber).await;
+
+    match result {
+        Ok(_) => StatusCode::OK,
+        Err(e) => {
+            tracing::error!("Failed to execute query: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     }
-
-    StatusCode::OK
 }
 
 #[tracing::instrument(
     name = "Saving new subscriber details in the database",
-    skip(form, state)
+    skip(new_subscriber, state)
 )]
 pub async fn insert_subscriber(
     state: &AppState,
-    form: &FormData,
+    new_subscriber: &NewSubscriber,
 ) -> Result<CollectionDocument<Subscription>, bonsaidb::core::schema::InsertError<Subscription>> {
     Subscription {
-        name: form.name.clone(),
-        email: form.email.clone(),
+        name: new_subscriber.name.as_ref().to_owned(),
+        email: new_subscriber.email.clone(),
     }
     .push_into_async(&state.database.collections.subscriptions)
     .await
