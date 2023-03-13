@@ -19,10 +19,10 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(subscriptions_docs.iter().count(), 1);
 
     // verify the fields of the saved entry
-    let Subscription { name, email } = &subscriptions_docs.iter().next().unwrap().contents;
+    let subscription = &subscriptions_docs.iter().next().unwrap().contents;
 
-    assert_eq!(name, "le guin");
-    assert_eq!(email, "ursula_le_guin@gmail.com");
+    assert_eq!(subscription.name, "le guin");
+    assert_eq!(subscription.email, "ursula_le_guin@gmail.com");
 }
 
 #[serial]
@@ -54,7 +54,6 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     assert_eq!(subscriptions_docs.iter().count(), 0);
 }
 
-// TODO make the test fail and then fix it
 #[serial]
 #[tokio::test]
 async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
