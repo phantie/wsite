@@ -18,11 +18,6 @@ static TRACING: Lazy<()> = Lazy::new(|| {
     };
 });
 
-pub struct TestApp {
-    pub address: String,
-    pub database: Arc<Database>,
-}
-
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
@@ -41,4 +36,21 @@ pub async fn spawn_app() -> TestApp {
     let _ = tokio::spawn(application.server());
 
     TestApp { address, database }
+}
+
+pub struct TestApp {
+    pub address: String,
+    pub database: Arc<Database>,
+}
+
+impl TestApp {
+    pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(&format!("{}/subscriptions", &self.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
 }
