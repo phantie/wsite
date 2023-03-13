@@ -1,5 +1,6 @@
 use crate::database::*;
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::email_client::EmailClient;
 use crate::startup::AppState;
 use axum::extract::State;
 use axum::{extract::Form, http::StatusCode, Json};
@@ -34,15 +35,40 @@ pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>
         Err(_) => return StatusCode::BAD_REQUEST,
     };
 
-    let result = insert_subscriber(&state, &new_subscriber).await;
-
-    match result {
-        Ok(_) => StatusCode::OK,
-        Err(e) => {
-            tracing::error!("Failed to execute query: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+    if let Err(e) = insert_subscriber(&state, &new_subscriber).await {
+        tracing::error!("Failed to execute query: {:?}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR;
     }
+
+    if let Err(e) = send_confirmation_email(&state.email_client, new_subscriber).await {
+        tracing::error!("Failed to send email: {:?}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
+    StatusCode::OK
+}
+
+#[tracing::instrument(
+    name = "Send a confirmation email to a new subscriber",
+    skip(email_client, new_subscriber)
+)]
+pub async fn send_confirmation_email(
+    email_client: &EmailClient,
+    new_subscriber: NewSubscriber,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    let plain_body = format!(
+        "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
+        confirmation_link
+    );
+    let html_body = format!(
+        "Welcome to our newsletter!<br />\
+    Click <a href=\"{}\">here</a> to confirm your subscription.",
+        confirmation_link
+    );
+    email_client
+        .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
+        .await
 }
 
 #[tracing::instrument(
