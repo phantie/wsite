@@ -54,6 +54,7 @@ async fn spawn_app() -> TestApp {
     let email_client = Arc::new(EmailClient::new(
         configuration.email_client.base_url,
         sender_email,
+        configuration.email_client.authorization_token,
     ));
 
     // trying to bind port 0 will trigger an OS scan for an available port

@@ -19,6 +19,7 @@ async fn main() -> hyper::Result<()> {
     let email_client = Arc::new(EmailClient::new(
         configuration.email_client.base_url,
         sender_email,
+        configuration.email_client.authorization_token,
     ));
 
     let address = format!(
