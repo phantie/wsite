@@ -17,6 +17,8 @@ pub use bonsaidb::local::AsyncStorage;
 pub struct Subscription {
     pub name: String,
     pub email: String,
+    pub status: String,
+    pub token: String,
 }
 
 pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {

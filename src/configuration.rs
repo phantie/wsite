@@ -1,7 +1,6 @@
-use serde::Deserialize;
-// to deserialize variables set via env vars
 use crate::domain::SubscriberEmail;
-use serde_aux::field_attributes::deserialize_number_from_string;
+use serde::Deserialize;
+use serde_aux::field_attributes::deserialize_number_from_string; // to deserialize variables provided via env vars
 
 #[derive(Deserialize)]
 pub struct Settings {

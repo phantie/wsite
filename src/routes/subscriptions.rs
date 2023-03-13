@@ -56,6 +56,8 @@ pub async fn insert_subscriber(
     Subscription {
         name: new_subscriber.name.as_ref().to_owned(),
         email: new_subscriber.email.as_ref().to_owned(),
+        status: "pending_confirmation".to_owned(),
+        token: "NULL".to_owned(),
     }
     .push_into_async(&state.database.collections.subscriptions)
     .await
