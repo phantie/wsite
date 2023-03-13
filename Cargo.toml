@@ -16,7 +16,7 @@ bonsaidb = { version = "0.4.1", features = ["local", "local-async"] }
 config = "0.13.3"
 hyper = "0.14.24"
 serde = { version = "1.0.152", features = ["derive"] }
-tokio = { version = "1.26.0", features = ["full"] }
+tokio = { version = "1.26.0", features = ["rt", "macros"] }
 tower = "0.4.13"
 tower-http = { version = "0.4.0", features = ["trace"] }
 tracing = { version = "0.1.37", features = ["log"] }
@@ -28,6 +28,9 @@ serde-aux = "4.1.2"
 unicode-segmentation = "1.10.1"
 validator = "0.16.0"
 reqwest = { version = "0.11.14", default-features = false, features = ["json", "rustls-tls"] }
+wiremock = "0.5.17"
+secrecy = { version = "0.8.0", features = ["serde"] }
+serde_json = "1.0.94"
 
 [features]
 
