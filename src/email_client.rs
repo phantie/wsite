@@ -11,6 +11,7 @@ pub struct EmailClient {
 
 impl EmailClient {
     pub fn new(
+        // api base url
         base_url: String,
         sender: SubscriberEmail,
         authorization_token: Secret<String>,

@@ -4,6 +4,7 @@ use api_aga_in::startup::Application;
 use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
+use wiremock::MockServer;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
     let default_filter_level = "info".to_string();
@@ -21,10 +22,13 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
+    let email_server = MockServer::start().await;
+
     let configuration = {
         let mut c = get_configuration();
         c.database = c.testing.database.clone();
         c.application = c.testing.application.clone();
+        c.email_client.base_url = email_server.uri();
         c
     };
 
@@ -35,12 +39,17 @@ pub async fn spawn_app() -> TestApp {
 
     let _ = tokio::spawn(application.server());
 
-    TestApp { address, database }
+    TestApp {
+        address,
+        database,
+        email_server,
+    }
 }
 
 pub struct TestApp {
     pub address: String,
     pub database: Arc<Database>,
+    pub email_server: MockServer,
 }
 
 impl TestApp {
