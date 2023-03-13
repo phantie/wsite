@@ -1,8 +1,9 @@
+use crate::configuration::{get_configuration, Settings};
+use crate::database::*;
 use crate::email_client::EmailClient;
-use crate::{configuration::get_configuration, database::Database};
 use axum::{
     routing::{get, post},
-    Router, Server,
+    Router,
 };
 use std::sync::Arc;
 
@@ -58,7 +59,73 @@ pub fn run(
 
     let app = router().with_state(app_state);
 
-    Server::from_tcp(listener)
+    axum::Server::from_tcp(listener)
         .unwrap()
         .serve(app.into_make_service())
+}
+
+pub struct Application {
+    port: u16,
+    server: std::pin::Pin<Box<dyn std::future::Future<Output = hyper::Result<()>> + Send>>,
+    database: Arc<Database>,
+    host: String,
+}
+
+impl Application {
+    pub async fn build(configuration: &Settings) -> Self {
+        let sender_email = configuration
+            .email_client
+            .sender()
+            .expect("Invalid sender email address.");
+        let timeout = configuration.email_client.timeout();
+        let email_client = Arc::new(EmailClient::new(
+            configuration.email_client.base_url.clone(),
+            sender_email,
+            configuration.email_client.authorization_token.clone(),
+            timeout,
+        ));
+
+        let address = format!(
+            "{}:{}",
+            configuration.application.host, configuration.application.port
+        );
+        let listener = std::net::TcpListener::bind(&address).unwrap();
+        tracing::info!("Listening on {}", address);
+        let host = configuration.application.host.clone();
+        let port = listener.local_addr().unwrap().port();
+
+        let storage = Arc::new(
+            storage(
+                &configuration.database.dir,
+                configuration.database.memory_only,
+            )
+            .await,
+        );
+        let database = Arc::new(Database::init(storage.clone()).await);
+        let server = Box::pin(run(listener, database.clone(), email_client));
+
+        Self {
+            server,
+            database: database.clone(),
+            port,
+            host,
+        }
+    }
+
+    // needs to consume to produce 1 server max, and because I don't know better
+    pub fn server(self) -> impl std::future::Future<Output = hyper::Result<()>> + Send {
+        self.server
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub fn database(&self) -> Arc<Database> {
+        self.database.clone()
+    }
+
+    pub fn host(&self) -> &str {
+        &self.host
+    }
 }

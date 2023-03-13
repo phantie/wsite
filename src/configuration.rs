@@ -5,27 +5,30 @@ use serde_aux::field_attributes::deserialize_number_from_string;
 
 #[derive(Deserialize)]
 pub struct Settings {
-    pub database: DatabaseSettings,
-    pub testing: Testing,
     pub application: ApplicationSettings,
+    pub database: DatabaseSettings,
     pub email_client: EmailClientSettings,
+
+    pub testing: Testing,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub dir: String,
+    pub memory_only: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Testing {
     pub database: DatabaseSettings,
+    pub application: ApplicationSettings,
 }
 
 pub fn get_configuration() -> Settings {
