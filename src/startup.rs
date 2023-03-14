@@ -13,6 +13,7 @@ pub fn router() -> Router<AppState> {
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
         .route("/subscriptions", get(all_subscriptions))
+        .route("/subscriptions/confirm", get(confirm))
         .layer(
             tower::ServiceBuilder::new()
                 .layer(tower_request_id::RequestIdLayer)
@@ -43,18 +44,21 @@ pub fn router() -> Router<AppState> {
 pub struct AppState {
     pub database: Arc<Database>,
     pub email_client: Arc<EmailClient>,
+    pub base_url: String,
 }
 
 pub fn run(
     listener: std::net::TcpListener,
     database: Arc<Database>,
     email_client: Arc<EmailClient>,
+    base_url: String,
 ) -> impl std::future::Future<Output = hyper::Result<()>> {
     let _configuration = get_configuration();
 
     let app_state = AppState {
         database,
         email_client,
+        base_url,
     };
 
     let app = router().with_state(app_state);
@@ -102,7 +106,12 @@ impl Application {
             .await,
         );
         let database = Arc::new(Database::init(storage.clone()).await);
-        let server = Box::pin(run(listener, database.clone(), email_client));
+        let server = Box::pin(run(
+            listener,
+            database.clone(),
+            email_client,
+            configuration.application.base_url.clone(),
+        ));
 
         Self {
             server,

@@ -20,3 +20,9 @@ services:
       # All incoming requests should be routed to our app
       routes:
           - path: /
+      envs:
+          # We use DO's APP_URL to inject the dynamically
+          # provisioned base url as an environment variable
+          - key: APP_APPLICATION__BASE_URL
+            scope: RUN_TIME
+            value: ${APP_URL}
