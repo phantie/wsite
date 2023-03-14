@@ -41,12 +41,9 @@ async fn subscribe_persists_the_new_subscriber() {
     let subscriptions_docs = Subscription::all_async(&app.database.collections.subscriptions)
         .await
         .unwrap();
-
     assert_eq!(subscriptions_docs.iter().count(), 1);
 
-    // verify the fields of the saved entry
     let subscription = &subscriptions_docs.iter().next().unwrap().contents;
-
     assert_eq!(subscription.name, "le guin");
     assert_eq!(subscription.email, "ursula_le_guin@gmail.com");
     assert_eq!(subscription.status, "pending_confirmation");

@@ -4,6 +4,8 @@ use crate::email_client::EmailClient;
 use crate::startup::AppState;
 use axum::extract::State;
 use axum::{extract::Form, http::StatusCode, Json};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 
 #[derive(serde::Deserialize, Clone)]
 #[allow(dead_code)]
@@ -35,13 +37,20 @@ pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>
         Err(_) => return StatusCode::BAD_REQUEST,
     };
 
-    if let Err(e) = insert_subscriber(&state, &new_subscriber).await {
+    let subscription_token = generate_subscription_token();
+
+    if let Err(e) = insert_subscriber(&state, &new_subscriber, subscription_token.clone()).await {
         tracing::error!("Failed to execute query: {:?}", e);
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 
-    if let Err(e) =
-        send_confirmation_email(&state.email_client, new_subscriber, &state.base_url).await
+    if let Err(e) = send_confirmation_email(
+        &state.email_client,
+        new_subscriber,
+        &state.base_url,
+        &subscription_token,
+    )
+    .await
     {
         tracing::error!("Failed to send email: {:?}", e);
         return StatusCode::INTERNAL_SERVER_ERROR;
@@ -58,8 +67,12 @@ pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
     base_url: &str,
+    subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = format!("{}/subscriptions/confirm?subscription_token=xyz", base_url);
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token={}",
+        base_url, subscription_token
+    );
     let plain_body = format!(
         "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
         confirmation_link
@@ -81,12 +94,13 @@ pub async fn send_confirmation_email(
 pub async fn insert_subscriber(
     state: &AppState,
     new_subscriber: &NewSubscriber,
+    subscription_token: String,
 ) -> Result<CollectionDocument<Subscription>, bonsaidb::core::schema::InsertError<Subscription>> {
     Subscription {
         name: new_subscriber.name.as_ref().to_owned(),
         email: new_subscriber.email.as_ref().to_owned(),
         status: "pending_confirmation".to_owned(),
-        token: "NULL".to_owned(),
+        token: subscription_token,
     }
     .push_into_async(&state.database.collections.subscriptions)
     .await
@@ -104,4 +118,13 @@ pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscr
         .collect::<Vec<_>>();
 
     Json(res)
+}
+
+/// Generate a random 25-characters-long case-sensitive subscription token.
+fn generate_subscription_token() -> String {
+    let mut rng = thread_rng();
+    std::iter::repeat_with(|| rng.sample(Alphanumeric))
+        .map(char::from)
+        .take(25)
+        .collect()
 }
