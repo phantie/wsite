@@ -1,29 +1,34 @@
+use crate::domain::SubscriberEmail;
 use serde::Deserialize;
-// to deserialize variables set via env vars
-use serde_aux::field_attributes::deserialize_number_from_string;
+use serde_aux::field_attributes::deserialize_number_from_string; // to deserialize variables provided via env vars
 
 #[derive(Deserialize)]
 pub struct Settings {
-    pub database: DatabaseSettings,
-    pub testing: Testing,
     pub application: ApplicationSettings,
+    pub database: DatabaseSettings,
+    pub email_client: EmailClientSettings,
+
+    pub testing: Testing,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
+    pub base_url: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub dir: String,
+    pub memory_only: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct Testing {
     pub database: DatabaseSettings,
+    pub application: ApplicationSettings,
 }
 
 pub fn get_configuration() -> Settings {
@@ -79,5 +84,22 @@ impl TryFrom<String> for Environment {
                 other
             )),
         }
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct EmailClientSettings {
+    pub base_url: String,
+    pub sender_email: String,
+    pub authorization_token: secrecy::Secret<String>,
+    pub timeout_milliseconds: u64,
+}
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        SubscriberEmail::parse(self.sender_email.clone())
+    }
+
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.timeout_milliseconds)
     }
 }

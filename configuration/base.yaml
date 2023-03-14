@@ -3,7 +3,20 @@ application:
 
 database:
     dir: "basic.bonsaidb"
+    memory_only: false
+
+email_client:
+    base_url: "localhost"
+    sender_email: "test@gmail.com"
+    authorization_token: "preciously-secret"
+    timeout_milliseconds: 10000
 
 testing:
     database:
         dir: "target/tmp/test/basic.bonsaidb"
+        memory_only: true
+
+    application:
+        port: 0
+        host: 127.0.0.1
+        base_url: "http://127.0.0.1"
