@@ -40,7 +40,9 @@ pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 
-    if let Err(e) = send_confirmation_email(&state.email_client, new_subscriber).await {
+    if let Err(e) =
+        send_confirmation_email(&state.email_client, new_subscriber, &state.base_url).await
+    {
         tracing::error!("Failed to send email: {:?}", e);
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
@@ -55,8 +57,9 @@ pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
+    base_url: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://my-api.com/subscriptions/confirm";
+    let confirmation_link = format!("{}/subscriptions/confirm?subscription_token=xyz", base_url);
     let plain_body = format!(
         "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
         confirmation_link
