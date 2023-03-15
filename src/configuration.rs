@@ -57,6 +57,9 @@ pub fn get_configuration() -> Settings {
         .add_source(config::Environment::with_prefix("app").separator("__"))
         .build();
 
+    let var = std::env::var("APP_APPLICATION__BASE_URL");
+    dbg!(var);
+
     config.unwrap().try_deserialize().unwrap()
 }
 

@@ -1,5 +1,8 @@
 docker build --tag api_aga_in --file Dockerfile .
+docker run -p 8000:8000 api_aga_in
 docker rm $(docker stop $(docker ps -a -q --filter ancestor=api_aga_in --format="{{.ID}}"))
 
 doctl apps list --format ID
 doctl apps update $APP_ID --spec spec.yaml
+
+doctl apps spec get $APP_ID
