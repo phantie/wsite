@@ -40,18 +40,18 @@ pub async fn subscribe(
 
     let subscription_token = generate_subscription_token();
 
-    insert_subscriber(&state, &new_subscriber, subscription_token.clone())
-        .await
-        .map_err(SubscribeError::InsertSubscriberError)?;
-
     send_confirmation_email(
         &state.email_client,
-        new_subscriber,
+        &new_subscriber,
         &state.base_url,
         &subscription_token,
     )
     .await
     .map_err(SubscribeError::SendEmailError)?;
+
+    insert_subscriber(&state, &new_subscriber, subscription_token)
+        .await
+        .map_err(SubscribeError::InsertSubscriberError)?;
 
     Ok(StatusCode::OK)
 }
@@ -62,7 +62,7 @@ pub async fn subscribe(
 )]
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
-    new_subscriber: NewSubscriber,
+    new_subscriber: &NewSubscriber,
     base_url: &str,
     subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
@@ -80,7 +80,7 @@ pub async fn send_confirmation_email(
         confirmation_link
     );
     email_client
-        .send_email(new_subscriber.email, "Welcome!", &html_body, &plain_body)
+        .send_email(&new_subscriber.email, "Welcome!", &html_body, &plain_body)
         .await
 }
 
@@ -126,29 +126,24 @@ fn generate_subscription_token() -> String {
         .collect()
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum SubscribeError {
+    #[error("{0}")]
     ValidationError(String),
-    InsertSubscriberError(bonsaidb::core::schema::InsertError<Subscription>),
-    SendEmailError(reqwest::Error),
+    #[error("Failed to insert into the database: {0}.")]
+    InsertSubscriberError(#[source] bonsaidb::core::schema::InsertError<Subscription>),
+    #[error("Failed to send a confirmation email: {0}.")]
+    SendEmailError(#[from] reqwest::Error),
 }
 
 impl axum::response::IntoResponse for SubscribeError {
     fn into_response(self) -> axum::response::Response {
-        let (status, message) = match self {
-            SubscribeError::ValidationError(message) => (StatusCode::BAD_REQUEST, message),
-            SubscribeError::InsertSubscriberError(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!(
-                    "Failed to insert into the database: {}.",
-                    e.error.to_string()
-                ),
-            ),
-            SubscribeError::SendEmailError(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to send an email: {}.", e.to_string()),
-            ),
+        let status = match &self {
+            SubscribeError::ValidationError(_message) => StatusCode::BAD_REQUEST,
+            SubscribeError::InsertSubscriberError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::SendEmailError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
         };
+        let message = self.to_string();
         tracing::error!("{}", message);
         (status, message).into_response()
     }
