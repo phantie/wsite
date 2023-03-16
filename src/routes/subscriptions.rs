@@ -23,6 +23,7 @@ impl TryFrom<FormData> for NewSubscriber {
     }
 }
 
+#[axum_macros::debug_handler]
 #[tracing::instrument(
     name = "Adding a new subscriber",
     skip(form, state),
@@ -31,32 +32,28 @@ impl TryFrom<FormData> for NewSubscriber {
         subscriber_name= %form.name
     )
 )]
-pub async fn subscribe(State(state): State<AppState>, Form(form): Form<FormData>) -> StatusCode {
-    let new_subscriber: NewSubscriber = match form.try_into() {
-        Ok(subscriber) => subscriber,
-        Err(_) => return StatusCode::BAD_REQUEST,
-    };
+pub async fn subscribe(
+    State(state): State<AppState>,
+    Form(form): Form<FormData>,
+) -> Result<StatusCode, SubscribeError> {
+    let new_subscriber: NewSubscriber = form.try_into().map_err(SubscribeError::ValidationError)?;
 
     let subscription_token = generate_subscription_token();
 
-    if let Err(e) = insert_subscriber(&state, &new_subscriber, subscription_token.clone()).await {
-        tracing::error!("Failed to execute query: {:?}", e);
-        return StatusCode::INTERNAL_SERVER_ERROR;
-    }
+    insert_subscriber(&state, &new_subscriber, subscription_token.clone())
+        .await
+        .map_err(SubscribeError::InsertSubscriberError)?;
 
-    if let Err(e) = send_confirmation_email(
+    send_confirmation_email(
         &state.email_client,
         new_subscriber,
         &state.base_url,
         &subscription_token,
     )
     .await
-    {
-        tracing::error!("Failed to send email: {:?}", e);
-        return StatusCode::INTERNAL_SERVER_ERROR;
-    }
+    .map_err(SubscribeError::SendEmailError)?;
 
-    StatusCode::OK
+    Ok(StatusCode::OK)
 }
 
 #[tracing::instrument(
@@ -127,4 +124,32 @@ fn generate_subscription_token() -> String {
         .map(char::from)
         .take(25)
         .collect()
+}
+
+#[derive(Debug)]
+pub enum SubscribeError {
+    ValidationError(String),
+    InsertSubscriberError(bonsaidb::core::schema::InsertError<Subscription>),
+    SendEmailError(reqwest::Error),
+}
+
+impl axum::response::IntoResponse for SubscribeError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, message) = match self {
+            SubscribeError::ValidationError(message) => (StatusCode::BAD_REQUEST, message),
+            SubscribeError::InsertSubscriberError(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!(
+                    "Failed to insert into the database: {}.",
+                    e.error.to_string()
+                ),
+            ),
+            SubscribeError::SendEmailError(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to send an email: {}.", e.to_string()),
+            ),
+        };
+        tracing::error!("{}", message);
+        (status, message).into_response()
+    }
 }

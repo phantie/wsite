@@ -6,7 +6,7 @@ database:
     memory_only: false
 
 email_client:
-    base_url: "localhost"
+    base_url: "http://127.0.0.1"
     sender_email: "test@gmail.com"
     authorization_token: "preciously-secret"
     timeout_milliseconds: 10000
