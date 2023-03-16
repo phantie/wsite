@@ -15,6 +15,7 @@ pub async fn confirm(
     Query(parameters): Query<Parameters>,
 ) -> StatusCode {
     // TODO optimize using views or anything
+    // TODO implement error handling like in subscriptions.rs
     let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
         .await
         .unwrap();
