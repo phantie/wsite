@@ -2,6 +2,7 @@ use crate::database::*;
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::email_client::EmailClient;
 use crate::startup::AppState;
+use anyhow::Context;
 use axum::extract::State;
 use axum::{extract::Form, http::StatusCode, Json};
 use rand::distributions::Alphanumeric;
@@ -47,11 +48,11 @@ pub async fn subscribe(
         &subscription_token,
     )
     .await
-    .map_err(SubscribeError::SendEmailError)?;
+    .context("Failed to send a confirmation email")?;
 
     insert_subscriber(&state, &new_subscriber, subscription_token)
         .await
-        .map_err(SubscribeError::InsertSubscriberError)?;
+        .context("Failed to insert into the database")?;
 
     Ok(StatusCode::OK)
 }
@@ -130,21 +131,23 @@ fn generate_subscription_token() -> String {
 pub enum SubscribeError {
     #[error("{0}")]
     ValidationError(String),
-    #[error("Failed to insert into the database: {0}.")]
-    InsertSubscriberError(#[source] bonsaidb::core::schema::InsertError<Subscription>),
-    #[error("Failed to send a confirmation email: {0}.")]
-    SendEmailError(#[from] reqwest::Error),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 impl axum::response::IntoResponse for SubscribeError {
     fn into_response(self) -> axum::response::Response {
-        let status = match &self {
-            SubscribeError::ValidationError(_message) => StatusCode::BAD_REQUEST,
-            SubscribeError::InsertSubscriberError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
-            SubscribeError::SendEmailError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
-        };
         let message = self.to_string();
-        tracing::error!("{}", message);
+        let (trace_message, status) = match &self {
+            SubscribeError::ValidationError(_message) => {
+                (self.to_string(), StatusCode::BAD_REQUEST)
+            }
+            SubscribeError::UnexpectedError(e) => (
+                format!("{}: {}", &message, e.source().unwrap()),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ),
+        };
+        tracing::error!("{}", trace_message);
         (status, message).into_response()
     }
 }
