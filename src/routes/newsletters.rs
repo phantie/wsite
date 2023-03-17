@@ -1,14 +1,14 @@
 use crate::database::*;
 use crate::startup::AppState;
 use crate::telemetry::spawn_blocking_with_tracing;
+use anyhow::Context;
 use argon2::Argon2;
 use argon2::{PasswordHash, PasswordVerifier};
-use axum::body::{Bytes, Empty};
 use axum::extract::rejection::TypedHeaderRejection;
 use axum::extract::{Json, State, TypedHeader};
 use axum::headers::{authorization::Basic, Authorization};
-use axum::http::StatusCode;
-use axum::response::Response;
+use axum::http::{header, StatusCode};
+use axum::response::IntoResponse;
 use secrecy::{ExposeSecret, Secret};
 
 #[derive(serde::Deserialize)]
@@ -28,29 +28,16 @@ pub async fn publish_newsletter(
     State(state): State<AppState>,
     maybe_basic_auth: Result<TypedHeader<Authorization<Basic>>, TypedHeaderRejection>,
     Json(body): Json<BodyData>,
-) -> Response<Empty<Bytes>> {
-    let unauthorized = Response::builder()
-        .status(StatusCode::UNAUTHORIZED)
-        .header("WWW-Authenticate", r#"Basic realm="publish""#)
-        .body(Empty::new())
-        .unwrap();
-
-    let basic_auth = match maybe_basic_auth {
-        Ok(TypedHeader(basic_auth)) => basic_auth,
-        Err(_) => return unauthorized,
-    };
+) -> Result<impl IntoResponse, PublishError> {
+    let TypedHeader(basic_auth) = maybe_basic_auth?;
 
     let credentials: Credentials = basic_auth.into();
-    let user_id = validate_credentials(&state, &credentials).await;
-
-    let _user_id = match user_id {
-        None => return unauthorized,
-        Some(user_id) => user_id,
-    };
+    let _user_id = validate_credentials(&state, &credentials).await?;
 
     let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
         .await
-        .unwrap();
+        .context("Failed to fetch subscriptions")
+        .map_err(PublishError::UnexpectedError)?;
 
     let confirmed_subscriptions = subscriptions_docs
         .into_iter()
@@ -66,13 +53,11 @@ pub async fn publish_newsletter(
                 &body.content.text,
             )
             .await
-            .unwrap();
+            .context("Failed to send email to a confirmed subscriber")
+            .map_err(PublishError::UnexpectedError)?;
     }
 
-    Response::builder()
-        .status(StatusCode::OK)
-        .body(Empty::new())
-        .unwrap()
+    Ok(StatusCode::OK)
 }
 
 struct Credentials {
@@ -90,16 +75,22 @@ impl From<Authorization<Basic>> for Credentials {
 }
 
 #[tracing::instrument(name = "Validate credentials", skip(credentials, state))]
-async fn validate_credentials(state: &AppState, credentials: &Credentials) -> Option<u64> {
+async fn validate_credentials(
+    state: &AppState,
+    credentials: &Credentials,
+) -> Result<u64, PublishError> {
     let mut user_id: Option<u64> = None;
-    let mut expected_password_hash = "$argon2id$v=19$m=15000,t=2,p=1$\
+    let mut expected_password_hash = Secret::new(
+        "$argon2id$v=19$m=15000,t=2,p=1$\
         gZiV/M1gPc22ElAH/Jh1Hw$\
         CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
-        .to_string();
+            .to_string(),
+    );
 
     let user_docs = User::all_async(&state.database.collections.users)
         .await
-        .unwrap();
+        .context("Failed to fetch users")
+        .map_err(PublishError::UnexpectedError)?;
 
     let user = user_docs
         .into_iter()
@@ -107,25 +98,74 @@ async fn validate_credentials(state: &AppState, credentials: &Credentials) -> Op
 
     if let Some(doc) = user {
         user_id = Some(doc.header.id);
-        expected_password_hash = doc.contents.password_hash;
+        expected_password_hash = Secret::new(doc.contents.password_hash);
     }
 
     let current_span = tracing::Span::current();
-    let password = credentials.password.expose_secret().clone();
+    let password = credentials.password.clone();
 
     // Tests that spawn an app run sequentially, therefore it does not speed up execution
     spawn_blocking_with_tracing(move || {
-        current_span.in_scope(|| {
-            // It's a slow operation, 10ms kind of slow.
-            Argon2::default().verify_password(
-                password.as_bytes(),
-                &PasswordHash::new(&expected_password_hash).ok().unwrap(),
-            )
-        })
+        current_span.in_scope(|| verify_password_hash(expected_password_hash, password))
     })
     .await
-    .ok()?
-    .ok()?;
+    .context("Failed to spawn blocking task.")
+    .map_err(PublishError::UnexpectedError)??;
 
-    user_id
+    Ok(user_id.unwrap())
+}
+
+#[tracing::instrument(
+    name = "Verify password hash",
+    skip(expected_password_hash, password_candidate)
+)]
+/// It's a slow operation, 10ms kind of slow.
+fn verify_password_hash(
+    expected_password_hash: Secret<String>,
+    password_candidate: Secret<String>,
+) -> Result<(), PublishError> {
+    let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
+        .context("Failed to parse hash in PHC string format.")
+        .map_err(PublishError::UnexpectedError)?;
+
+    Argon2::default()
+        .verify_password(
+            password_candidate.expose_secret().as_bytes(),
+            &expected_password_hash,
+        )
+        .context("Invalid password")
+        .map_err(PublishError::AuthError)
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum PublishError {
+    #[error("Auth header is rejected")]
+    AuthHeaderRejection(#[from] TypedHeaderRejection),
+
+    #[error("Authentication failed.")]
+    AuthError(#[source] anyhow::Error),
+
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+impl axum::response::IntoResponse for PublishError {
+    fn into_response(self) -> axum::response::Response {
+        let headers = [(header::WWW_AUTHENTICATE, r#"Basic realm="publish""#)];
+
+        let message = self.to_string();
+        let (trace_message, response) = match self {
+            Self::AuthHeaderRejection(_rejection) => {
+                (message, (StatusCode::UNAUTHORIZED, headers).into_response())
+            }
+            Self::AuthError(_e) => (message, (StatusCode::UNAUTHORIZED, headers).into_response()),
+            Self::UnexpectedError(e) => (
+                format!("{}: {}", &message, e.source().unwrap()),
+                StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            ),
+        };
+
+        tracing::error!("{}", trace_message);
+        response
+    }
 }
