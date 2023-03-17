@@ -1,4 +1,5 @@
-#[derive(Debug)]
+// All required to use as a field of a collection
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct SubscriberEmail(String);
 impl SubscriberEmail {
     pub fn parse(s: String) -> Result<SubscriberEmail, String> {
@@ -9,6 +10,7 @@ impl SubscriberEmail {
         }
     }
 }
+
 impl AsRef<str> for SubscriberEmail {
     fn as_ref(&self) -> &str {
         &self.0
@@ -39,7 +41,7 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     #[derive(Debug, Clone)]
-    struct ValidEmailFixture(pub String);
+    struct ValidEmailFixture(String);
     impl quickcheck::Arbitrary for ValidEmailFixture {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
             let mut rng = StdRng::seed_from_u64(u64::arbitrary(g));
