@@ -91,6 +91,12 @@ impl From<Authorization<Basic>> for Credentials {
 
 #[tracing::instrument(name = "Validate credentials", skip(credentials, state))]
 async fn validate_credentials(state: &AppState, credentials: &Credentials) -> Option<u64> {
+    let mut user_id: Option<u64> = None;
+    let mut expected_password_hash = "$argon2id$v=19$m=15000,t=2,p=1$\
+        gZiV/M1gPc22ElAH/Jh1Hw$\
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+        .to_string();
+
     let user_docs = User::all_async(&state.database.collections.users)
         .await
         .unwrap();
@@ -99,16 +105,10 @@ async fn validate_credentials(state: &AppState, credentials: &Credentials) -> Op
         .into_iter()
         .find(|doc| doc.contents.username == credentials.username);
 
-    let (
-        id,
-        User {
-            username: _username,
-            password_hash: expected_password_hash,
-        },
-    ) = match user {
-        Some(doc) => (doc.header.id, doc.contents),
-        None => return None,
-    };
+    if let Some(doc) = user {
+        user_id = Some(doc.header.id);
+        expected_password_hash = doc.contents.password_hash;
+    }
 
     let current_span = tracing::Span::current();
     let password = credentials.password.expose_secret().clone();
@@ -127,5 +127,5 @@ async fn validate_credentials(state: &AppState, credentials: &Credentials) -> Op
     .ok()?
     .ok()?;
 
-    Some(id)
+    user_id
 }
