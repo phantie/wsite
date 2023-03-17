@@ -3,6 +3,7 @@ use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::email_client::EmailClient;
 use crate::startup::AppState;
 use anyhow::Context;
+use axum::extract::rejection::FormRejection;
 use axum::{
     extract::{Form, Json, State},
     http::StatusCode,
@@ -29,16 +30,18 @@ impl TryFrom<FormData> for NewSubscriber {
 #[axum_macros::debug_handler]
 #[tracing::instrument(
     name = "Adding a new subscriber",
-    skip(form, state),
-    fields(
-        subscriber_email = %form.email,
-        subscriber_name= %form.name
-    )
+    skip(maybe_form, state),
+    // fields(
+    //     subscriber_email = %maybe_form.email,
+    //     subscriber_name= %maybe_form.name
+    // )
 )]
 pub async fn subscribe(
     State(state): State<AppState>,
-    Form(form): Form<FormData>,
+    maybe_form: Result<Form<FormData>, FormRejection>,
 ) -> Result<StatusCode, SubscribeError> {
+    let Form(form) = maybe_form?;
+
     let new_subscriber: NewSubscriber = form.try_into().map_err(SubscribeError::ValidationError)?;
 
     let subscription_token = generate_subscription_token();
@@ -131,6 +134,8 @@ fn generate_subscription_token() -> String {
 
 #[derive(thiserror::Error, Debug)]
 pub enum SubscribeError {
+    #[error("Form is rejected")]
+    FormRejection(#[from] FormRejection),
     #[error("{0}")]
     ValidationError(String),
     #[error(transparent)]
@@ -141,10 +146,9 @@ impl axum::response::IntoResponse for SubscribeError {
     fn into_response(self) -> axum::response::Response {
         let message = self.to_string();
         let (trace_message, status) = match &self {
-            SubscribeError::ValidationError(_message) => {
-                (self.to_string(), StatusCode::BAD_REQUEST)
-            }
-            SubscribeError::UnexpectedError(e) => (
+            Self::FormRejection(_form_rejection) => (self.to_string(), StatusCode::BAD_REQUEST),
+            Self::ValidationError(_message) => (self.to_string(), StatusCode::BAD_REQUEST),
+            Self::UnexpectedError(e) => (
                 format!("{}: {}", &message, e.source().unwrap()),
                 StatusCode::INTERNAL_SERVER_ERROR,
             ),
