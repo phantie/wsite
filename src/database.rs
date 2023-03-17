@@ -12,7 +12,7 @@ pub use bonsaidb::local::config::Builder;
 pub use bonsaidb::local::AsyncStorage;
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
-#[collection(name = "users")]
+#[collection(name = "subscriptions")]
 pub struct Subscription {
     pub name: String,
     pub email: crate::domain::SubscriberEmail,
@@ -20,10 +20,18 @@ pub struct Subscription {
     pub token: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
+#[collection(name = "users")]
+pub struct User {
+    pub username: String,
+    pub password: String,
+}
+
 pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     let mut configuration = StorageConfiguration::new(dir);
     configuration.memory_only = memory_only;
     let configuration = configuration.with_schema::<Subscription>().unwrap();
+    let configuration = configuration.with_schema::<User>().unwrap();
 
     AsyncStorage::open(configuration).await.unwrap()
 }
@@ -37,13 +45,18 @@ pub struct Database {
 #[derive(Clone)]
 pub struct Collections {
     pub subscriptions: AsyncDatabase,
+    pub users: AsyncDatabase,
 }
 
 impl Database {
     pub async fn init(storage: Arc<AsyncStorage>) -> Self {
         let collections = Collections {
             subscriptions: storage
-                .create_database::<Subscription>("users", true)
+                .create_database::<Subscription>("subscriptions", true)
+                .await
+                .unwrap(),
+            users: storage
+                .create_database::<User>("users", true)
                 .await
                 .unwrap(),
         };

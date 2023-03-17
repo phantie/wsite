@@ -39,6 +39,7 @@ pub async fn spawn_app() -> TestApp {
 
     let address = format!("http://{}:{}", host, port);
     let database = application.database();
+    add_test_user(database.clone()).await.unwrap();
 
     let _ = tokio::spawn(application.server());
 
@@ -91,21 +92,39 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
+        let (username, password) = self.test_user().await;
         reqwest::Client::new()
             .post(&format!("{}/newsletters", &self.address))
-            // TEMP
-            .basic_auth(
-                uuid::Uuid::new_v4().to_string(),
-                Some(uuid::Uuid::new_v4().to_string()),
-            )
+            .basic_auth(username, Some(password))
             .json(&body)
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub async fn test_user(&self) -> (String, String) {
+        let user_docs = User::all_async(&self.database.collections.users)
+            .await
+            .unwrap();
+
+        let user = user_docs.into_iter().next().unwrap();
+
+        (user.contents.username, user.contents.password)
     }
 }
 
 pub struct ConfirmationLinks {
     pub html: reqwest::Url,
     pub plain_text: reqwest::Url,
+}
+
+async fn add_test_user(
+    database: Arc<Database>,
+) -> Result<CollectionDocument<User>, bonsaidb::core::schema::InsertError<User>> {
+    User {
+        username: uuid::Uuid::new_v4().to_string(),
+        password: uuid::Uuid::new_v4().to_string(),
+    }
+    .push_into_async(&database.collections.users)
+    .await
 }
