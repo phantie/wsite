@@ -2,8 +2,9 @@ use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry::{get_subscriber, init_subscriber};
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher};
 use once_cell::sync::Lazy;
-use sha3::Digest;
 use std::sync::Arc;
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -129,8 +130,11 @@ impl TestUser {
     }
 
     async fn store(&self, database: Arc<Database>) {
-        let password_hash = sha3::Sha3_256::digest(self.password.as_bytes());
-        let password_hash = format!("{:x}", password_hash);
+        let salt = SaltString::generate(&mut rand::thread_rng());
+        let password_hash = Argon2::default()
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
 
         User {
             username: self.username.clone(),

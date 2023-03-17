@@ -1,5 +1,8 @@
 use crate::database::*;
 use crate::startup::AppState;
+use crate::telemetry::spawn_blocking_with_tracing;
+use argon2::Argon2;
+use argon2::{PasswordHash, PasswordVerifier};
 use axum::body::{Bytes, Empty};
 use axum::extract::rejection::TypedHeaderRejection;
 use axum::extract::{Json, State, TypedHeader};
@@ -7,7 +10,6 @@ use axum::headers::{authorization::Basic, Authorization};
 use axum::http::StatusCode;
 use axum::response::Response;
 use secrecy::{ExposeSecret, Secret};
-use sha3::Digest;
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
@@ -87,20 +89,43 @@ impl From<Authorization<Basic>> for Credentials {
     }
 }
 
+#[tracing::instrument(name = "Validate credentials", skip(credentials, state))]
 async fn validate_credentials(state: &AppState, credentials: &Credentials) -> Option<u64> {
-    let password_hash = sha3::Sha3_256::digest(credentials.password.expose_secret().as_bytes());
-    let password_hash = format!("{:x}", password_hash);
-
     let user_docs = User::all_async(&state.database.collections.users)
         .await
         .unwrap();
 
-    let user = user_docs.into_iter().find(|doc| {
-        doc.contents.username == credentials.username && doc.contents.password_hash == password_hash
-    });
+    let user = user_docs
+        .into_iter()
+        .find(|doc| doc.contents.username == credentials.username);
 
-    match user {
-        None => None,
-        Some(user) => Some(user.header.id),
-    }
+    let (
+        id,
+        User {
+            username: _username,
+            password_hash: expected_password_hash,
+        },
+    ) = match user {
+        Some(doc) => (doc.header.id, doc.contents),
+        None => return None,
+    };
+
+    let current_span = tracing::Span::current();
+    let password = credentials.password.expose_secret().clone();
+
+    // Tests that spawn an app run sequentially, therefore it does not speed up execution
+    spawn_blocking_with_tracing(move || {
+        current_span.in_scope(|| {
+            // It's a slow operation, 10ms kind of slow.
+            Argon2::default().verify_password(
+                password.as_bytes(),
+                &PasswordHash::new(&expected_password_hash).ok().unwrap(),
+            )
+        })
+    })
+    .await
+    .ok()?
+    .ok()?;
+
+    Some(id)
 }
