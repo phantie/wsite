@@ -31,16 +31,20 @@ impl TryFrom<FormData> for NewSubscriber {
 #[tracing::instrument(
     name = "Adding a new subscriber",
     skip(maybe_form, state),
-    // fields(
-    //     subscriber_email = %maybe_form.email,
-    //     subscriber_name= %maybe_form.name
-    // )
+    fields(
+        subscriber_email = tracing::field::Empty,
+        subscriber_name = tracing::field::Empty
+    )
 )]
 pub async fn subscribe(
     State(state): State<AppState>,
     maybe_form: Result<Form<FormData>, FormRejection>,
 ) -> Result<StatusCode, SubscribeError> {
     let Form(form) = maybe_form?;
+
+    tracing::Span::current()
+        .record("subscriber_email", &tracing::field::display(&form.email))
+        .record("subscriber_name", &tracing::field::display(&form.name));
 
     let new_subscriber: NewSubscriber = form.try_into().map_err(SubscribeError::ValidationError)?;
 
