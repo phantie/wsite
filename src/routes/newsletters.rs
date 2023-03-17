@@ -1,7 +1,12 @@
 use crate::database::*;
 use crate::startup::AppState;
-use axum::extract::{Json, State};
+use axum::body::{Bytes, Full};
+use axum::extract::rejection::TypedHeaderRejection;
+use axum::extract::{Json, State, TypedHeader};
+use axum::headers::{authorization::Basic, Authorization};
 use axum::http::StatusCode;
+use axum::response::Response;
+use secrecy::Secret;
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
@@ -15,10 +20,24 @@ pub struct Content {
     text: String,
 }
 
+#[axum_macros::debug_handler]
 pub async fn publish_newsletter(
     State(state): State<AppState>,
+    maybe_basic_auth: Result<TypedHeader<Authorization<Basic>>, TypedHeaderRejection>,
     Json(body): Json<BodyData>,
-) -> StatusCode {
+) -> Response<Full<Bytes>> {
+    let basic_auth = match maybe_basic_auth {
+        Ok(TypedHeader(basic_auth)) => basic_auth,
+        Err(_) => {
+            return Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .header("WWW-Authenticate", r#"Basic realm="publish""#)
+                .body(Full::from(""))
+                .unwrap()
+        }
+    };
+    let _credentials: Credentials = basic_auth.into();
+
     let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
         .await
         .unwrap();
@@ -40,5 +59,22 @@ pub async fn publish_newsletter(
             .unwrap();
     }
 
-    StatusCode::OK
+    Response::builder()
+        .status(StatusCode::OK)
+        .body(Full::from(""))
+        .unwrap()
+}
+
+struct Credentials {
+    username: String,
+    password: Secret<String>,
+}
+
+impl From<Authorization<Basic>> for Credentials {
+    fn from(value: Authorization<Basic>) -> Self {
+        Self {
+            username: value.username().into(),
+            password: Secret::new(value.password().into()),
+        }
+    }
 }

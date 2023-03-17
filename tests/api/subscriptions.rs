@@ -65,9 +65,9 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
         let response = app.post_subscriptions(invalid_body.into()).await;
 
         assert_eq!(
-            StatusCode::UNPROCESSABLE_ENTITY,
+            StatusCode::BAD_REQUEST,
             response.status(),
-            "The API did not fail with 422 Unprocessable Content when the payload was {}.",
+            "The API did not fail with 400 Bad Request when the payload was {}.",
             error_message
         );
     }
