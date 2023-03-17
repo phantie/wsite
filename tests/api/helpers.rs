@@ -3,7 +3,7 @@ use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use argon2::password_hash::SaltString;
-use argon2::{Argon2, PasswordHasher};
+use argon2::{Algorithm, Argon2, Params, PasswordHasher, Version};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -131,10 +131,14 @@ impl TestUser {
 
     async fn store(&self, database: Arc<Database>) {
         let salt = SaltString::generate(&mut rand::thread_rng());
-        let password_hash = Argon2::default()
-            .hash_password(self.password.as_bytes(), &salt)
-            .unwrap()
-            .to_string();
+        let password_hash = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None).unwrap(),
+        )
+        .hash_password(self.password.as_bytes(), &salt)
+        .unwrap()
+        .to_string();
 
         User {
             username: self.username.clone(),
