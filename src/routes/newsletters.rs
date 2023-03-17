@@ -1,12 +1,13 @@
 use crate::database::*;
 use crate::startup::AppState;
-use axum::body::{Bytes, Empty, Full};
+use axum::body::{Bytes, Empty};
 use axum::extract::rejection::TypedHeaderRejection;
 use axum::extract::{Json, State, TypedHeader};
 use axum::headers::{authorization::Basic, Authorization};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use secrecy::{ExposeSecret, Secret};
+use sha3::Digest;
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
@@ -40,7 +41,7 @@ pub async fn publish_newsletter(
     let credentials: Credentials = basic_auth.into();
     let user_id = validate_credentials(&state, &credentials).await;
 
-    let user_id = match user_id {
+    let _user_id = match user_id {
         None => return unauthorized,
         Some(user_id) => user_id,
     };
@@ -87,13 +88,15 @@ impl From<Authorization<Basic>> for Credentials {
 }
 
 async fn validate_credentials(state: &AppState, credentials: &Credentials) -> Option<u64> {
+    let password_hash = sha3::Sha3_256::digest(credentials.password.expose_secret().as_bytes());
+    let password_hash = format!("{:x}", password_hash);
+
     let user_docs = User::all_async(&state.database.collections.users)
         .await
         .unwrap();
 
     let user = user_docs.into_iter().find(|doc| {
-        doc.contents.username == credentials.username
-            && doc.contents.password == *credentials.password.expose_secret()
+        doc.contents.username == credentials.username && doc.contents.password_hash == password_hash
     });
 
     match user {
