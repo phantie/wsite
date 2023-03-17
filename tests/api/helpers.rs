@@ -3,7 +3,9 @@ use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
+use sha3::Digest;
 use std::sync::Arc;
+use uuid::Uuid;
 use wiremock::MockServer;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -39,15 +41,18 @@ pub async fn spawn_app() -> TestApp {
 
     let address = format!("http://{}:{}", host, port);
     let database = application.database();
-    add_test_user(database.clone()).await.unwrap();
 
     let _ = tokio::spawn(application.server());
+
+    let test_user = TestUser::generate();
+    test_user.store(database.clone()).await;
 
     TestApp {
         address,
         database,
         email_server,
         port,
+        test_user,
     }
 }
 
@@ -56,6 +61,7 @@ pub struct TestApp {
     pub database: Arc<Database>,
     pub email_server: MockServer,
     pub port: u16,
+    pub test_user: TestUser,
 }
 
 impl TestApp {
@@ -92,24 +98,13 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-        let (username, password) = self.test_user().await;
         reqwest::Client::new()
             .post(&format!("{}/newsletters", &self.address))
-            .basic_auth(username, Some(password))
+            .basic_auth(&self.test_user.username, Some(&self.test_user.password))
             .json(&body)
             .send()
             .await
             .expect("Failed to execute request.")
-    }
-
-    pub async fn test_user(&self) -> (String, String) {
-        let user_docs = User::all_async(&self.database.collections.users)
-            .await
-            .unwrap();
-
-        let user = user_docs.into_iter().next().unwrap();
-
-        (user.contents.username, user.contents.password)
     }
 }
 
@@ -118,13 +113,31 @@ pub struct ConfirmationLinks {
     pub plain_text: reqwest::Url,
 }
 
-async fn add_test_user(
-    database: Arc<Database>,
-) -> Result<CollectionDocument<User>, bonsaidb::core::schema::InsertError<User>> {
-    User {
-        username: uuid::Uuid::new_v4().to_string(),
-        password: uuid::Uuid::new_v4().to_string(),
+pub struct TestUser {
+    pub user_id: Uuid,
+    pub username: String,
+    pub password: String,
+}
+
+impl TestUser {
+    pub fn generate() -> Self {
+        Self {
+            user_id: Uuid::new_v4(),
+            username: Uuid::new_v4().to_string(),
+            password: Uuid::new_v4().to_string(),
+        }
     }
-    .push_into_async(&database.collections.users)
-    .await
+
+    async fn store(&self, database: Arc<Database>) {
+        let password_hash = sha3::Sha3_256::digest(self.password.as_bytes());
+        let password_hash = format!("{:x}", password_hash);
+
+        User {
+            username: self.username.clone(),
+            password_hash: password_hash,
+        }
+        .push_into_async(&database.collections.users)
+        .await
+        .unwrap();
+    }
 }

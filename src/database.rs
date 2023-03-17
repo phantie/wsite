@@ -24,7 +24,7 @@ pub struct Subscription {
 #[collection(name = "users")]
 pub struct User {
     pub username: String,
-    pub password: String,
+    pub password_hash: String,
 }
 
 pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
