@@ -3,8 +3,10 @@ use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use crate::email_client::EmailClient;
 use crate::startup::AppState;
 use anyhow::Context;
-use axum::extract::State;
-use axum::{extract::Form, http::StatusCode, Json};
+use axum::{
+    extract::{Form, Json, State},
+    http::StatusCode,
+};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
@@ -96,7 +98,7 @@ pub async fn insert_subscriber(
 ) -> Result<CollectionDocument<Subscription>, bonsaidb::core::schema::InsertError<Subscription>> {
     Subscription {
         name: new_subscriber.name.as_ref().to_owned(),
-        email: new_subscriber.email.as_ref().to_owned(),
+        email: new_subscriber.email.clone(),
         status: "pending_confirmation".to_owned(),
         token: subscription_token,
     }

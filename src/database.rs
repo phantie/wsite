@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
 use bonsaidb::core::schema::Collection;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::AsyncDatabase;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::connection::StorageConnection;
@@ -16,7 +15,7 @@ pub use bonsaidb::local::AsyncStorage;
 #[collection(name = "users")]
 pub struct Subscription {
     pub name: String,
-    pub email: String,
+    pub email: crate::domain::SubscriberEmail,
     pub status: String,
     pub token: String,
 }

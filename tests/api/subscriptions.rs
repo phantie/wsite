@@ -45,7 +45,7 @@ async fn subscribe_persists_the_new_subscriber() {
 
     let subscription = &subscriptions_docs.iter().next().unwrap().contents;
     assert_eq!(subscription.name, "le guin");
-    assert_eq!(subscription.email, "ursula_le_guin@gmail.com");
+    assert_eq!(subscription.email.as_ref(), "ursula_le_guin@gmail.com");
     assert_eq!(subscription.status, "pending_confirmation");
 }
 
@@ -67,8 +67,7 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
         assert_eq!(
             StatusCode::UNPROCESSABLE_ENTITY,
             response.status(),
-            // Additional customised error message on test failure
-            "The API did not fail with 400 Bad Request when the payload was {}.",
+            "The API did not fail with 422 Unprocessable Content when the payload was {}.",
             error_message
         );
     }
@@ -97,9 +96,9 @@ async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
         let response = app.post_subscriptions(body.into()).await;
         // Assert
         assert_eq!(
-            400,
-            response.status().as_u16(),
-            "The API did not return a 400 when the payload was {}.",
+            StatusCode::BAD_REQUEST,
+            response.status(),
+            "The API did not return a 400 Bad Request when the payload was {}.",
             description
         );
     }

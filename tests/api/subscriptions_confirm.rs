@@ -72,6 +72,6 @@ async fn clicking_on_the_confirmation_link_confirms_a_subscriber() {
 
     let subscription = &subscriptions_docs.iter().next().unwrap().contents;
     assert_eq!(subscription.name, "le guin");
-    assert_eq!(subscription.email, "ursula_le_guin@gmail.com");
+    assert_eq!(subscription.email.as_ref(), "ursula_le_guin@gmail.com");
     assert_eq!(subscription.status, "confirmed");
 }
