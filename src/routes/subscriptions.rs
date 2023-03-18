@@ -1,15 +1,15 @@
-use crate::database::*;
-use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
-use crate::email_client::EmailClient;
-use crate::startup::AppState;
+use crate::{
+    database::*,
+    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
+    email_client::EmailClient,
+    startup::AppState,
+};
 use anyhow::Context;
-use axum::extract::rejection::FormRejection;
 use axum::{
-    extract::{Form, Json, State},
+    extract::{rejection::FormRejection, Form, Json, State},
     http::StatusCode,
 };
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 #[derive(serde::Deserialize, Clone)]
 #[allow(dead_code)]
@@ -150,7 +150,7 @@ impl axum::response::IntoResponse for SubscribeError {
     fn into_response(self) -> axum::response::Response {
         let message = self.to_string();
         let (trace_message, status) = match &self {
-            Self::FormRejection(_form_rejection) => (self.to_string(), StatusCode::BAD_REQUEST),
+            Self::FormRejection(_rejection) => (self.to_string(), StatusCode::BAD_REQUEST),
             Self::ValidationError(_message) => (self.to_string(), StatusCode::BAD_REQUEST),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", &message, e.source().unwrap()),
