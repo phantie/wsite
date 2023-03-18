@@ -1,8 +1,8 @@
-use crate::database::*;
-use crate::startup::AppState;
-use axum::extract::Query;
-use axum::extract::State;
-use axum::http::StatusCode;
+use crate::{database::*, startup::AppState};
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+};
 
 #[derive(serde::Deserialize, Debug)]
 pub struct Parameters {
