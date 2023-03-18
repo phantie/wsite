@@ -15,6 +15,9 @@ pub fn router() -> Router<AppState> {
         .route("/subscriptions", get(all_subscriptions))
         .route("/subscriptions/confirm", get(confirm))
         .route("/newsletters", post(publish_newsletter))
+        .route("/", get(home))
+        .route("/login", get(login_form))
+        .route("/login", post(login))
         .layer(
             tower::ServiceBuilder::new()
                 .layer(tower_request_id::RequestIdLayer)
