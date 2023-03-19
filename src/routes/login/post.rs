@@ -1,16 +1,19 @@
 use crate::authentication::{validate_credentials, AuthError, Credentials};
+use crate::configuration::get_configuration;
 use crate::startup::AppState;
+#[allow(unused_imports)]
 use axum::{
-    extract::{rejection::FormRejection, Form, State},
-    http::StatusCode,
+    extract::{rejection::FormRejection, Form, Query, State},
     response::Redirect,
 };
-use secrecy::Secret;
+use hmac::{Hmac, Mac};
+use secrecy::{ExposeSecret, Secret};
 
 #[tracing::instrument(
     skip(maybe_form, state),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
+#[axum_macros::debug_handler]
 pub async fn login(
     State(state): State<AppState>,
     maybe_form: Result<Form<FormData>, FormRejection>,
@@ -60,16 +63,28 @@ pub enum LoginError {
 
 impl axum::response::IntoResponse for LoginError {
     fn into_response(self) -> axum::response::Response {
-        let message = self.to_string();
-        let (trace_message, status) = match &self {
-            Self::FormRejection(_rejection) => (self.to_string(), StatusCode::BAD_REQUEST),
-            Self::AuthError(_e) => (self.to_string(), StatusCode::UNAUTHORIZED),
-            Self::UnexpectedError(e) => (
-                format!("{}: {}", &message, e.source().unwrap()),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ),
+        let trace_message = match &self {
+            Self::FormRejection(_rejection) => self.to_string(),
+            Self::AuthError(_e) => self.to_string(),
+            Self::UnexpectedError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
         };
         tracing::error!("{}", trace_message);
-        (status, message).into_response()
+
+        let query_string = format!("error={}", urlencoding::Encoded::new(self.to_string()));
+        // Ideally to fetch this value from state
+        // The downside can be noticed in testing
+        let configuration = get_configuration();
+        let secret: &[u8] = configuration
+            .application
+            .hmac_secret
+            .expose_secret()
+            .as_bytes();
+        let hmac_tag = {
+            let mut mac = Hmac::<sha2::Sha256>::new_from_slice(secret).unwrap();
+            mac.update(query_string.as_bytes());
+            mac.finalize().into_bytes()
+        };
+
+        Redirect::to(&format!("/login?{query_string}&tag={hmac_tag:x}")).into_response()
     }
 }
