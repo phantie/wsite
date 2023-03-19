@@ -1,25 +1,20 @@
-use crate::configuration::get_configuration;
-#[allow(unused_imports)]
-use axum::{extract::Query, response::Html};
-use hmac::{Hmac, Mac};
-use secrecy::{ExposeSecret, Secret};
+#![allow(unused_imports)]
+use axum::response::{IntoResponse, Response};
+use axum::{
+    extract::{rejection::TypedHeaderRejection, Query, TypedHeader},
+    response::Html,
+};
+use axum_extra::extract::cookie::{Cookie, CookieJar};
 
-pub async fn login_form(parameters: Option<Query<QueryParams>>) -> Html<&'static str> {
-    let configuration = get_configuration();
-    let hmac_secret = &configuration.application.hmac_secret;
+pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
+    let error_cookie = jar.get("_flash");
 
-    let error_html = match parameters {
+    let error_html: String = match error_cookie {
         None => "".into(),
-        Some(Query(parameters)) => match parameters.verify(hmac_secret) {
-            Ok(error) => {
-                format!("<p><i>{}</i></p>", htmlescape::encode_minimal(&error))
-            }
-            Err(e) => {
-                tracing::warn!(error.message = %e, error.cause_chain = ?e, 
-                    "Failed to verify query parameters using the HMAC tag");
-                "".into()
-            }
-        },
+        Some(cookie) => {
+            let error = cookie.value();
+            format!("<p><i>{}</i></p>", htmlescape::encode_minimal(&error))
+        }
     };
 
     // Html(include_str!("login.html"))
@@ -52,23 +47,14 @@ pub async fn login_form(parameters: Option<Query<QueryParams>>) -> Html<&'static
         )
         .into_boxed_str(),
     );
-    Html(html)
-}
 
-#[derive(serde::Deserialize)]
-pub struct QueryParams {
-    error: String,
-    tag: String,
-}
+    let flash_cookie = {
+        let mut c = Cookie::new("_flash", "");
+        c.set_max_age(time::Duration::ZERO);
+        c
+    };
 
-impl QueryParams {
-    fn verify(self, secret: &Secret<String>) -> Result<String, anyhow::Error> {
-        let tag = hex::decode(self.tag)?;
-        let query_string = format!("error={}", urlencoding::Encoded::new(&self.error));
-        let mut mac =
-            Hmac::<sha2::Sha256>::new_from_slice(secret.expose_secret().as_bytes()).unwrap();
-        mac.update(query_string.as_bytes());
-        mac.verify_slice(&tag)?;
-        Ok(self.error)
-    }
+    let jar = jar.add(flash_cookie);
+
+    (jar, Html(html))
 }
