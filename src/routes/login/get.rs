@@ -1,7 +1,74 @@
-#![allow(unused_imports)]
-use axum::http::StatusCode;
-use axum::response::Html;
+use crate::configuration::get_configuration;
+#[allow(unused_imports)]
+use axum::{extract::Query, response::Html};
+use hmac::{Hmac, Mac};
+use secrecy::{ExposeSecret, Secret};
 
-pub async fn login_form() -> Html<&'static str> {
-    Html(include_str!("login.html"))
+pub async fn login_form(parameters: Option<Query<QueryParams>>) -> Html<&'static str> {
+    let configuration = get_configuration();
+    let hmac_secret = &configuration.application.hmac_secret;
+
+    let error_html = match parameters {
+        None => "".into(),
+        Some(Query(parameters)) => match parameters.verify(hmac_secret) {
+            Ok(error) => {
+                format!("<p><i>{}</i></p>", htmlescape::encode_minimal(&error))
+            }
+            Err(e) => {
+                tracing::warn!(error.message = %e, error.cause_chain = ?e, 
+                    "Failed to verify query parameters using the HMAC tag");
+                "".into()
+            }
+        },
+    };
+
+    // Html(include_str!("login.html"))
+    let html: &'static str = Box::leak(
+        format!(
+            r#"
+    <!DOCTYPE html>
+    <html lang="en">
+    
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <title>Login</title>
+    </head>
+    
+    <body>
+        {error_html}
+        <form action="/login" method="post">
+            <label>Username
+                <input type="text" placeholder="Enter Username" name="username">
+            </label>
+            <label>Password
+                <input type="password" placeholder="Enter Password" name="password">
+            </label>
+            <button type="submit">Login</button>
+        </form>
+    </body>
+    
+    </html>
+    "#
+        )
+        .into_boxed_str(),
+    );
+    Html(html)
+}
+
+#[derive(serde::Deserialize)]
+pub struct QueryParams {
+    error: String,
+    tag: String,
+}
+
+impl QueryParams {
+    fn verify(self, secret: &Secret<String>) -> Result<String, anyhow::Error> {
+        let tag = hex::decode(self.tag)?;
+        let query_string = format!("error={}", urlencoding::Encoded::new(&self.error));
+        let mut mac =
+            Hmac::<sha2::Sha256>::new_from_slice(secret.expose_secret().as_bytes()).unwrap();
+        mac.update(query_string.as_bytes());
+        mac.verify_slice(&tag)?;
+        Ok(self.error)
+    }
 }

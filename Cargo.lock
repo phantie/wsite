@@ -103,6 +103,9 @@ dependencies = [
  "claims",
  "config",
  "fake",
+ "hex",
+ "hmac 0.12.1",
+ "htmlescape",
  "hyper",
  "linkify",
  "once_cell",
@@ -116,6 +119,7 @@ dependencies = [
  "serde-aux",
  "serde_json",
  "serial_test",
+ "sha2 0.10.6",
  "thiserror",
  "tokio",
  "tower",
@@ -126,6 +130,7 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "unicode-segmentation",
+ "urlencoding",
  "uuid",
  "validator",
  "wiremock",
@@ -797,7 +802,7 @@ checksum = "43ee23aa5b4f68c7a092b5c3beb25f50c406adc75e2363634f242f28ab255372"
 dependencies = [
  "der",
  "elliptic-curve",
- "hmac",
+ "hmac 0.11.0",
  "signature",
 ]
 
@@ -1156,6 +1161,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hmac"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1164,6 +1175,21 @@ dependencies = [
  "crypto-mac",
  "digest 0.9.0",
 ]
+
+[[package]]
+name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest 0.10.6",
+]
+
+[[package]]
+name = "htmlescape"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9025058dae765dee5070ec375f591e2ba14638c63feff74f13805a72e523163"
 
 [[package]]
 name = "http"
@@ -2835,6 +2861,12 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
+
+[[package]]
+name = "urlencoding"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
 
 [[package]]
 name = "uuid"
