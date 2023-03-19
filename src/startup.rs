@@ -5,6 +5,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use axum_sessions::{async_session::MemoryStore, SessionLayer};
+use rand::Rng;
 use std::sync::Arc;
 
 pub fn router() -> Router<AppState> {
@@ -18,6 +20,7 @@ pub fn router() -> Router<AppState> {
         .route("/", get(home))
         .route("/login", get(login_form))
         .route("/login", post(login))
+        .route("/admin/dashboard", get(admin_dashboard))
         .layer(
             tower::ServiceBuilder::new()
                 .layer(tower_request_id::RequestIdLayer)
@@ -42,6 +45,12 @@ pub fn router() -> Router<AppState> {
                     ),
                 ),
         )
+        .layer({
+            let store = MemoryStore::new();
+            let mut secret = [0_u8; 128];
+            rand::thread_rng().fill(&mut secret);
+            SessionLayer::new(store, &secret).with_secure(true)
+        })
 }
 
 #[derive(Clone)]
