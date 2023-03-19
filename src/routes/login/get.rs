@@ -48,13 +48,7 @@ pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
         .into_boxed_str(),
     );
 
-    let flash_cookie = {
-        let mut c = Cookie::new("_flash", "");
-        c.set_max_age(time::Duration::ZERO);
-        c
-    };
-
-    let jar = jar.add(flash_cookie);
+    let jar = jar.remove(Cookie::named("_flash"));
 
     (jar, Html(html))
 }
