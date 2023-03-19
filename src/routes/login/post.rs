@@ -1,13 +1,16 @@
+// use std::time::Duration;
+
 use crate::authentication::{validate_credentials, AuthError, Credentials};
-use crate::configuration::get_configuration;
 use crate::startup::AppState;
+use axum::response::{IntoResponse, Response};
 #[allow(unused_imports)]
 use axum::{
     extract::{rejection::FormRejection, Form, Query, State},
+    http::header,
     response::Redirect,
 };
-use hmac::{Hmac, Mac};
-use secrecy::{ExposeSecret, Secret};
+use axum_extra::extract::cookie::{Cookie, CookieJar};
+use secrecy::Secret;
 
 #[tracing::instrument(
     skip(maybe_form, state),
@@ -17,7 +20,7 @@ use secrecy::{ExposeSecret, Secret};
 pub async fn login(
     State(state): State<AppState>,
     maybe_form: Result<Form<FormData>, FormRejection>,
-) -> Result<Redirect, LoginError> {
+) -> Result<Response, LoginError> {
     let Form(form) = maybe_form?;
     let credentials: Credentials = form.into();
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
@@ -30,7 +33,9 @@ pub async fn login(
         })?;
     tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
-    Ok(Redirect::to("/"))
+    // let headers = [(header::SET_COOKIE, format!(r#"_flash=""; Max-Age=0"#))];
+
+    Ok(Redirect::to("/").into_response())
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -70,21 +75,12 @@ impl axum::response::IntoResponse for LoginError {
         };
         tracing::error!("{}", trace_message);
 
-        let query_string = format!("error={}", urlencoding::Encoded::new(self.to_string()));
-        // Ideally to fetch this value from state
-        // The downside can be noticed in testing
-        let configuration = get_configuration();
-        let secret: &[u8] = configuration
-            .application
-            .hmac_secret
-            .expose_secret()
-            .as_bytes();
-        let hmac_tag = {
-            let mut mac = Hmac::<sha2::Sha256>::new_from_slice(secret).unwrap();
-            mac.update(query_string.as_bytes());
-            mac.finalize().into_bytes()
-        };
+        let jar = CookieJar::new();
+        let error_message = self.to_string();
+        let jar = jar.add(Cookie::new("_flash", error_message));
 
-        Redirect::to(&format!("/login?{query_string}&tag={hmac_tag:x}")).into_response()
+        let redirect = Redirect::to(&format!("/login"));
+
+        (jar, redirect).into_response()
     }
 }
