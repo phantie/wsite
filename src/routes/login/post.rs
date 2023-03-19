@@ -1,24 +1,28 @@
 // use std::time::Duration;
 
-use crate::authentication::{validate_credentials, AuthError, Credentials};
-use crate::startup::AppState;
-use axum::response::{IntoResponse, Response};
+use crate::{
+    authentication::{validate_credentials, AuthError, Credentials},
+    startup::AppState,
+};
+use anyhow::Context;
 #[allow(unused_imports)]
 use axum::{
     extract::{rejection::FormRejection, Form, Query, State},
     http::header,
-    response::Redirect,
+    response::{IntoResponse, Redirect, Response},
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
+use axum_sessions::extractors::WritableSession;
 use secrecy::Secret;
 
 #[tracing::instrument(
-    skip(maybe_form, state),
+    skip(maybe_form, state, session),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 #[axum_macros::debug_handler]
 pub async fn login(
     State(state): State<AppState>,
+    mut session: WritableSession,
     maybe_form: Result<Form<FormData>, FormRejection>,
 ) -> Result<Response, LoginError> {
     let Form(form) = maybe_form?;
@@ -33,9 +37,13 @@ pub async fn login(
         })?;
     tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
-    // let headers = [(header::SET_COOKIE, format!(r#"_flash=""; Max-Age=0"#))];
+    session.regenerate();
+    session
+        .insert("user_id", user_id)
+        .context("Failed to register user_id in a session")
+        .map_err(LoginError::UnexpectedError)?;
 
-    Ok(Redirect::to("/").into_response())
+    Ok(Redirect::to("/admin/dashboard").into_response())
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -79,7 +87,7 @@ impl axum::response::IntoResponse for LoginError {
         let error_message = self.to_string();
         let jar = jar.add(Cookie::new("_flash", error_message));
 
-        let redirect = Redirect::to(&format!("/login"));
+        let redirect = Redirect::to("/login");
 
         (jar, redirect).into_response()
     }
