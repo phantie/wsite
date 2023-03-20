@@ -12,15 +12,9 @@ pub async fn admin_dashboard(State(state): State<AppState>, session: ReadableSes
     match user_id {
         None => Redirect::to("/login").into_response(),
         Some(id) => {
-            let user_docs = User::all_async(&state.database.collections.users)
+            let user = User::get_async(id, &state.database.collections.users)
                 .await
-                .unwrap();
-
-            let user = user_docs
-                .into_iter()
-                .find(|doc| doc.header.id == id)
-                .into_iter()
-                .next()
+                .unwrap()
                 .unwrap();
 
             (
