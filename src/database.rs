@@ -32,17 +32,19 @@ pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     configuration.memory_only = memory_only;
     let configuration = configuration.with_schema::<Subscription>().unwrap();
     let configuration = configuration.with_schema::<User>().unwrap();
+    let configuration = configuration.with_schema::<()>().unwrap();
 
     AsyncStorage::open(configuration).await.unwrap()
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Database {
     pub storage: Arc<AsyncStorage>,
     pub collections: Collections,
+    pub sessions: AsyncDatabase,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Collections {
     pub subscriptions: AsyncDatabase,
     pub users: AsyncDatabase,
@@ -61,9 +63,15 @@ impl Database {
                 .unwrap(),
         };
 
+        let sessions = storage
+            .create_database::<()>("sessions", true)
+            .await
+            .unwrap();
+
         Self {
             storage,
             collections,
+            sessions,
         }
     }
 }

@@ -5,11 +5,14 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use axum_sessions::{async_session::MemoryStore, SessionLayer};
-use rand::Rng;
+use axum_sessions::{
+    async_session::{async_trait, Session, SessionStore},
+    SessionLayer,
+};
+use bonsaidb::core::keyvalue::AsyncKeyValue;
 use std::sync::Arc;
 
-pub fn router() -> Router<AppState> {
+pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     use crate::routes::*;
     Router::new()
         .route("/health_check", get(health_check))
@@ -46,11 +49,63 @@ pub fn router() -> Router<AppState> {
                 ),
         )
         .layer({
-            let store = MemoryStore::new();
-            let mut secret = [0_u8; 128];
-            rand::thread_rng().fill(&mut secret);
+            // let store = axum_sessions::async_session::MemoryStore::new();
+            let store = BonsaiDBSessionStore { database: sessions };
+            // FIXIT make it persistent and secret
+            let secret = [0_u8; 128];
+
+            // use rand::Rng;
+            // let mut secret = [0_u8; 128];
+            // rand::thread_rng().fill(&mut secret);
+
             SessionLayer::new(store, &secret).with_secure(true)
         })
+}
+
+#[derive(Clone, Debug)]
+struct BonsaiDBSessionStore {
+    database: Arc<Database>,
+}
+
+#[async_trait]
+impl SessionStore for BonsaiDBSessionStore {
+    async fn load_session(
+        &self,
+        cookie_value: String,
+    ) -> axum_sessions::async_session::Result<Option<Session>> {
+        let id = Session::id_from_cookie_value(&cookie_value)?;
+
+        let session: Option<Session> = self.database.sessions.get_key(id).into().await?;
+
+        Ok(session.and_then(Session::validate))
+    }
+
+    async fn store_session(
+        &self,
+        session: Session,
+    ) -> axum_sessions::async_session::Result<Option<String>> {
+        self.database
+            .sessions
+            .set_key(session.id().to_string(), &session)
+            .await?;
+        session.reset_data_changed();
+        Ok(session.into_cookie_value())
+    }
+
+    async fn destroy_session(&self, session: Session) -> axum_sessions::async_session::Result {
+        self.database
+            .sessions
+            .delete_key(session.id().to_string())
+            .await?;
+        Ok(())
+    }
+
+    async fn clear_store(&self) -> axum_sessions::async_session::Result {
+        tracing::info!("DELETE ALL SESSIONS");
+        todo!("find out how to delete all keys from the storage")
+        // self.database.sessions.
+        // Ok(())
+    }
 }
 
 #[derive(Clone)]
@@ -74,7 +129,7 @@ pub fn run(
         base_url,
     };
 
-    let app = router().with_state(app_state);
+    let app = router(app_state.database.clone()).with_state(app_state);
 
     axum::Server::from_tcp(listener)
         .unwrap()
