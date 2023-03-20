@@ -18,7 +18,13 @@ impl From<Authorization<Basic>> for Credentials {
     }
 }
 
-#[tracing::instrument(name = "Validate credentials", skip(credentials, state))]
+#[tracing::instrument(
+    name = "Validate credentials",
+    skip(credentials, state)
+    fields(
+        success = tracing::field::Empty
+    )
+)]
 pub async fn validate_credentials(
     state: &AppState,
     credentials: &Credentials,
@@ -55,6 +61,8 @@ pub async fn validate_credentials(
     .await
     .context("Failed to spawn blocking task.")
     .map_err(AuthError::UnexpectedError)??;
+
+    tracing::Span::current().record("success", &tracing::field::display(true));
 
     Ok(user_id.unwrap())
 }
