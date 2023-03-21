@@ -24,6 +24,9 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
         .route("/login", get(login_form))
         .route("/login", post(login))
         .route("/admin/dashboard", get(admin_dashboard))
+        .route("/admin/password", get(change_password_form))
+        .route("/admin/password", post(change_password))
+        .route("/admin/logout", post(logout))
         .layer(
             tower::ServiceBuilder::new()
                 .layer(tower_request_id::RequestIdLayer)

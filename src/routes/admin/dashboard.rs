@@ -2,7 +2,7 @@ use crate::{database::*, startup::AppState};
 use anyhow::Context;
 use axum::{
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::{Html, IntoResponse, Response},
     {extract::State, response::Redirect},
 };
 use axum_sessions::extractors::ReadableSession;
@@ -29,11 +29,39 @@ pub async fn admin_dashboard(
                 .context("No user found by the id")
                 .map_err(DashboardError::AuthError)?;
 
-            Ok((
-                StatusCode::OK,
-                format!("Welcome {}", user.contents.username),
-            )
-                .into_response())
+            let username = user.contents.username;
+
+            let html: &'static str = Box::leak(
+                format!(
+                    r#"
+                        <!DOCTYPE html>
+                        <html lang="en">
+                        
+                        <head>
+                            <meta http-equiv="content-type" content="text/html; charset=utf-8">
+                            <title>Admin dashboard</title>
+                        </head>
+                        
+                        <body>
+                            <p>Welcome {username}!</p>
+                            <p>Available actions:</p>
+                            <ol>
+                                <li><a href="/admin/password">Change password</a></li>
+                                <li>
+                                    <form name="logoutForm" action="/admin/logout" method="post">
+                                        <input type="submit" value="Logout">
+                                    </form>
+                                </li>
+                            </ol>
+                        </body>
+                        
+                        </html>
+                "#
+                )
+                .into_boxed_str(),
+            );
+
+            Ok((StatusCode::OK, Html(html)).into_response())
         }
     }
 }
