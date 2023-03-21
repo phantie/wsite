@@ -7,6 +7,7 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, CookieJar};
 
 pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
+    // THIS IS CURSED
     let error_cookie = jar.get("_flash");
 
     let error_html: String = match error_cookie {
@@ -16,8 +17,8 @@ pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
             format!("<p><i>{}</i></p>", htmlescape::encode_minimal(&error))
         }
     };
+    let jar = jar.remove(Cookie::named("_flash"));
 
-    // Html(include_str!("login.html"))
     let html: &'static str = Box::leak(
         format!(
             r#"
@@ -47,8 +48,6 @@ pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
         )
         .into_boxed_str(),
     );
-
-    let jar = jar.remove(Cookie::named("_flash"));
 
     (jar, Html(html))
 }
