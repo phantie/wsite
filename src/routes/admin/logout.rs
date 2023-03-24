@@ -13,7 +13,7 @@ pub async fn logout(jar: CookieJar, mut session: WritableSession) -> Response {
 
     match user_id {
         None => return Redirect::to("/login").into_response(),
-        Some(id) => {
+        Some(_user_id) => {
             session.destroy();
             let jar = jar.add(Cookie::new("_flash", "You have successfully logged out."));
             (jar, Redirect::to("/login")).into_response()
