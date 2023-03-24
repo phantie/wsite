@@ -1,4 +1,4 @@
-use crate::{database::*, startup::AppState};
+use crate::{authentication::reject_anonymous_users, database::*, startup::AppState};
 use anyhow::Context;
 use axum::{
     http::StatusCode,
@@ -16,54 +16,49 @@ pub async fn admin_dashboard(
     State(state): State<AppState>,
     session: ReadableSession,
 ) -> Result<Response, DashboardError> {
-    let user_id: Option<u64> = session.get("user_id");
+    let id: u64 = reject_anonymous_users(&session).map_err(DashboardError::AuthError)?;
 
-    match user_id {
-        None => Ok(Redirect::to("/login").into_response()),
-        Some(id) => {
-            tracing::Span::current().record("user_id", &tracing::field::display(&id));
-            let user = User::get_async(id, &state.database.collections.users)
-                .await
-                .context("Failed to fetch user by id")
-                .map_err(DashboardError::UnexpectedError)?
-                .context("No user found by the id")
-                .map_err(DashboardError::AuthError)?;
+    tracing::Span::current().record("user_id", &tracing::field::display(&id));
+    let user = User::get_async(id, &state.database.collections.users)
+        .await
+        .context("Failed to fetch user by id")
+        .map_err(DashboardError::UnexpectedError)?
+        .context("No user found by the id")
+        .map_err(DashboardError::AuthError)?;
 
-            let username = user.contents.username;
+    let username = user.contents.username;
 
-            let html: &'static str = Box::leak(
-                format!(
-                    r#"
-                        <!DOCTYPE html>
-                        <html lang="en">
-                        
-                        <head>
-                            <meta http-equiv="content-type" content="text/html; charset=utf-8">
-                            <title>Admin dashboard</title>
-                        </head>
-                        
-                        <body>
-                            <p>Welcome {username}!</p>
-                            <p>Available actions:</p>
-                            <ol>
-                                <li><a href="/admin/password">Change password</a></li>
-                                <li>
-                                    <form name="logoutForm" action="/admin/logout" method="post">
-                                        <input type="submit" value="Logout">
-                                    </form>
-                                </li>
-                            </ol>
-                        </body>
-                        
-                        </html>
-                "#
-                )
-                .into_boxed_str(),
-            );
+    let html: &'static str = Box::leak(
+        format!(
+            r#"
+                <!DOCTYPE html>
+                <html lang="en">
+                
+                <head>
+                    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+                    <title>Admin dashboard</title>
+                </head>
+                
+                <body>
+                    <p>Welcome {username}!</p>
+                    <p>Available actions:</p>
+                    <ol>
+                        <li><a href="/admin/password">Change password</a></li>
+                        <li>
+                            <form name="logoutForm" action="/admin/logout" method="post">
+                                <input type="submit" value="Logout">
+                            </form>
+                        </li>
+                    </ol>
+                </body>
+                
+                </html>
+            "#
+        )
+        .into_boxed_str(),
+    );
 
-            Ok((StatusCode::OK, Html(html)).into_response())
-        }
-    }
+    Ok((StatusCode::OK, Html(html)).into_response())
 }
 
 #[derive(thiserror::Error, Debug)]
