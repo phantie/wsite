@@ -1,4 +1,4 @@
-use crate::configuration::{get_configuration, Settings};
+use crate::configuration::Settings;
 use crate::database::*;
 use crate::email_client::EmailClient;
 use axum::{
@@ -118,27 +118,6 @@ pub struct AppState {
     pub base_url: String,
 }
 
-pub fn run(
-    listener: std::net::TcpListener,
-    database: Arc<Database>,
-    email_client: Arc<EmailClient>,
-    base_url: String,
-) -> impl std::future::Future<Output = hyper::Result<()>> {
-    let _configuration = get_configuration();
-
-    let app_state = AppState {
-        database,
-        email_client,
-        base_url,
-    };
-
-    let app = router(app_state.database.clone()).with_state(app_state);
-
-    axum::Server::from_tcp(listener)
-        .unwrap()
-        .serve(app.into_make_service())
-}
-
 pub struct Application {
     port: u16,
     server: std::pin::Pin<Box<dyn std::future::Future<Output = hyper::Result<()>> + Send>>,
@@ -177,6 +156,26 @@ impl Application {
             .await,
         );
         let database = Arc::new(Database::init(storage.clone()).await);
+
+        pub fn run(
+            listener: std::net::TcpListener,
+            database: Arc<Database>,
+            email_client: Arc<EmailClient>,
+            base_url: String,
+        ) -> impl std::future::Future<Output = hyper::Result<()>> {
+            let app_state = AppState {
+                database,
+                email_client,
+                base_url,
+            };
+
+            let app = router(app_state.database.clone()).with_state(app_state);
+
+            axum::Server::from_tcp(listener)
+                .unwrap()
+                .serve(app.into_make_service())
+        }
+
         let server = Box::pin(run(
             listener,
             database.clone(),
