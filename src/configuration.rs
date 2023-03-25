@@ -1,4 +1,5 @@
 use crate::domain::SubscriberEmail;
+#[allow(unused_imports)]
 use secrecy::Secret;
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string; // to deserialize variables provided via env vars
@@ -18,7 +19,6 @@ pub struct ApplicationSettings {
     pub port: u16,
     pub host: String,
     pub base_url: String,
-    pub hmac_secret: Secret<String>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -48,7 +48,9 @@ pub fn get_configuration() -> Settings {
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT.");
-    let config = config::Config::builder()
+    tracing::info!("APP_ENVIRONMENT={}", environment.as_str());
+
+    let config_builder = config::Config::builder()
         .add_source(
             config::File::with_name(&conf_path(&configuration_directory, "base")).required(true),
         )
@@ -59,7 +61,16 @@ pub fn get_configuration() -> Settings {
         .add_source(config::Environment::with_prefix("app").separator("__"))
         .build();
 
-    config.unwrap().try_deserialize().unwrap()
+    let config = config_builder.unwrap();
+    let _config_clone = config.clone();
+
+    match config.try_deserialize() {
+        Ok(settings) => settings,
+        Err(e) => {
+            // dbg!(&_config_clone);
+            Err(e).unwrap()
+        }
+    }
 }
 
 pub enum Environment {
