@@ -27,20 +27,21 @@ pub async fn publish_newsletter(
             AuthError::UnexpectedError(_) => PublishError::UnexpectedError(e.into()),
         })?;
 
-    let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
+    let subscriptions = &state.database.collections.subscriptions;
+
+    let confirmed_subscriptions = subscriptions
+        .view::<SubscriptionByStatus>()
+        .with_key("confirmed".to_owned())
+        .query_with_collection_docs()
         .await
-        .context("Failed to fetch subscriptions")
+        .context("Failed to fetch confirmed subscriptions")
         .map_err(PublishError::UnexpectedError)?;
 
-    let confirmed_subscriptions = subscriptions_docs
-        .into_iter()
-        .filter(|doc| doc.contents.status == "confirmed");
-
-    for subscriber in confirmed_subscriptions {
+    for subscriber in &confirmed_subscriptions {
         state
             .email_client
             .send_email(
-                &subscriber.contents.email,
+                &subscriber.document.contents.email,
                 &body.title,
                 &body.content.html,
                 &body.content.text,

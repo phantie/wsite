@@ -41,18 +41,18 @@ pub async fn validate_credentials(
             .to_string(),
     );
 
-    let user_docs = User::all_async(&state.database.collections.users)
+    let users = &state.database.collections.users;
+
+    let mapped_users = users
+        .view::<UserByUsername>()
+        .with_key(credentials.username.to_owned())
+        .query_with_collection_docs()
         .await
-        .context("Failed to fetch users")
-        .map_err(AuthError::UnexpectedError)?;
+        .unwrap();
 
-    let user = user_docs
-        .into_iter()
-        .find(|doc| doc.contents.username == credentials.username);
-
-    if let Some(doc) = user {
-        user_id = Some(doc.header.id);
-        expected_password_hash = Secret::new(doc.contents.password_hash);
+    if let Some(doc) = mapped_users.into_iter().next() {
+        user_id = Some(doc.document.header.id);
+        expected_password_hash = Secret::new(doc.document.contents.password_hash.clone());
     }
 
     let current_span = tracing::Span::current();

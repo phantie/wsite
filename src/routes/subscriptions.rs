@@ -118,13 +118,12 @@ pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscr
     let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
         .await
         .unwrap();
-
-    let res = subscriptions_docs
-        .iter()
-        .map(|doc| doc.contents.clone())
+    let subscriptions_contents = subscriptions_docs
+        .into_iter()
+        .map(|doc| doc.contents)
         .collect::<Vec<_>>();
 
-    Json(res)
+    Json(subscriptions_contents)
 }
 
 /// Generate a random 25-characters-long case-sensitive subscription token.

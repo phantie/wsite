@@ -22,13 +22,17 @@ async fn main() {
     let username = args.username;
 
     let database = Database::init(storage).await;
-    let user_docs = User::all_async(&database.collections.users).await.unwrap();
 
-    let user = user_docs
-        .iter()
-        .find(|doc| doc.contents.username == username);
+    let users = &database.collections.users;
 
-    if let Some(_user) = user {
+    let user_count = users
+        .view::<UserByUsername>()
+        .with_key(username.clone())
+        .reduce()
+        .await
+        .unwrap();
+
+    if user_count > 0 {
         panic!("user already exists");
     }
 
