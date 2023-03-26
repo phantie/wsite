@@ -1,9 +1,17 @@
+use bonsaidb::core::document::BorrowedDocument;
+use bonsaidb::core::document::Emit;
 use bonsaidb::core::schema::Collection;
+use bonsaidb::core::schema::ReduceResult;
+use bonsaidb::core::schema::View;
+use bonsaidb::core::schema::ViewMapResult;
+use bonsaidb::core::schema::ViewMappedValue;
+use bonsaidb::core::schema::ViewSchema;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::AsyncDatabase;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::connection::StorageConnection;
 pub use bonsaidb::core::document::CollectionDocument;
@@ -12,7 +20,7 @@ pub use bonsaidb::local::config::Builder;
 pub use bonsaidb::local::AsyncStorage;
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
-#[collection(name = "subscriptions")]
+#[collection(name = "subscriptions", views = [SubscriptionByStatus, SubscriptionByToken])]
 pub struct Subscription {
     pub name: String,
     pub email: crate::domain::SubscriberEmail,
@@ -20,11 +28,78 @@ pub struct Subscription {
     pub token: String,
 }
 
+#[derive(Debug, Clone, View)]
+#[view(collection = Subscription, key = String, value = u32, name = "by-status")]
+pub struct SubscriptionByStatus;
+
+impl ViewSchema for SubscriptionByStatus {
+    type View = Self;
+
+    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
+        let subscription = Subscription::document_contents(document)?;
+        document.header.emit_key_and_value(subscription.status, 1)
+    }
+
+    fn version(&self) -> u64 {
+        3
+    }
+}
+
+#[derive(Debug, Clone, View)]
+#[view(collection = Subscription, key = String, value = u32, name = "by-token")]
+pub struct SubscriptionByToken;
+
+impl ViewSchema for SubscriptionByToken {
+    type View = Self;
+
+    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
+        let subscription = Subscription::document_contents(document)?;
+        document.header.emit_key_and_value(subscription.token, 1)
+    }
+
+    fn version(&self) -> u64 {
+        2
+    }
+
+    fn unique(&self) -> bool {
+        true
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
-#[collection(name = "users")]
+#[collection(name = "users",  views = [UserByUsername])]
 pub struct User {
     pub username: String,
     pub password_hash: String,
+}
+
+#[derive(Debug, Clone, View)]
+#[view(collection = User, key = String, value = u32, name = "by-username")]
+pub struct UserByUsername;
+
+impl ViewSchema for UserByUsername {
+    type View = Self;
+
+    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
+        let user = User::document_contents(document)?;
+        document.header.emit_key_and_value(user.username, 1)
+    }
+
+    fn version(&self) -> u64 {
+        2
+    }
+
+    fn unique(&self) -> bool {
+        true
+    }
+
+    fn reduce(
+        &self,
+        mappings: &[ViewMappedValue<Self::View>],
+        _rereduce: bool,
+    ) -> ReduceResult<Self::View> {
+        Ok(mappings.iter().map(|mapping| mapping.value).sum())
+    }
 }
 
 pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {

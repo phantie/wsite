@@ -14,31 +14,24 @@ pub async fn confirm(
     State(state): State<AppState>,
     Query(parameters): Query<Parameters>,
 ) -> StatusCode {
-    // TODO optimize using views or anything
     // TODO implement error handling like in subscriptions.rs
-    let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
+
+    let subscriptions = &state.database.collections.subscriptions;
+
+    let mapped_docs = subscriptions
+        .view::<SubscriptionByToken>()
+        .with_key(parameters.subscription_token.to_owned())
+        .query_with_collection_docs()
         .await
         .unwrap();
 
-    let subscription = subscriptions_docs
-        .into_iter()
-        .find(|doc| doc.contents.token == parameters.subscription_token);
+    let subscription = mapped_docs.into_iter().next();
 
     match subscription {
-        Some(doc) => {
-            // confirm subscriber
-            let new_doc = {
-                let mut d = doc.contents;
-                d.status = "confirmed".to_owned();
-                d
-            };
-            let _doc = Subscription::overwrite_async(
-                doc.header.id,
-                new_doc,
-                &state.database.collections.subscriptions,
-            )
-            .await
-            .unwrap();
+        Some(mapped_doc) => {
+            let mut doc = mapped_doc.document.clone();
+            doc.contents.status = "confirmed".to_owned();
+            doc.update_async(subscriptions).await.unwrap();
             StatusCode::OK
         }
         // non-existing token and therefore subscriber

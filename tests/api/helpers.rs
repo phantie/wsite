@@ -46,7 +46,7 @@ pub async fn spawn_app() -> TestApp {
     let _ = tokio::spawn(application.server());
 
     let test_user = TestUser::generate();
-    test_user.store(database.clone()).await;
+    test_user.store(database.clone()).await.unwrap();
 
     let api_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -204,7 +204,10 @@ impl TestUser {
         }
     }
 
-    async fn store(&self, database: Arc<Database>) {
+    async fn store(
+        &self,
+        database: Arc<Database>,
+    ) -> Result<CollectionDocument<User>, bonsaidb::core::schema::InsertError<User>> {
         let salt = SaltString::generate(&mut rand::thread_rng());
         let password_hash = Argon2::new(
             Algorithm::Argon2id,
@@ -221,11 +224,38 @@ impl TestUser {
         }
         .push_into_async(&database.collections.users)
         .await
-        .unwrap();
     }
 }
 
 pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
     assert_eq!(StatusCode::SEE_OTHER, response.status());
     assert_eq!(location, response.headers().get("Location").unwrap());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+
+    #[serial]
+    #[tokio::test]
+    async fn users_usernames_must_be_unique() {
+        // Arrange
+        let app = spawn_app().await;
+
+        let test_user = &app.test_user;
+
+        let ok = match test_user.store(app.database.clone()).await {
+            Ok(_) => false,
+            Err(e) => match e.error {
+                bonsaidb::core::Error::UniqueKeyViolation { .. } => true,
+                _ => false,
+            },
+        };
+
+        // Assert
+        if !ok {
+            panic!("inserting the same user should emit UniqueKeyViolation on username field");
+        }
+    }
 }
