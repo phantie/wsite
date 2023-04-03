@@ -1,4 +1,4 @@
-target/
-*.bonsaidb/
+**/target/
+**/*.bonsaidb/
 .vscode/
-tmp/
+**/tmp/
