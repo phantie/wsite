@@ -1,3 +1,4 @@
+## Local
 # Build and run locally
 cargo run
 
@@ -8,8 +9,11 @@ docker run -p 8000:8000 api_aga_in
 # Remove local container
 docker rm $(docker stop $(docker ps -a -q --filter ancestor=api_aga_in --format="{{.ID}}"))
 
+## Deploy to production
 # Create app
 doctl apps create --spec spec.yaml
+# Go to app settings, select service and add secrets
+# - APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN
 # List apps
 doctl apps list --format ID
 # Run when the spec is updated
