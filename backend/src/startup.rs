@@ -10,6 +10,7 @@ use axum_sessions::{
     SessionLayer,
 };
 use bonsaidb::core::keyvalue::AsyncKeyValue;
+use secrecy::ExposeSecret;
 use std::sync::Arc;
 
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {
@@ -147,6 +148,18 @@ impl Application {
         tracing::info!("Listening on http://{}", address);
         let host = configuration.application.host.clone();
         let port = listener.local_addr().unwrap().port();
+
+        {
+            let first_symbols_count = 3;
+            let first_symbols_of_email_token = &(*configuration
+                .email_client
+                .authorization_token
+                .expose_secret())[..first_symbols_count];
+            tracing::info!(
+                "First symbols of email token:{}",
+                first_symbols_of_email_token
+            );
+        }
 
         let storage = Arc::new(
             storage(
