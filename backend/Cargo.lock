@@ -138,7 +138,6 @@ dependencies = [
  "anyhow",
  "argon2",
  "axum",
- "axum-extra 0.7.2",
  "axum-macros",
  "axum-sessions",
  "bonsaidb",
@@ -360,7 +359,7 @@ checksum = "f9a320103719de37b7b4da4c8eb629d4573f6bcfd3dfe80d3208806895ccf81d"
 dependencies = [
  "axum",
  "bytes",
- "cookie 0.16.2",
+ "cookie",
  "futures-util",
  "http",
  "mime",
@@ -368,27 +367,6 @@ dependencies = [
  "tokio",
  "tower",
  "tower-http 0.3.5",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "axum-extra"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ea61f9f77592526b73fd14fe0f5938412bda49423f8b9f372ac76a9d6cf0ad2"
-dependencies = [
- "axum",
- "bytes",
- "cookie 0.17.0",
- "futures-util",
- "http",
- "http-body",
- "mime",
- "pin-project-lite",
- "tokio",
- "tower",
- "tower-http 0.4.0",
  "tower-layer",
  "tower-service",
 ]
@@ -413,7 +391,7 @@ checksum = "4b114309d293dd8a6fedebf09d5b8bbb0f7647b3d204ca0dd333b5f797aed5c8"
 dependencies = [
  "async-session",
  "axum",
- "axum-extra 0.4.2",
+ "axum-extra",
  "futures",
  "http-body",
  "tokio",
@@ -808,23 +786,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "cookie"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7efb37c3e1ccb1ff97164ad95ac1606e8ccd35b3fa0a7d99a304c7f4a428cc24"
-dependencies = [
- "percent-encoding",
- "time",
- "version_check",
-]
-
-[[package]]
 name = "cookie_store"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e4b6aa369f41f5faa04bb80c9b1f4216ea81646ed6124d76ba5c49a7aafd9cd"
 dependencies = [
- "cookie 0.16.2",
+ "cookie",
  "idna 0.2.3",
  "log",
  "publicsuffix",
@@ -2371,7 +2338,7 @@ checksum = "27b71749df584b7f4cac2c426c127a7c785a5106cc98f7a8feb044115f0fa254"
 dependencies = [
  "base64 0.21.0",
  "bytes",
- "cookie 0.16.2",
+ "cookie",
  "cookie_store",
  "encoding_rs",
  "futures-core",

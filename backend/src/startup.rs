@@ -15,19 +15,25 @@ use std::sync::Arc;
 
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     use crate::routes::*;
-    Router::new()
+    let api_router = Router::new()
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
-        .route("/subscriptions", get(all_subscriptions))
         .route("/subscriptions/confirm", get(confirm))
         .route("/newsletters", post(publish_newsletter))
+        .route("/login", post(login))
+        .route("/admin/password", post(change_password))
+        .route("/admin/logout", post(logout));
+
+    let frontend_router = Router::new()
+        .route("/subscriptions", get(all_subscriptions))
         .route("/", get(home))
         .route("/login", get(login_form))
-        .route("/login", post(login))
         .route("/admin/dashboard", get(admin_dashboard))
-        .route("/admin/password", get(change_password_form))
-        .route("/admin/password", post(change_password))
-        .route("/admin/logout", post(logout))
+        .route("/admin/password", get(change_password_form));
+
+    Router::new()
+        .nest("/", frontend_router)
+        .nest("/api", api_router)
         .layer(
             tower::ServiceBuilder::new()
                 .layer(tower_request_id::RequestIdLayer)

@@ -1,19 +1,15 @@
-#![allow(unused_imports)]
 use crate::{
     authentication::{
         compute_password_hash, reject_anonymous_users, validate_credentials, Credentials,
     },
     database::*,
-    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
-    email_client::EmailClient,
     startup::AppState,
 };
 use axum::{
-    extract::{rejection::FormRejection, Form, Json, State},
+    extract::{Form, State},
     http::StatusCode,
     response::{IntoResponse, Redirect, Response},
 };
-use axum_extra::extract::{cookie::Cookie, CookieJar};
 use axum_sessions::extractors::ReadableSession;
 use secrecy::{ExposeSecret, Secret};
 
@@ -26,17 +22,12 @@ pub struct FormData {
 
 pub async fn change_password(
     State(state): State<AppState>,
-    jar: CookieJar,
     session: ReadableSession,
     Form(form): Form<FormData>,
 ) -> Result<Response, PasswordChangeError> {
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
-        let jar = jar.add(Cookie::new(
-            "_flash",
-            "You entered two different new passwords - the field values must match.",
-        ));
-
-        return Ok((jar, Redirect::to("/admin/password")).into_response());
+        tracing::info!("You entered two different new passwords - the field values must match.");
+        return Ok(Redirect::to("/admin/password").into_response());
     }
 
     let user_id: u64 = reject_anonymous_users(&session).map_err(PasswordChangeError::AuthError)?;
@@ -59,14 +50,14 @@ pub async fn change_password(
             user.update_async(&state.database.collections.users)
                 .await
                 .unwrap();
-            let jar = jar.add(Cookie::new("_flash", "Your password has been changed."));
+            tracing::info!("Your password has been changed.");
 
-            Ok((jar, Redirect::to("/admin/password")).into_response())
+            Ok(Redirect::to("/admin/password").into_response())
         }
         Err(_e) => {
-            let jar = jar.add(Cookie::new("_flash", "The current password is incorrect."));
+            tracing::info!("The current password is incorrect.");
 
-            return Ok((jar, Redirect::to("/admin/password")).into_response());
+            return Ok(Redirect::to("/admin/password").into_response());
         }
     }
 }

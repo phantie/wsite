@@ -1,27 +1,7 @@
-#![allow(unused_imports)]
-use axum::response::{IntoResponse, Response};
-use axum::{
-    extract::{rejection::TypedHeaderRejection, Query, TypedHeader},
-    response::Html,
-};
-use axum_extra::extract::cookie::{Cookie, CookieJar};
+use axum::response::Html;
 
-pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
-    // THIS IS CURSED
-    let error_cookie = jar.get("_flash");
-
-    let error_html: String = match error_cookie {
-        None => "".into(),
-        Some(cookie) => {
-            let error = cookie.value();
-            format!("<p><i>{}</i></p>", htmlescape::encode_minimal(&error))
-        }
-    };
-    let jar = jar.remove(Cookie::named("_flash"));
-
-    let html: &'static str = Box::leak(
-        format!(
-            r#"
+pub async fn login_form() -> Html<&'static str> {
+    let html: &'static str = r#"
     <!DOCTYPE html>
     <html lang="en">
     
@@ -31,8 +11,7 @@ pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
     </head>
     
     <body>
-        {error_html}
-        <form action="/login" method="post">
+        <form action="/api/login" method="post">
             <label>Username
                 <input type="text" placeholder="Enter Username" name="username">
             </label>
@@ -44,10 +23,7 @@ pub async fn login_form(jar: CookieJar) -> (CookieJar, Html<&'static str>) {
     </body>
     
     </html>
-    "#
-        )
-        .into_boxed_str(),
-    );
+    "#;
 
-    (jar, Html(html))
+    Html(html)
 }

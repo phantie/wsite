@@ -40,7 +40,9 @@ pub async fn spawn_app() -> TestApp {
     let host = application.host();
     let port = application.port();
 
-    let address = format!("http://{}:{}", host, port);
+    let address = AppAdress {
+        adress: format!("http://{}:{}", host, port),
+    };
     let database = application.database();
 
     let _ = tokio::spawn(application.server());
@@ -65,7 +67,7 @@ pub async fn spawn_app() -> TestApp {
 }
 
 pub struct TestApp {
-    pub address: String,
+    pub address: AppAdress,
     pub database: Arc<Database>,
     pub email_server: MockServer,
     pub port: u16,
@@ -73,10 +75,30 @@ pub struct TestApp {
     pub api_client: reqwest::Client,
 }
 
+pub struct AppAdress {
+    adress: String,
+}
+
+impl AsRef<str> for AppAdress {
+    fn as_ref(&self) -> &str {
+        &self.adress
+    }
+}
+
+impl AppAdress {
+    pub fn with_path(&self, path: impl AsRef<str>) -> String {
+        format!("{}{}", self.as_ref(), path.as_ref())
+    }
+
+    pub fn with_api_path(&self, path: impl AsRef<str>) -> String {
+        self.with_path(path.as_ref().api())
+    }
+}
+
 impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         self.api_client
-            .post(&format!("{}/subscriptions", &self.address))
+            .post(self.address.with_api_path("/subscriptions"))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -108,7 +130,7 @@ impl TestApp {
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         self.api_client
-            .post(&format!("{}/newsletters", &self.address))
+            .post(self.address.with_api_path("/newsletters"))
             .basic_auth(&self.test_user.username, Some(&self.test_user.password))
             .json(&body)
             .send()
@@ -121,16 +143,17 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(&format!("{}/login", &self.address))
+            .post(self.address.with_api_path("/login"))
             .form(body)
             .send()
             .await
             .expect("Failed to execute request.")
     }
 
+    #[allow(dead_code)]
     pub async fn get_login_html(&self) -> String {
         self.api_client
-            .get(&format!("{}/login", &self.address))
+            .get(self.address.with_path("/login"))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -141,7 +164,7 @@ impl TestApp {
 
     pub async fn get_admin_dashboard(&self) -> reqwest::Response {
         self.api_client
-            .get(&format!("{}/admin/dashboard", &self.address))
+            .get(self.address.with_path("/admin/dashboard"))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -153,7 +176,7 @@ impl TestApp {
 
     pub async fn get_change_password(&self) -> reqwest::Response {
         self.api_client
-            .get(&format!("{}/admin/password", &self.address))
+            .get(self.address.with_path("/admin/password"))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -164,7 +187,7 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(&format!("{}/admin/password", &self.address))
+            .post(self.address.with_api_path("/admin/password"))
             .form(body)
             .send()
             .await
@@ -177,7 +200,7 @@ impl TestApp {
 
     pub async fn post_logout(&self) -> reqwest::Response {
         self.api_client
-            .post(&format!("{}/admin/logout", &self.address))
+            .post(self.address.with_api_path("/admin/logout"))
             .send()
             .await
             .expect("Failed to execute request.")
@@ -227,9 +250,12 @@ impl TestUser {
     }
 }
 
-pub fn assert_is_redirect_to(response: &reqwest::Response, location: &str) {
+pub fn assert_is_redirect_to(response: &reqwest::Response, location: impl AsRef<str>) {
     assert_eq!(StatusCode::SEE_OTHER, response.status());
-    assert_eq!(location, response.headers().get("Location").unwrap());
+    assert_eq!(
+        location.as_ref(),
+        response.headers().get("Location").unwrap()
+    );
 }
 
 #[cfg(test)]
@@ -257,5 +283,27 @@ mod tests {
         if !ok {
             panic!("inserting the same user should emit UniqueKeyViolation on username field");
         }
+    }
+}
+
+pub trait ApiUrl {
+    type Result;
+    fn api(&self) -> Self::Result;
+}
+
+impl ApiUrl for &str {
+    type Result = String;
+    fn api(&self) -> String {
+        format!("/api{}", self)
+    }
+}
+
+#[cfg(test)]
+mod api_url_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_api_url() {
+        assert_eq!("/".api(), "/api/");
     }
 }

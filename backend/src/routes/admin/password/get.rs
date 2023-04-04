@@ -1,29 +1,12 @@
 use crate::authentication::reject_anonymous_users;
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use axum_extra::extract::{cookie::Cookie, CookieJar};
 use axum_sessions::extractors::ReadableSession;
 use hyper::StatusCode;
 
-pub async fn change_password_form(
-    jar: CookieJar,
-    session: ReadableSession,
-) -> Result<Response, PasswordFormError> {
+pub async fn change_password_form(session: ReadableSession) -> Result<Response, PasswordFormError> {
     let _user_id: u64 = reject_anonymous_users(&session).map_err(PasswordFormError::AuthError)?;
 
-    let error_cookie = jar.get("_flash");
-
-    let msg_html: String = match error_cookie {
-        None => "".into(),
-        Some(cookie) => {
-            let error = cookie.value();
-            format!("<p><i>{}</i></p>", htmlescape::encode_minimal(&error))
-        }
-    };
-    let jar = jar.remove(Cookie::named("_flash"));
-
-    let html: &'static str = Box::leak(
-        format!(
-            r#"
+    let html: &'static str = r#"
             <!DOCTYPE html>
             <html lang="en">
 
@@ -33,8 +16,7 @@ pub async fn change_password_form(
             </head>
 
             <body>
-                {msg_html}
-                <form action="/admin/password" method="post">
+                <form action="/api/admin/password" method="post">
                     <label>Current password
                         <input type="password" placeholder="Enter current password" name="current_password">
                     </label>
@@ -53,12 +35,9 @@ pub async fn change_password_form(
             </body>
 
             </html>
-        "#
-        )
-        .into_boxed_str(),
-    );
+        "#;
 
-    Ok((StatusCode::OK, jar, Html(html)).into_response())
+    Ok((StatusCode::OK, Html(html)).into_response())
 }
 
 #[derive(thiserror::Error, Debug)]

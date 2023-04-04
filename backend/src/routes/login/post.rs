@@ -11,7 +11,6 @@ use axum::{
     http::header,
     response::{IntoResponse, Redirect, Response},
 };
-use axum_extra::extract::cookie::{Cookie, CookieJar};
 use axum_sessions::extractors::WritableSession;
 use secrecy::Secret;
 
@@ -82,13 +81,7 @@ impl axum::response::IntoResponse for LoginError {
             Self::UnexpectedError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
         };
         tracing::error!("{}", trace_message);
-
-        let jar = CookieJar::new();
-        let error_message = self.to_string();
-        let jar = jar.add(Cookie::new("_flash", error_message));
-
         let redirect = Redirect::to("/login");
-
-        (jar, redirect).into_response()
+        redirect.into_response()
     }
 }
