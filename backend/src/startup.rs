@@ -144,7 +144,7 @@ impl Application {
             configuration.application.host, configuration.application.port
         );
         let listener = std::net::TcpListener::bind(&address).unwrap();
-        tracing::info!("Listening on {}", address);
+        tracing::info!("Listening on http://{}", address);
         let host = configuration.application.host.clone();
         let port = listener.local_addr().unwrap().port();
 

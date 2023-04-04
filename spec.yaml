@@ -1,13 +1,13 @@
-name: api-aga-in
+name: my-site
 region: fra
 services:
-    - name: api-aga-in
+    - name: backend
       dockerfile_path: Dockerfile
-      source_dir: .
+      source_dir: /backend/
       github:
-          branch: master
+          branch: backend_deploy
           # Deploy a new version on every commit
-          deploy_on_push: true
+          # deploy_on_push: true
           repo: phantie/api_aga_in
       # Active probe used by DigitalOcean's to ensure our application is healthy
       health_check:
