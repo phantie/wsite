@@ -150,7 +150,7 @@ impl Application {
         let port = listener.local_addr().unwrap().port();
 
         {
-            let first_symbols_count = 3;
+            let first_symbols_count = 5;
             let first_symbols_of_email_token = &(*configuration
                 .email_client
                 .authorization_token
