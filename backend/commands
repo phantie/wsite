@@ -1,11 +1,12 @@
 ## Local
-# Build and run locally
+# Build and run locally in local mode
 cargo run
 
 # Build locally in a container
 docker build --tag api_aga_in --file Dockerfile .
-# Run locally in a container
-docker run -p 8000:8000 api_aga_in
+# Run locally in a container in local mode
+# FIX local mode sets host=localhost, but when run in container it must be 0.0.0.0
+docker run -p 8000:8000 --env APP_ENVIRONMENT=local --env APP__APPLICATION__HOST="0.0.0.0" api_aga_in
 # Remove local container
 docker rm $(docker stop $(docker ps -a -q --filter ancestor=api_aga_in --format="{{.ID}}"))
 
@@ -13,7 +14,7 @@ docker rm $(docker stop $(docker ps -a -q --filter ancestor=api_aga_in --format=
 # Create app
 doctl apps create --spec spec.yaml
 # Go to app settings, select service and add secrets
-# - APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN
+# - APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN (encrypt)
 # List apps
 doctl apps list --format ID
 # Run when the spec is updated
