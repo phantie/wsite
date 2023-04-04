@@ -1,13 +1,13 @@
-name: api-aga-in
+name: my-site
 region: fra
 services:
-    - name: api-aga-in
-      dockerfile_path: Dockerfile
-      source_dir: .
+    - name: backend
+      dockerfile_path: /backend/Dockerfile
+      source_dir: /backend/
       github:
-          branch: master
+          branch: frontend
           # Deploy a new version on every commit
-          deploy_on_push: true
+          # deploy_on_push: true
           repo: phantie/api_aga_in
       # Active probe used by DigitalOcean's to ensure our application is healthy
       health_check:
@@ -26,3 +26,8 @@ services:
           - key: APP__APPLICATION__BASE_URL
             scope: RUN_TIME
             value: ${APP_URL}
+          - key: APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN
+            scope: RUN_TIME
+            # FAKE VALUE until I figure out a better way
+            value: 6709685d-4dae-4a9c-aed5-9b6802c949b5
+            type: SECRET
