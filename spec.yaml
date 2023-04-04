@@ -2,8 +2,8 @@ name: my-site
 region: fra
 services:
     - name: backend
-      dockerfile_path: Dockerfile
-      source_dir: /backend/
+      dockerfile_path: /backend/Dockerfile
+      source_dir: /
       github:
           branch: backend_deploy
           # Deploy a new version on every commit
