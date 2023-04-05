@@ -1,1 +1,1 @@
-pub mod static_routes;
+pub use static_routes;

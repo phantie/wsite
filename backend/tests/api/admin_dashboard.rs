@@ -1,5 +1,5 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
-use api_aga_in::static_routes::*;
+use common::static_routes::*;
 use serial_test::serial;
 
 #[serial]

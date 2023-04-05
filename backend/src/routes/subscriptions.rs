@@ -3,13 +3,13 @@ use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
     startup::AppState,
-    static_routes::*,
 };
 use anyhow::Context;
 use axum::{
     extract::{rejection::FormRejection, Form, Json, State},
     http::StatusCode,
 };
+use common::static_routes::*;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 
 #[derive(serde::Deserialize, Clone)]

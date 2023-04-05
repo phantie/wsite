@@ -1,6 +1,6 @@
-use route_macros::*;
 #[allow(unused_imports)]
-use route_primitives::{Get, Post, Url};
+use crate::primitives::{Get, Post, Url};
+use macros::*;
 
 #[derive(Default)]
 pub struct Routes {

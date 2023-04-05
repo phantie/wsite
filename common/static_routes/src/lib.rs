@@ -1,7 +1,8 @@
 mod api_scope;
+mod primitives;
 mod root_scope;
 
-pub use route_primitives::{Get, Post, RelativePath, Url};
+pub use primitives::{Get, Post, RelativePath, Url};
 
 #[allow(dead_code)]
 #[derive(Default)]

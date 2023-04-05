@@ -1,4 +1,4 @@
-use api_aga_in::static_routes::*;
+use common::static_routes::*;
 
 use crate::helpers::{spawn_app, CompleteWithAdress, TestApp};
 use hyper::StatusCode;
