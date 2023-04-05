@@ -2,6 +2,7 @@ use crate::helpers::spawn_app;
 use api_aga_in::database::*;
 use hyper::StatusCode;
 use serial_test::serial;
+use static_routes::*;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
@@ -12,9 +13,7 @@ async fn confirmations_without_token_are_rejected_with_a_400() {
     let app = spawn_app().await;
 
     // Act
-    let response = reqwest::get(app.address.with_api_path("/subscriptions/confirm"))
-        .await
-        .unwrap();
+    let response = app.get(routes().api.subs.confirm).send().await.unwrap();
 
     // Assert
     assert_eq!(response.status().as_u16(), 400);

@@ -1,15 +1,15 @@
 use crate::helpers::spawn_app;
 use hyper::StatusCode;
 use serial_test::serial;
+use static_routes::*;
 
 #[serial]
 #[tokio::test]
 async fn health_check_works() {
     let app = spawn_app().await;
 
-    let client = reqwest::Client::new();
-    let response = client
-        .get(app.address.with_api_path("/health_check"))
+    let response = app
+        .get(routes().api.health_check)
         .send()
         .await
         .expect("Failed to execute request.");

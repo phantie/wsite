@@ -5,6 +5,7 @@ use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
+use reqwest::RequestBuilder;
 use static_routes::*;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -41,9 +42,8 @@ pub async fn spawn_app() -> TestApp {
     let host = application.host();
     let port = application.port();
 
-    let address = AppAdress {
-        adress: format!("http://{}:{}", host, port),
-    };
+    let address = format!("http://{}:{}", host, port);
+
     let database = application.database();
 
     let _ = tokio::spawn(application.server());
@@ -68,7 +68,7 @@ pub async fn spawn_app() -> TestApp {
 }
 
 pub struct TestApp {
-    pub address: AppAdress,
+    pub address: String,
     pub database: Arc<Database>,
     pub email_server: MockServer,
     pub port: u16,
@@ -76,40 +76,19 @@ pub struct TestApp {
     pub api_client: reqwest::Client,
 }
 
-pub struct AppAdress {
-    adress: String,
-}
-
-pub trait CompleteWithAdress {
-    fn complete_with_adress(&self, adress: &AppAdress) -> String;
-}
-
-impl CompleteWithAdress for RelativePath {
-    fn complete_with_adress(&self, adress: &AppAdress) -> String {
-        format!("{}{}", adress.as_ref(), self.complete())
-    }
-}
-
-impl AsRef<str> for AppAdress {
-    fn as_ref(&self) -> &str {
-        &self.adress
-    }
-}
-
-impl AppAdress {
-    pub fn with_path(&self, path: impl AsRef<str>) -> String {
-        format!("{}{}", self.as_ref(), path.as_ref())
-    }
-
-    pub fn with_api_path(&self, path: impl AsRef<str>) -> String {
-        self.with_path(path.as_ref().api())
-    }
-}
-
 impl TestApp {
-    pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
+    pub fn get(&self, path: impl Get) -> RequestBuilder {
         self.api_client
-            .post(routes().api.subs.post().complete_with_adress(&self.address))
+            .get(path.get().with_base(&self.address).complete())
+    }
+
+    pub fn post(&self, path: impl Post) -> RequestBuilder {
+        self.api_client
+            .post(path.post().with_base(&self.address).complete())
+    }
+
+    pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
+        self.post(routes().api.subs)
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -140,14 +119,7 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
-        self.api_client
-            .post(
-                routes()
-                    .api
-                    .newsletters
-                    .post()
-                    .complete_with_adress(&self.address),
-            )
+        self.post(routes().api.newsletters)
             .basic_auth(&self.test_user.username, Some(&self.test_user.password))
             .json(&body)
             .send()
@@ -159,14 +131,7 @@ impl TestApp {
     where
         Body: serde::Serialize,
     {
-        self.api_client
-            .post(
-                routes()
-                    .api
-                    .login
-                    .post()
-                    .complete_with_adress(&self.address),
-            )
+        self.post(routes().api.login)
             .form(body)
             .send()
             .await
@@ -175,14 +140,7 @@ impl TestApp {
 
     #[allow(dead_code)]
     pub async fn get_login_html(&self) -> String {
-        self.api_client
-            .get(
-                routes()
-                    .root
-                    .login
-                    .get()
-                    .complete_with_adress(&self.address),
-            )
+        self.get(routes().root.login)
             .send()
             .await
             .expect("Failed to execute request.")
@@ -192,15 +150,7 @@ impl TestApp {
     }
 
     pub async fn get_admin_dashboard(&self) -> reqwest::Response {
-        self.api_client
-            .get(
-                routes()
-                    .root
-                    .admin
-                    .dashboard
-                    .get()
-                    .complete_with_adress(&self.address),
-            )
+        self.get(routes().root.admin.dashboard)
             .send()
             .await
             .expect("Failed to execute request.")
@@ -211,15 +161,7 @@ impl TestApp {
     }
 
     pub async fn get_change_password(&self) -> reqwest::Response {
-        self.api_client
-            .get(
-                routes()
-                    .root
-                    .admin
-                    .password
-                    .get()
-                    .complete_with_adress(&self.address),
-            )
+        self.get(routes().root.admin.password)
             .send()
             .await
             .expect("Failed to execute request.")
@@ -229,15 +171,7 @@ impl TestApp {
     where
         Body: serde::Serialize,
     {
-        self.api_client
-            .post(
-                routes()
-                    .api
-                    .admin
-                    .password
-                    .post()
-                    .complete_with_adress(&self.address),
-            )
+        self.post(routes().api.admin.password)
             .form(body)
             .send()
             .await
@@ -249,15 +183,7 @@ impl TestApp {
     }
 
     pub async fn post_logout(&self) -> reqwest::Response {
-        self.api_client
-            .post(
-                routes()
-                    .api
-                    .admin
-                    .logout
-                    .post()
-                    .complete_with_adress(&self.address),
-            )
+        self.post(routes().api.admin.logout)
             .send()
             .await
             .expect("Failed to execute request.")
@@ -292,7 +218,7 @@ impl TestUser {
         let password_hash = Argon2::new(
             Algorithm::Argon2id,
             Version::V0x13,
-            Params::new(15000, 2, 1, None).unwrap(),
+            Params::new(15000, 1, 1, None).unwrap(),
         )
         .hash_password(self.password.as_bytes(), &salt)
         .unwrap()
@@ -307,10 +233,10 @@ impl TestUser {
     }
 }
 
-pub fn assert_is_redirect_to(response: &reqwest::Response, location: impl AsRef<str>) {
+pub fn assert_is_redirect_to(response: &reqwest::Response, location: impl Get) {
     assert_eq!(StatusCode::SEE_OTHER, response.status());
     assert_eq!(
-        location.as_ref(),
+        location.get().complete(),
         response.headers().get("Location").unwrap()
     );
 }
@@ -340,27 +266,5 @@ mod tests {
         if !ok {
             panic!("inserting the same user should emit UniqueKeyViolation on username field");
         }
-    }
-}
-
-pub trait ApiUrl {
-    type Result;
-    fn api(&self) -> Self::Result;
-}
-
-impl ApiUrl for &str {
-    type Result = String;
-    fn api(&self) -> String {
-        format!("/api{}", self)
-    }
-}
-
-#[cfg(test)]
-mod api_url_tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_api_url() {
-        assert_eq!("/".api(), "/api/");
     }
 }

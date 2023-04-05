@@ -71,7 +71,13 @@ pub async fn send_confirmation_email(
 ) -> Result<(), reqwest::Error> {
     let confirmation_link = format!(
         "{}?subscription_token={}",
-        routes().api.subs.confirm.get().complete_with_base(base_url),
+        routes()
+            .api
+            .subs
+            .confirm
+            .get()
+            .with_base(base_url)
+            .complete(),
         subscription_token
     );
 
