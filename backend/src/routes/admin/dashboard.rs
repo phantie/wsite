@@ -6,7 +6,7 @@ use axum::{
     {extract::State, response::Redirect},
 };
 use axum_sessions::extractors::ReadableSession;
-use common::static_routes::*;
+use static_routes::*;
 
 #[tracing::instrument(
     skip(state, session),

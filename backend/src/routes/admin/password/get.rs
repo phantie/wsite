@@ -1,8 +1,8 @@
 use crate::authentication::reject_anonymous_users;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum_sessions::extractors::ReadableSession;
-use common::static_routes::*;
 use hyper::StatusCode;
+use static_routes::*;
 
 pub async fn change_password_form(session: ReadableSession) -> Result<Response, PasswordFormError> {
     let _user_id: u64 = reject_anonymous_users(&session).map_err(PasswordFormError::AuthError)?;

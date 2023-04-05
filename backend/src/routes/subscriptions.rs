@@ -9,8 +9,8 @@ use axum::{
     extract::{rejection::FormRejection, Form, Json, State},
     http::StatusCode,
 };
-use common::static_routes::*;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use static_routes::*;
 
 #[derive(serde::Deserialize, Clone)]
 #[allow(dead_code)]
