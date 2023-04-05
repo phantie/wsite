@@ -1,8 +1,8 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
-use common::static_routes::*;
 #[allow(unused_imports)]
 use hyper::StatusCode;
 use serial_test::serial;
+use static_routes::*;
 
 #[serial]
 #[tokio::test]

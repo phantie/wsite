@@ -1,6 +1,6 @@
 use axum::response::{IntoResponse, Redirect, Response};
 use axum_sessions::extractors::WritableSession;
-use common::static_routes::*;
+use static_routes::*;
 
 pub async fn logout(mut session: WritableSession) -> Response {
     let user_id: Option<u64> = session.get("user_id");

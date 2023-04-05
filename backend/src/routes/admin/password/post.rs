@@ -11,8 +11,8 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_sessions::extractors::ReadableSession;
-use common::static_routes::*;
 use secrecy::{ExposeSecret, Secret};
+use static_routes::*;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {

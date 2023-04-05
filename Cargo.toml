@@ -1,3 +1,6 @@
 [workspace]
 members = ["backend", "common"]
 default-members = ["backend"]
+
+[workspace.dependencies]
+static_routes = { path = "common/static_routes" }

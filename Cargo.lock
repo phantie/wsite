@@ -103,10 +103,8 @@ dependencies = [
  "bonsaidb",
  "claims",
  "clap",
- "common",
  "config",
  "fake",
- "htmlescape",
  "hyper",
  "linkify",
  "once_cell",
@@ -121,8 +119,8 @@ dependencies = [
  "serde-aux",
  "serde_json",
  "serial_test",
+ "static_routes",
  "thiserror",
- "time",
  "tokio",
  "tower",
  "tower-http 0.4.0",
@@ -132,7 +130,6 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "unicode-segmentation",
- "urlencoding",
  "uuid",
  "validator",
  "wiremock",
@@ -1413,12 +1410,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "htmlescape"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9025058dae765dee5070ec375f591e2ba14638c63feff74f13805a72e523163"
-
-[[package]]
 name = "http"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2500,9 +2491,9 @@ dependencies = [
 
 [[package]]
 name = "serde-aux"
-version = "4.1.2"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c599b3fd89a75e0c18d6d2be693ddb12cccaf771db4ff9e39097104808a014c0"
+checksum = "c3dfe1b7eb6f9dcf011bd6fad169cdeaae75eda0d61b1a99a3f015b41b0cae39"
 dependencies = [
  "chrono",
  "serde",
@@ -3210,12 +3201,6 @@ dependencies = [
  "percent-encoding",
  "serde",
 ]
-
-[[package]]
-name = "urlencoding"
-version = "2.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
 
 [[package]]
 name = "uuid"

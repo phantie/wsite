@@ -10,8 +10,8 @@ use axum_sessions::{
     SessionLayer,
 };
 use bonsaidb::core::keyvalue::AsyncKeyValue;
-use common::static_routes::*;
 use secrecy::ExposeSecret;
+use static_routes::*;
 use std::sync::Arc;
 
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {

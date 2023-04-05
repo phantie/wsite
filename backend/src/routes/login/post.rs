@@ -1,5 +1,3 @@
-// use std::time::Duration;
-
 use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     startup::AppState,
@@ -12,8 +10,8 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_sessions::extractors::WritableSession;
-use common::static_routes::*;
 use secrecy::Secret;
+use static_routes::*;
 
 #[tracing::instrument(
     skip(maybe_form, state, session),
