@@ -1,4 +1,6 @@
-use crate::helpers::{spawn_app, TestApp};
+use api_aga_in::static_routes::*;
+
+use crate::helpers::{spawn_app, CompleteWithAdress, TestApp};
 use hyper::StatusCode;
 use serial_test::serial;
 use uuid::Uuid;
@@ -139,7 +141,13 @@ async fn requests_missing_authorization_are_rejected() {
     // Arrange
     let app = spawn_app().await;
     let response = reqwest::Client::new()
-        .post(app.address.with_api_path("/newsletters"))
+        .post(
+            routes()
+                .api
+                .newsletters
+                .post()
+                .complete_with_adress(&app.address),
+        )
         .json(&serde_json::json!({
             "title": "Newsletter title",
             "content": {
@@ -168,7 +176,13 @@ async fn non_existing_user_is_rejected() {
     let username = Uuid::new_v4().to_string();
     let password = Uuid::new_v4().to_string();
     let response = reqwest::Client::new()
-        .post(app.address.with_api_path("/newsletters"))
+        .post(
+            routes()
+                .api
+                .newsletters
+                .post()
+                .complete_with_adress(&app.address),
+        )
         .basic_auth(username, Some(password))
         .json(&serde_json::json!({
             "title": "Newsletter title",
@@ -199,7 +213,13 @@ async fn invalid_password_is_rejected() {
     let password = Uuid::new_v4().to_string();
     assert_ne!(app.test_user.password, password);
     let response = reqwest::Client::new()
-        .post(app.address.with_api_path("/newsletters"))
+        .post(
+            routes()
+                .api
+                .newsletters
+                .post()
+                .complete_with_adress(&app.address),
+        )
         .basic_auth(username, Some(password))
         .json(&serde_json::json!({
             "title": "Newsletter title",

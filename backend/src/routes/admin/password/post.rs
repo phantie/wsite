@@ -4,6 +4,7 @@ use crate::{
     },
     database::*,
     startup::AppState,
+    static_routes::*,
 };
 use axum::{
     extract::{Form, State},
@@ -25,9 +26,12 @@ pub async fn change_password(
     session: ReadableSession,
     Form(form): Form<FormData>,
 ) -> Result<Response, PasswordChangeError> {
+    let redirect_to_password_form =
+        Ok(Redirect::to(routes().root.admin.password.get().complete()).into_response());
+
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
         tracing::info!("You entered two different new passwords - the field values must match.");
-        return Ok(Redirect::to("/admin/password").into_response());
+        return redirect_to_password_form;
     }
 
     let user_id: u64 = reject_anonymous_users(&session).map_err(PasswordChangeError::AuthError)?;
@@ -45,21 +49,17 @@ pub async fn change_password(
     match validate_credentials(&state, &credentials).await {
         Ok(_user_id) => {
             let password_hash = compute_password_hash(form.new_password).unwrap();
-
             user.contents.password_hash = password_hash.expose_secret().to_owned();
             user.update_async(&state.database.collections.users)
                 .await
                 .unwrap();
             tracing::info!("Your password has been changed.");
-
-            Ok(Redirect::to("/admin/password").into_response())
         }
         Err(_e) => {
             tracing::info!("The current password is incorrect.");
-
-            return Ok(Redirect::to("/admin/password").into_response());
         }
     }
+    redirect_to_password_form
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -74,7 +74,10 @@ pub enum PasswordChangeError {
 impl axum::response::IntoResponse for PasswordChangeError {
     fn into_response(self) -> axum::response::Response {
         let (trace_message, response) = match &self {
-            Self::AuthError(_e) => (self.to_string(), Redirect::to("/login").into_response()),
+            Self::AuthError(_e) => (
+                self.to_string(),
+                Redirect::to(routes().root.login.get().complete()).into_response(),
+            ),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", self.to_string(), e.source().unwrap()),
                 StatusCode::INTERNAL_SERVER_ERROR.into_response(),

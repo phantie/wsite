@@ -3,6 +3,7 @@
 use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     startup::AppState,
+    static_routes::*,
 };
 use anyhow::Context;
 #[allow(unused_imports)]
@@ -42,7 +43,7 @@ pub async fn login(
         .context("Failed to register user_id in a session")
         .map_err(LoginError::UnexpectedError)?;
 
-    Ok(Redirect::to("/admin/dashboard").into_response())
+    Ok(Redirect::to(routes().root.admin.dashboard.get().complete()).into_response())
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -81,7 +82,7 @@ impl axum::response::IntoResponse for LoginError {
             Self::UnexpectedError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
         };
         tracing::error!("{}", trace_message);
-        let redirect = Redirect::to("/login");
+        let redirect = Redirect::to(routes().root.login.get().complete());
         redirect.into_response()
     }
 }

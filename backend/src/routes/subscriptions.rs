@@ -3,6 +3,7 @@ use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
     startup::AppState,
+    static_routes::*,
 };
 use anyhow::Context;
 use axum::{
@@ -77,9 +78,11 @@ pub async fn send_confirmation_email(
     subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
     let confirmation_link = format!(
-        "{}/api/subscriptions/confirm?subscription_token={}",
-        base_url, subscription_token
+        "{}?subscription_token={}",
+        routes().api.subs.confirm.get().complete_with_base(base_url),
+        subscription_token
     );
+
     let plain_body = format!(
         "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
         confirmation_link

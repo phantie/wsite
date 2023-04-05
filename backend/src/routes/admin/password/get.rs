@@ -1,4 +1,5 @@
 use crate::authentication::reject_anonymous_users;
+use crate::static_routes::*;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum_sessions::extractors::ReadableSession;
 use hyper::StatusCode;
@@ -52,7 +53,10 @@ pub enum PasswordFormError {
 impl axum::response::IntoResponse for PasswordFormError {
     fn into_response(self) -> axum::response::Response {
         let (trace_message, response) = match &self {
-            Self::AuthError(_e) => (self.to_string(), Redirect::to("/login").into_response()),
+            Self::AuthError(_e) => (
+                self.to_string(),
+                Redirect::to(routes().root.login.get().complete()).into_response(),
+            ),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", self.to_string(), e.source().unwrap()),
                 StatusCode::INTERNAL_SERVER_ERROR.into_response(),
