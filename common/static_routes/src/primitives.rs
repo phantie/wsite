@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 pub trait Url {
     fn prefix(&self) -> &str {
         ""
@@ -6,6 +5,7 @@ pub trait Url {
     fn postfix(&self) -> &str;
 }
 
+#[derive(Clone)]
 pub struct RelativePath {
     prefix: String,
     postfix: String,
@@ -25,16 +25,44 @@ impl RelativePath {
         &self.complete
     }
 
-    pub fn complete_with_base(&self, base_url: &str) -> String {
-        format!("{}{}", base_url, self.complete())
-    }
-
     pub fn prefix(&self) -> &str {
         &self.prefix
     }
 
     pub fn postfix(&self) -> &str {
         &self.postfix
+    }
+
+    pub fn with_base(&self, base_url: &str) -> FullPath {
+        FullPath::new(base_url.to_owned(), self.clone())
+    }
+}
+
+pub struct FullPath {
+    base_url: String,
+    relative_path: RelativePath,
+    complete: String,
+}
+
+impl FullPath {
+    fn new(base_url: String, relative_path: RelativePath) -> Self {
+        Self {
+            complete: format!("{}{}", &base_url, relative_path.complete()),
+            base_url,
+            relative_path,
+        }
+    }
+
+    pub fn complete(&self) -> &str {
+        &self.complete
+    }
+
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
+    pub fn relative_path(&self) -> &RelativePath {
+        &self.relative_path
     }
 }
 

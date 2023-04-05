@@ -14,7 +14,7 @@ async fn you_must_be_logged_in_to_see_the_change_password_form() {
     let response = app.get_change_password().await;
 
     // Assert
-    assert_is_redirect_to(&response, routes().root.login.get().complete());
+    assert_is_redirect_to(&response, routes().root.login);
 }
 
 #[serial]
@@ -34,7 +34,7 @@ async fn you_must_be_logged_in_to_change_your_password() {
         .await;
 
     // Assert
-    assert_is_redirect_to(&response, routes().root.login.get().complete());
+    assert_is_redirect_to(&response, routes().root.login);
 }
 
 #[serial]
@@ -59,7 +59,7 @@ async fn new_password_fields_must_match() {
             "new_password_check": &another_new_password,
         }))
         .await;
-    assert_is_redirect_to(&response, routes().root.admin.password.get().complete());
+    assert_is_redirect_to(&response, routes().root.admin.password);
     // Act - Part 3 - Follow the redirect
 }
 
@@ -88,7 +88,7 @@ async fn current_password_must_be_valid() {
         .await;
 
     // Assert
-    assert_is_redirect_to(&response, routes().root.admin.password.get().complete());
+    assert_is_redirect_to(&response, routes().root.admin.password);
 }
 
 #[serial]
@@ -104,7 +104,7 @@ async fn changing_password_works() {
         "password": &app.test_user.password
     });
     let response = app.post_login(&login_body).await;
-    assert_is_redirect_to(&response, routes().root.admin.dashboard.get().complete());
+    assert_is_redirect_to(&response, routes().root.admin.dashboard);
 
     // Act - Part 2 - Change password
     let response = app
@@ -114,7 +114,7 @@ async fn changing_password_works() {
             "new_password_check": &new_password,
         }))
         .await;
-    assert_is_redirect_to(&response, routes().root.admin.password.get().complete());
+    assert_is_redirect_to(&response, routes().root.admin.password);
 
     // Act - Part 3 - Follow the redirect
     let html_page = app.get_change_password_html().await;
@@ -122,7 +122,7 @@ async fn changing_password_works() {
 
     // Act - Part 4 - Logout
     let response = app.post_logout().await;
-    assert_is_redirect_to(&response, routes().root.login.get().complete());
+    assert_is_redirect_to(&response, routes().root.login);
 
     // Act - Part 6 - Login using the new password
     let login_body = serde_json::json!({
@@ -130,5 +130,5 @@ async fn changing_password_works() {
         "password": &new_password
     });
     let response = app.post_login(&login_body).await;
-    assert_is_redirect_to(&response, routes().root.admin.dashboard.get().complete());
+    assert_is_redirect_to(&response, routes().root.admin.dashboard);
 }

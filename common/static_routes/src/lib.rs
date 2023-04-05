@@ -49,7 +49,7 @@ mod tests {
         assert_eq!(route.complete(), "/api/health_check");
         for host in hosts {
             assert_eq!(
-                route.complete_with_base(host),
+                route.with_base(host).complete(),
                 format!("{}/api/health_check", host)
             );
         }
@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(route.prefix(), "");
         assert_eq!(route.complete(), "/");
         for host in hosts {
-            assert_eq!(route.complete_with_base(host), format!("{}/", host));
+            assert_eq!(route.with_base(host).complete(), format!("{}/", host));
         }
     }
 }
