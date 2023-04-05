@@ -1,7 +1,6 @@
 use crate::configuration::Settings;
 use crate::database::*;
 use crate::email_client::EmailClient;
-use crate::static_routes::*;
 use axum::{
     routing::{get, post},
     Router,
@@ -11,6 +10,7 @@ use axum_sessions::{
     SessionLayer,
 };
 use bonsaidb::core::keyvalue::AsyncKeyValue;
+use common::static_routes::*;
 use secrecy::ExposeSecret;
 use std::sync::Arc;
 

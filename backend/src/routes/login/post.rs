@@ -3,7 +3,6 @@
 use crate::{
     authentication::{validate_credentials, AuthError, Credentials},
     startup::AppState,
-    static_routes::*,
 };
 use anyhow::Context;
 #[allow(unused_imports)]
@@ -13,6 +12,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_sessions::extractors::WritableSession;
+use common::static_routes::*;
 use secrecy::Secret;
 
 #[tracing::instrument(

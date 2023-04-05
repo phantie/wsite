@@ -1,6 +1,4 @@
-use crate::{
-    authentication::reject_anonymous_users, database::*, startup::AppState, static_routes::*,
-};
+use crate::{authentication::reject_anonymous_users, database::*, startup::AppState};
 use anyhow::Context;
 use axum::{
     http::StatusCode,
@@ -8,6 +6,7 @@ use axum::{
     {extract::State, response::Redirect},
 };
 use axum_sessions::extractors::ReadableSession;
+use common::static_routes::*;
 
 #[tracing::instrument(
     skip(state, session),

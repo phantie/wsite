@@ -4,7 +4,6 @@ use crate::{
     },
     database::*,
     startup::AppState,
-    static_routes::*,
 };
 use axum::{
     extract::{Form, State},
@@ -12,6 +11,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
 };
 use axum_sessions::extractors::ReadableSession;
+use common::static_routes::*;
 use secrecy::{ExposeSecret, Secret};
 
 #[derive(serde::Deserialize)]

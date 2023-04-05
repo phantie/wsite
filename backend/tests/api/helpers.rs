@@ -1,9 +1,9 @@
 use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use api_aga_in::startup::Application;
-use api_aga_in::static_routes::*;
 use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
+use common::static_routes::*;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
