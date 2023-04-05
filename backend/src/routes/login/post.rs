@@ -1,17 +1,4 @@
-use crate::{
-    authentication::{validate_credentials, AuthError, Credentials},
-    startup::AppState,
-};
-use anyhow::Context;
-#[allow(unused_imports)]
-use axum::{
-    extract::{rejection::FormRejection, Form, Query, State},
-    http::header,
-    response::{IntoResponse, Redirect, Response},
-};
-use axum_sessions::extractors::WritableSession;
-use secrecy::Secret;
-use static_routes::*;
+use crate::routes::imports::*;
 
 #[tracing::instrument(
     skip(maybe_form, state, session),

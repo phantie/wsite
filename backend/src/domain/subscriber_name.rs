@@ -1,5 +1,3 @@
-use unicode_segmentation::UnicodeSegmentation;
-
 #[derive(Debug)]
 pub struct SubscriberName(String);
 
@@ -18,6 +16,7 @@ impl SubscriberName {
         // `graphemes` returns an iterator over the graphemes in the input `s`.
         // `true` specifies that we want to use the extended grapheme definition set,
         // the recommended one.
+        use unicode_segmentation::UnicodeSegmentation;
         let is_too_long = s.graphemes(true).count() > 256;
 
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];

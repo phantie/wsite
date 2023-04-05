@@ -1,16 +1,8 @@
+use crate::routes::imports::*;
 use crate::{
-    database::*,
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
-    startup::AppState,
 };
-use anyhow::Context;
-use axum::{
-    extract::{rejection::FormRejection, Form, Json, State},
-    http::StatusCode,
-};
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use static_routes::*;
 
 #[derive(serde::Deserialize, Clone)]
 #[allow(dead_code)]
@@ -131,6 +123,7 @@ pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscr
 
 /// Generate a random 25-characters-long case-sensitive subscription token.
 fn generate_subscription_token() -> String {
+    use rand::{distributions::Alphanumeric, thread_rng, Rng};
     let mut rng = thread_rng();
     std::iter::repeat_with(|| rng.sample(Alphanumeric))
         .map(char::from)

@@ -1,15 +1,4 @@
-use crate::{
-    authentication::{validate_credentials, AuthError, Credentials},
-    database::*,
-    startup::AppState,
-};
-use anyhow::Context;
-use axum::{
-    extract::{rejection::TypedHeaderRejection, Json, State, TypedHeader},
-    headers::{authorization::Basic, Authorization},
-    http::{header, StatusCode},
-    response::{IntoResponse, Response},
-};
+use crate::routes::imports::*;
 
 #[axum_macros::debug_handler]
 pub async fn publish_newsletter(

@@ -1,11 +1,13 @@
+use crate::helpers::{spawn_app, CompleteWithAdress, TestApp};
 use static_routes::*;
 
-use crate::helpers::{spawn_app, CompleteWithAdress, TestApp};
 use hyper::StatusCode;
 use serial_test::serial;
 use uuid::Uuid;
-use wiremock::matchers::{any, method, path};
-use wiremock::{Mock, ResponseTemplate};
+use wiremock::{
+    matchers::{any, method, path},
+    Mock, ResponseTemplate,
+};
 
 #[serial]
 #[tokio::test]

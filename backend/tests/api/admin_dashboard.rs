@@ -1,6 +1,7 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
-use serial_test::serial;
 use static_routes::*;
+
+use serial_test::serial;
 
 #[serial]
 #[tokio::test]
