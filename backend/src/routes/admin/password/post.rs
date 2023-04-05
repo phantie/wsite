@@ -1,18 +1,5 @@
-use crate::{
-    authentication::{
-        compute_password_hash, reject_anonymous_users, validate_credentials, Credentials,
-    },
-    database::*,
-    startup::AppState,
-};
-use axum::{
-    extract::{Form, State},
-    http::StatusCode,
-    response::{IntoResponse, Redirect, Response},
-};
-use axum_sessions::extractors::ReadableSession;
-use secrecy::{ExposeSecret, Secret};
-use static_routes::*;
+use crate::authentication::compute_password_hash;
+use crate::routes::imports::*;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {

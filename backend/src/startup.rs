@@ -1,6 +1,6 @@
-use crate::configuration::Settings;
-use crate::database::*;
-use crate::email_client::EmailClient;
+use crate::{configuration::Settings, database::*, email_client::EmailClient};
+use static_routes::*;
+
 use axum::{
     routing::{get, post},
     Router,
@@ -11,7 +11,6 @@ use axum_sessions::{
 };
 use bonsaidb::core::keyvalue::AsyncKeyValue;
 use secrecy::ExposeSecret;
-use static_routes::*;
 use std::sync::Arc;
 
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {
