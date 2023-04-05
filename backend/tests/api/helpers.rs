@@ -1,6 +1,7 @@
 use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use api_aga_in::startup::Application;
+use api_aga_in::static_routes::*;
 use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use hyper::StatusCode;
@@ -79,6 +80,16 @@ pub struct AppAdress {
     adress: String,
 }
 
+pub trait CompleteWithAdress {
+    fn complete_with_adress(&self, adress: &AppAdress) -> String;
+}
+
+impl CompleteWithAdress for RelativePath {
+    fn complete_with_adress(&self, adress: &AppAdress) -> String {
+        format!("{}{}", adress.as_ref(), self.complete())
+    }
+}
+
 impl AsRef<str> for AppAdress {
     fn as_ref(&self) -> &str {
         &self.adress
@@ -98,7 +109,7 @@ impl AppAdress {
 impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         self.api_client
-            .post(self.address.with_api_path("/subscriptions"))
+            .post(routes().api.subs.post().complete_with_adress(&self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -130,7 +141,13 @@ impl TestApp {
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         self.api_client
-            .post(self.address.with_api_path("/newsletters"))
+            .post(
+                routes()
+                    .api
+                    .newsletters
+                    .post()
+                    .complete_with_adress(&self.address),
+            )
             .basic_auth(&self.test_user.username, Some(&self.test_user.password))
             .json(&body)
             .send()
@@ -143,7 +160,13 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(self.address.with_api_path("/login"))
+            .post(
+                routes()
+                    .api
+                    .login
+                    .post()
+                    .complete_with_adress(&self.address),
+            )
             .form(body)
             .send()
             .await
@@ -153,7 +176,13 @@ impl TestApp {
     #[allow(dead_code)]
     pub async fn get_login_html(&self) -> String {
         self.api_client
-            .get(self.address.with_path("/login"))
+            .get(
+                routes()
+                    .root
+                    .login
+                    .get()
+                    .complete_with_adress(&self.address),
+            )
             .send()
             .await
             .expect("Failed to execute request.")
@@ -164,7 +193,14 @@ impl TestApp {
 
     pub async fn get_admin_dashboard(&self) -> reqwest::Response {
         self.api_client
-            .get(self.address.with_path("/admin/dashboard"))
+            .get(
+                routes()
+                    .root
+                    .admin
+                    .dashboard
+                    .get()
+                    .complete_with_adress(&self.address),
+            )
             .send()
             .await
             .expect("Failed to execute request.")
@@ -176,7 +212,14 @@ impl TestApp {
 
     pub async fn get_change_password(&self) -> reqwest::Response {
         self.api_client
-            .get(self.address.with_path("/admin/password"))
+            .get(
+                routes()
+                    .root
+                    .admin
+                    .password
+                    .get()
+                    .complete_with_adress(&self.address),
+            )
             .send()
             .await
             .expect("Failed to execute request.")
@@ -187,7 +230,14 @@ impl TestApp {
         Body: serde::Serialize,
     {
         self.api_client
-            .post(self.address.with_api_path("/admin/password"))
+            .post(
+                routes()
+                    .api
+                    .admin
+                    .password
+                    .post()
+                    .complete_with_adress(&self.address),
+            )
             .form(body)
             .send()
             .await
@@ -200,7 +250,14 @@ impl TestApp {
 
     pub async fn post_logout(&self) -> reqwest::Response {
         self.api_client
-            .post(self.address.with_api_path("/admin/logout"))
+            .post(
+                routes()
+                    .api
+                    .admin
+                    .logout
+                    .post()
+                    .complete_with_adress(&self.address),
+            )
             .send()
             .await
             .expect("Failed to execute request.")

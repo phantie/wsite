@@ -1,4 +1,6 @@
-use crate::{authentication::reject_anonymous_users, database::*, startup::AppState};
+use crate::{
+    authentication::reject_anonymous_users, database::*, startup::AppState, static_routes::*,
+};
 use anyhow::Context;
 use axum::{
     http::StatusCode,
@@ -73,7 +75,10 @@ pub enum DashboardError {
 impl axum::response::IntoResponse for DashboardError {
     fn into_response(self) -> axum::response::Response {
         let (trace_message, response) = match &self {
-            Self::AuthError(_e) => (self.to_string(), Redirect::to("/login").into_response()),
+            Self::AuthError(_e) => (
+                self.to_string(),
+                Redirect::to(routes().root.login.get().complete()).into_response(),
+            ),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", self.to_string(), e.source().unwrap()),
                 StatusCode::INTERNAL_SERVER_ERROR.into_response(),

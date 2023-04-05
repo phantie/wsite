@@ -1,6 +1,7 @@
 use crate::configuration::Settings;
 use crate::database::*;
 use crate::email_client::EmailClient;
+use crate::static_routes::*;
 use axum::{
     routing::{get, post},
     Router,
@@ -15,21 +16,39 @@ use std::sync::Arc;
 
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     use crate::routes::*;
-    let api_router = Router::new()
-        .route("/health_check", get(health_check))
-        .route("/subscriptions", post(subscribe))
-        .route("/subscriptions/confirm", get(confirm))
-        .route("/newsletters", post(publish_newsletter))
-        .route("/login", post(login))
-        .route("/admin/password", post(change_password))
-        .route("/admin/logout", post(logout));
 
-    let frontend_router = Router::new()
-        .route("/subscriptions", get(all_subscriptions))
-        .route("/", get(home))
-        .route("/login", get(login_form))
-        .route("/admin/dashboard", get(admin_dashboard))
-        .route("/admin/password", get(change_password_form));
+    let routes = routes();
+
+    let api_router = {
+        let routes = routes.api;
+        Router::new()
+            .route(routes.health_check.get().postfix(), get(health_check))
+            .route(routes.subs.post().postfix(), post(subscribe))
+            .route(routes.subs.confirm.get().postfix(), get(confirm))
+            .route(
+                routes.newsletters.post().postfix(),
+                post(publish_newsletter),
+            )
+            .route(routes.login.post().postfix(), post(login))
+            .route(
+                routes.admin.password.post().postfix(),
+                post(change_password),
+            )
+            .route(routes.admin.logout.post().postfix(), post(logout))
+    };
+
+    let frontend_router = {
+        let routes = routes.root;
+        Router::new()
+            .route(routes.subs.get().postfix(), get(all_subscriptions))
+            .route(routes.home.get().postfix(), get(home))
+            .route(routes.login.get().postfix(), get(login_form))
+            .route(routes.admin.dashboard.get().postfix(), get(admin_dashboard))
+            .route(
+                routes.admin.password.get().postfix(),
+                get(change_password_form),
+            )
+    };
 
     Router::new()
         .nest("/", frontend_router)

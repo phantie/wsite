@@ -1,3 +1,3 @@
 [workspace]
-members = ["backend", "common"]
+members = ["backend", "common", "route_macros", "route_primitives"]
 default-members = ["backend"]
