@@ -22,15 +22,48 @@ pub fn routes() -> Routes {
 }
 
 #[cfg(test)]
-mod route_tests {
+mod tests {
+    #![allow(non_upper_case_globals)]
     use super::*;
 
+    static localhost_dns: &str = "http://localhost";
+    static localhost: &str = "http://127.0.0.1";
+    static localhost_with_port: &str = "http://127.0.0.1:8000";
+    static zeros_with_port: &str = "http://0.0.0.0:8000";
+    static https: &str = "https://api-qwerty.digitalocean.com";
+
+    static hosts: &[&'static str] = &[
+        localhost_dns,
+        localhost,
+        localhost_with_port,
+        zeros_with_port,
+        https,
+    ];
+
     #[test]
-    fn basic() {
-        let routes = Routes::default();
+    fn test_health_check() {
+        let route = routes().api.health_check.get();
 
-        routes.api.health_check.get();
+        assert_eq!(route.postfix(), "/health_check");
+        assert_eq!(route.prefix(), "/api");
+        assert_eq!(route.complete(), "/api/health_check");
+        for host in hosts {
+            assert_eq!(
+                route.complete_with_base(host),
+                format!("{}/api/health_check", host)
+            );
+        }
+    }
 
-        assert_eq!(routes.api.health_check.get().postfix(), "/health_check");
+    #[test]
+    fn test_home() {
+        let route = routes().root.home.get();
+
+        assert_eq!(route.postfix(), "/");
+        assert_eq!(route.prefix(), "");
+        assert_eq!(route.complete(), "/");
+        for host in hosts {
+            assert_eq!(route.complete_with_base(host), format!("{}/", host));
+        }
     }
 }
