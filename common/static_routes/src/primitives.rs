@@ -66,14 +66,20 @@ impl FullPath {
     }
 }
 
+impl<U: Url + ?Sized> From<&U> for RelativePath {
+    fn from(value: &U) -> Self {
+        Self::new(value.prefix().to_owned(), value.postfix().to_owned())
+    }
+}
+
 pub trait Get: Url {
     fn get(&self) -> RelativePath {
-        RelativePath::new(self.prefix().to_owned(), self.postfix().to_owned())
+        self.into()
     }
 }
 
 pub trait Post: Url {
     fn post(&self) -> RelativePath {
-        RelativePath::new(self.prefix().to_owned(), self.postfix().to_owned())
+        self.into()
     }
 }
