@@ -13,8 +13,7 @@ pub async fn change_password(
     session: ReadableSession,
     Form(form): Form<FormData>,
 ) -> Result<Response, PasswordChangeError> {
-    let redirect_to_password_form =
-        Ok(Redirect::to(routes().root.admin.password.get().complete()).into_response());
+    let redirect_to_password_form = Ok(routes().root.admin.password.redirect_to().into_response());
 
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
         tracing::info!("You entered two different new passwords - the field values must match.");
@@ -63,7 +62,7 @@ impl axum::response::IntoResponse for PasswordChangeError {
         let (trace_message, response) = match &self {
             Self::AuthError(_e) => (
                 self.to_string(),
-                Redirect::to(routes().root.login.get().complete()).into_response(),
+                routes().root.login.redirect_to().into_response(),
             ),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", self.to_string(), e.source().unwrap()),

@@ -68,7 +68,7 @@ impl axum::response::IntoResponse for DashboardError {
         let (trace_message, response) = match &self {
             Self::AuthError(_e) => (
                 self.to_string(),
-                Redirect::to(routes().root.login.get().complete()).into_response(),
+                routes().root.login.redirect_to().into_response(),
             ),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", self.to_string(), e.source().unwrap()),

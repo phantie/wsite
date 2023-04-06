@@ -28,7 +28,7 @@ pub async fn login(
         .context("Failed to register user_id in a session")
         .map_err(LoginError::UnexpectedError)?;
 
-    Ok(Redirect::to(routes().root.admin.dashboard.get().complete()).into_response())
+    Ok(routes().root.admin.dashboard.redirect_to().into_response())
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -67,7 +67,6 @@ impl axum::response::IntoResponse for LoginError {
             Self::UnexpectedError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
         };
         tracing::error!("{}", trace_message);
-        let redirect = Redirect::to(routes().root.login.get().complete());
-        redirect.into_response()
+        routes().root.login.redirect_to().into_response()
     }
 }
