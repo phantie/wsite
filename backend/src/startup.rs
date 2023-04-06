@@ -13,6 +13,37 @@ use bonsaidb::core::keyvalue::AsyncKeyValue;
 use secrecy::ExposeSecret;
 use std::sync::Arc;
 
+static FRONTEND_DIR: include_dir::Dir<'_> =
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist/");
+
+static INDEX_HTML: &str = include_str!("../../frontend/dist/index.html");
+
+async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
+    use axum::body::{self, Full};
+    use axum::http::{header, HeaderValue, StatusCode};
+    use axum::response::Html;
+    use axum::response::IntoResponse;
+
+    let path = uri.to_string();
+    let path = path.trim_start_matches('/');
+
+    match FRONTEND_DIR.get_file(path) {
+        None => Html(INDEX_HTML).into_response(),
+        Some(file) => {
+            let mime_type = mime_guess::from_path(path).first_or_text_plain();
+
+            axum::http::Response::builder()
+                .status(StatusCode::OK)
+                .header(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_str(mime_type.as_ref()).unwrap(),
+                )
+                .body(body::boxed(Full::from(file.contents())))
+                .unwrap()
+        }
+    }
+}
+
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     use crate::routes::*;
 
@@ -40,7 +71,7 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
         let routes = routes.root;
         Router::new()
             .route(routes.subs.get().postfix(), get(all_subscriptions))
-            .route(routes.home.get().postfix(), get(home))
+            // .route(routes.home.get().postfix(), get(home))
             .route(routes.login.get().postfix(), get(login_form))
             .route(routes.admin.dashboard.get().postfix(), get(admin_dashboard))
             .route(
@@ -52,6 +83,7 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     Router::new()
         .nest("/", frontend_router)
         .nest("/api", api_router)
+        .fallback(fallback)
         .layer(
             tower::ServiceBuilder::new()
                 .layer(tower_request_id::RequestIdLayer)

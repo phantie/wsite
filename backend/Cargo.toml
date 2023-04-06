@@ -45,6 +45,8 @@ axum-sessions = "0.4.1"
 clap = { version = "4.1.11", features = ["derive"] }
 rpassword = "7.2.0"
 static_routes.workspace = true
+mime_guess = "2.0.4"
+include_dir = "0.7.3"
 
 [features]
 
@@ -58,6 +60,3 @@ quickcheck_macros = "1.0.0"
 fake = "2.5.0"
 wiremock = "0.5.17"
 linkify = "0.9.0"
-
-[env]
-APP_ENVIRONMENT = "production"

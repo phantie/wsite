@@ -1,4 +1,14 @@
+# compiled rust
 **/target/
+
+# local bonsaidb storages
 **/*.bonsaidb/
+
+# VS Code override for workspace
 .vscode/
+
+# temporary dirs
 **/tmp/
+
+# frontend final assets
+/frontend/dist/
