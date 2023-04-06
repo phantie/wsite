@@ -1,5 +1,5 @@
 [workspace]
-members = ["backend", "common"]
+members = ["backend", "frontend", "common"]
 default-members = ["backend"]
 
 [workspace.dependencies]
