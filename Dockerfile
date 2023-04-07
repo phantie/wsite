@@ -23,7 +23,6 @@ FROM debian:bullseye-slim AS runtime
 WORKDIR /app
 COPY --from=builder /app/target/release/api_aga_in api_aga_in
 COPY --from=builder /app/backend/configuration backend/configuration
-COPY --from=builder /app/frontend/ frontend
 ENV APP_ENVIRONMENT production
 # When `docker run` is executed, launch the binary
 ENTRYPOINT ["./api_aga_in"]
