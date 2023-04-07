@@ -20,4 +20,4 @@ doctl apps update $APP_ID --spec spec.yaml
 # Get spec currently in the cloud
 doctl apps spec get $APP_ID
 # Redeploy
-doctl create-deployment $APP_ID
+doctl apps create-deployment $APP_ID
