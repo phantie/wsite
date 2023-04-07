@@ -1,11 +1,11 @@
 name: my-site
 region: fra
 services:
-    - name: backend
-      dockerfile_path: /backend/Dockerfile
-      source_dir: /backend/
+    - name: app
+      dockerfile_path: Dockerfile
+      source_dir: /
       github:
-          branch: frontend
+          branch: frontend_mega_hardcore
           # Deploy a new version on every commit
           # deploy_on_push: true
           repo: phantie/api_aga_in

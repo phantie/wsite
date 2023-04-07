@@ -1,0 +1,54 @@
+# trunk build from cargo takes 4 minutes,
+# it needs to use already built binary to not cause too much pain
+# this is a potential Dockefile, which now fails to build with
+# 
+#23 0.436 2023-04-07T15:05:09.218574Z  INFO spawning asset pipelines
+#23 0.459 2023-04-07T15:05:09.240756Z ERROR  error
+#23 0.459 error from HTML pipeline
+#23 0.459 
+#23 0.459 Caused by:
+#23 0.459     0: error getting cargo metadata
+#23 0.459     1: `cargo metadata` exited with an error: 
+#23 0.468 Error: error from HTML pipeline
+#23 0.468 
+#23 0.468 Caused by:
+#23 0.468     0: error getting cargo metadata
+#23 0.468     1: `cargo metadata` exited with an error: 
+# ------
+# executor failed running [/bin/sh -c cd frontend && ./trunk build --release]: exit code: 1
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+WORKDIR /app
+
+FROM chef AS planner
+COPY . .
+# Compute a lock-like file for our project
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM --platform=linux/x86_64 debian:bullseye-slim AS frontend_builder
+COPY . .
+RUN apt-get update
+RUN apt install wget -y
+RUN wget "https://github.com/thedodd/trunk/releases/download/v0.16.0/trunk-x86_64-unknown-linux-gnu.tar.gz"
+RUN tar -xzf trunk-x86_64-unknown-linux-gnu.tar.gz
+RUN cp trunk ./frontend
+RUN cd frontend && ./trunk build --release
+
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build our project dependencies, not our application!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Up to this point, if our dependency tree stays the same,
+# all layers should be cached.
+COPY . .
+COPY --from=frontend_builder /app/frontend/dist frontend
+# Build our project
+RUN cargo build --release --bin api_aga_in
+
+FROM debian:bullseye-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app/target/release/api_aga_in api_aga_in
+COPY --from=builder /app/backend/configuration backend/configuration
+COPY --from=builder /app/frontend/ frontend
+ENV APP_ENVIRONMENT production
+# When `docker run` is executed, launch the binary
+ENTRYPOINT ["./api_aga_in"]
