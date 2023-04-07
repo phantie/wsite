@@ -10,14 +10,14 @@ docker run -p 8000:8000 --env APP_ENVIRONMENT=local --env APP__APPLICATION__HOST
 # Remove local container
 docker rm $(docker stop $(docker ps -a -q --filter ancestor=api_aga_in --format="{{.ID}}"))
 
-## Deploy to production
+## Deploy
 # Create app
 doctl apps create --spec spec.yaml
-# Go to app settings, select service and add secrets
-# - APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN (encrypt)
 # List apps
 doctl apps list --format ID
 # Run when the spec is updated
 doctl apps update $APP_ID --spec spec.yaml
 # Get spec currently in the cloud
 doctl apps spec get $APP_ID
+# Redeploy
+doctl create-deployment $APP_ID
