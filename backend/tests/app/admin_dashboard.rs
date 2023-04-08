@@ -38,13 +38,6 @@ async fn logout_clears_session_state() {
     let response = app.post_logout().await;
     assert_is_redirect_to(&response, routes().root.login);
 
-    // FIXIT
-    // NO IDEA WHY IT DOES NOT WORK ONLY IN THIS PLACE
-
-    // // Act - Part 4 - Follow the redirect
-    // let html_page = app.get_login_html().await;
-    // assert!(html_page.contains(r#"<p><i>You have successfully logged out.</i></p>"#));
-
     // Act - Part 5 - Attempt to load admin panel
     let response = app.get_admin_dashboard().await;
     assert_is_redirect_to(&response, routes().root.login);

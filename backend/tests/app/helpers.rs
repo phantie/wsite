@@ -5,7 +5,7 @@ use api_aga_in::telemetry::{get_subscriber, init_subscriber};
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
-use reqwest::RequestBuilder;
+use reqwest::{RequestBuilder, Response};
 use static_routes::*;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -138,15 +138,19 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
+    pub async fn get_home(&self) -> Response {
+        self.get(routes().root.home)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     #[allow(dead_code)]
-    pub async fn get_login_html(&self) -> String {
+    pub async fn get_login(&self) -> Response {
         self.get(routes().root.login)
             .send()
             .await
             .expect("Failed to execute request.")
-            .text()
-            .await
-            .unwrap()
     }
 
     pub async fn get_admin_dashboard(&self) -> reqwest::Response {
