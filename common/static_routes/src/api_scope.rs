@@ -82,6 +82,7 @@ impl Url for Login {
 pub struct Admin {
     pub password: AdminPassword,
     pub logout: AdminLogout,
+    pub session: AdminSession,
 }
 
 #[derive(Default, Post)]
@@ -103,6 +104,19 @@ pub struct AdminLogout;
 impl Url for AdminLogout {
     fn postfix(&self) -> &str {
         "/admin/logout"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
+}
+
+#[derive(Default, Get)]
+pub struct AdminSession;
+
+impl Url for AdminSession {
+    fn postfix(&self) -> &str {
+        "/admin/session"
     }
 
     fn prefix(&self) -> &str {

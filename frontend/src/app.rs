@@ -1,19 +1,27 @@
+use crate::components;
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 // Router accepts only literals, so static_routes are used in tests
 #[derive(Clone, Routable, PartialEq)]
-enum Route {
+pub enum Route {
     #[at("/")]
     Home,
     #[at("/login")]
     Login,
+    #[at("/admin/dashboard")]
+    AdminDashboard,
+    #[not_found]
+    #[at("/404page")]
+    NotFound,
 }
 
 fn switch(routes: Route) -> Html {
     match routes {
+        Route::NotFound => html! { <components::NoFound/> },
         Route::Home => html! { <h1>{ "Hello Frontend" }</h1> },
-        Route::Login => html! { <h1>{ "Login: [_______]" }</h1> },
+        Route::Login => html! { <components::login::Login/> },
+        Route::AdminDashboard => html! { <components::AdminDashboard/>},
     }
 }
 
@@ -46,5 +54,6 @@ mod tests {
 
         map_to_one_another(Route::Home, routes.home);
         map_to_one_another(Route::Login, routes.login);
+        map_to_one_another(Route::AdminDashboard, routes.admin.dashboard);
     }
 }

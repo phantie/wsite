@@ -65,15 +65,13 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
                 post(change_password),
             )
             .route(routes.admin.logout.post().postfix(), post(logout))
+            .route(routes.admin.session.get().postfix(), get(admin_session))
     };
 
     let frontend_router = {
         let routes = routes.root;
         Router::new()
             .route(routes.subs.get().postfix(), get(all_subscriptions))
-            // .route(routes.home.get().postfix(), get(home))
-            .route(routes.login.get().postfix(), get(login_form))
-            .route(routes.admin.dashboard.get().postfix(), get(admin_dashboard))
             .route(
                 routes.admin.password.get().postfix(),
                 get(change_password_form),
@@ -118,7 +116,7 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
             // let mut secret = [0_u8; 128];
             // rand::thread_rng().fill(&mut secret);
 
-            SessionLayer::new(store, &secret).with_secure(true)
+            SessionLayer::new(store, &secret).with_secure(false)
         })
 }
 

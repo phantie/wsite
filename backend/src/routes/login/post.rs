@@ -8,9 +8,9 @@ use crate::routes::imports::*;
 pub async fn login(
     State(state): State<AppState>,
     mut session: WritableSession,
-    maybe_form: Result<Form<FormData>, FormRejection>,
-) -> Result<Response, LoginError> {
-    let Form(form) = maybe_form?;
+    maybe_form: Result<Json<FormData>, JsonRejection>,
+) -> Result<impl IntoResponse, LoginError> {
+    let Json(form) = maybe_form?;
     let credentials: Credentials = form.into();
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
 
@@ -28,7 +28,7 @@ pub async fn login(
         .context("Failed to register user_id in a session")
         .map_err(LoginError::UnexpectedError)?;
 
-    Ok(routes().root.admin.dashboard.redirect_to().into_response())
+    Ok(StatusCode::OK)
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -50,7 +50,7 @@ impl From<FormData> for Credentials {
 #[derive(thiserror::Error, Debug)]
 pub enum LoginError {
     #[error("Form is rejected")]
-    FormRejection(#[from] FormRejection),
+    FormRejection(#[from] JsonRejection),
 
     #[error("Authentication failed")]
     AuthError(#[source] anyhow::Error),
@@ -59,14 +59,16 @@ pub enum LoginError {
     UnexpectedError(#[from] anyhow::Error),
 }
 
-impl axum::response::IntoResponse for LoginError {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for LoginError {
+    fn into_response(self) -> Response {
         let trace_message = match &self {
-            Self::FormRejection(_rejection) => self.to_string(),
+            Self::FormRejection(rejection) => {
+                format!("{}: {}", self.to_string(), rejection.to_string())
+            }
             Self::AuthError(_e) => self.to_string(),
             Self::UnexpectedError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
         };
         tracing::error!("{}", trace_message);
-        routes().root.login.redirect_to().into_response()
+        StatusCode::UNAUTHORIZED.into_response()
     }
 }
