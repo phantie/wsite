@@ -77,14 +77,14 @@ pub struct TestApp {
 }
 
 impl TestApp {
-    pub fn get(&self, path: impl Get) -> RequestBuilder {
+    pub fn get(&self, static_path: impl Get) -> RequestBuilder {
         self.api_client
-            .get(path.get().with_base(&self.address).complete())
+            .get(static_path.get().with_base(&self.address).complete())
     }
 
-    pub fn post(&self, path: impl Post) -> RequestBuilder {
+    pub fn post(&self, static_path: impl Post) -> RequestBuilder {
         self.api_client
-            .post(path.post().with_base(&self.address).complete())
+            .post(static_path.post().with_base(&self.address).complete())
     }
 
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {

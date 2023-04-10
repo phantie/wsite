@@ -9,7 +9,7 @@ pub use static_routes::*;
 pub use anyhow::Context;
 pub use axum::{
     extract::{
-        rejection::{FormRejection, TypedHeaderRejection},
+        rejection::{FormRejection, JsonRejection, TypedHeaderRejection},
         Form, Json, Query, State, TypedHeader,
     },
     headers::{authorization::Basic, Authorization},
@@ -18,3 +18,4 @@ pub use axum::{
 };
 pub use axum_sessions::extractors::{ReadableSession, WritableSession};
 pub use secrecy::{ExposeSecret, Secret};
+pub use serde::Serialize;
