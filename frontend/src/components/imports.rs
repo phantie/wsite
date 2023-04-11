@@ -25,3 +25,11 @@ impl RequestExtend for Request {
         Request::post(static_path.post().complete())
     }
 }
+
+pub fn console_log_status(response: &Response) {
+    console::log!(format!("{} status {}", response.url(), response.status()));
+}
+
+pub mod request {
+    pub type SendResult = std::result::Result<gloo_net::http::Response, gloo_net::Error>;
+}

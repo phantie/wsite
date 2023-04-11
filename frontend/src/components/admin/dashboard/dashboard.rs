@@ -1,5 +1,6 @@
 use crate::components::imports::*;
 
+use super::Logout;
 use super::WelcomeMessage;
 
 pub struct AdminDashboard;
@@ -24,9 +25,7 @@ impl Component for AdminDashboard {
                         <a href={ routes().root.admin.password.get().complete().to_owned() }>{ "Change password" }</a>
                     </li>
                     <li>
-                        <form name="logoutForm" action="/api/admin/logout" method="post">
-                            <input type="submit" value="Logout"/>
-                        </form>
+                        <Logout/>
                     </li>
                 </ol>
             </>
