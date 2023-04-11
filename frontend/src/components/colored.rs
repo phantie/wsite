@@ -15,6 +15,7 @@ impl Colored {
     fn style(color: AttrValue) -> Style {
         style!(
             "
+                display: inline;
                 color: ${color};
             ",
             color = color

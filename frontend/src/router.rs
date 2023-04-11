@@ -9,6 +9,8 @@ pub enum Route {
     Login,
     #[at("/admin/dashboard")]
     AdminDashboard,
+    #[at("/admin/password")]
+    PasswordChange,
     #[not_found]
     #[at("/404")]
     NotFound,
@@ -37,5 +39,6 @@ mod tests {
         map_to_one_another(Route::Home, routes.home);
         map_to_one_another(Route::Login, routes.login);
         map_to_one_another(Route::AdminDashboard, routes.admin.dashboard);
+        map_to_one_another(Route::PasswordChange, routes.admin.password);
     }
 }

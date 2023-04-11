@@ -43,13 +43,13 @@ pub async fn publish_newsletter(
     Ok(StatusCode::OK)
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct BodyData {
     title: String,
     content: Content,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct Content {
     html: String,
     text: String,

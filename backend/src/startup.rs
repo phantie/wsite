@@ -70,12 +70,7 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
 
     let frontend_router = {
         let routes = routes.root;
-        Router::new()
-            .route(routes.subs.get().postfix(), get(all_subscriptions))
-            .route(
-                routes.admin.password.get().postfix(),
-                get(change_password_form),
-            )
+        Router::new().route(routes.subs.get().postfix(), get(all_subscriptions))
     };
 
     Router::new()

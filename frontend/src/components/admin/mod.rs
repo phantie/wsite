@@ -1,3 +1,5 @@
 mod dashboard;
+mod password;
 
-pub use dashboard::AdminDashboard as Dashboard;
+pub use dashboard::Dashboard;
+pub use password::PasswordChange;

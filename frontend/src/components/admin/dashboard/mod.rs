@@ -4,4 +4,4 @@ mod welcome;
 use logout::Logout;
 use welcome::WelcomeMessage;
 
-pub use dashboard::AdminDashboard;
+pub use dashboard::Dashboard;

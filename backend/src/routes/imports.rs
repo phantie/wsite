@@ -18,4 +18,4 @@ pub use axum::{
 };
 pub use axum_sessions::extractors::{ReadableSession, WritableSession};
 pub use secrecy::{ExposeSecret, Secret};
-pub use serde::Serialize;
+pub use serde::{Deserialize, Serialize};
