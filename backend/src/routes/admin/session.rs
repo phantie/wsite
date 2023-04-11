@@ -2,7 +2,7 @@ use crate::routes::imports::*;
 
 #[derive(Serialize)]
 pub struct AdminSession {
-    session: Option<AdminSessionInner>,
+    session: AdminSessionInner,
 }
 
 #[derive(Serialize)]
@@ -12,12 +12,9 @@ pub struct AdminSessionInner {
 }
 
 #[axum_macros::debug_handler]
-pub async fn admin_session(
-    State(state): State<AppState>,
-    session: ReadableSession,
-) -> Json<AdminSession> {
+pub async fn admin_session(State(state): State<AppState>, session: ReadableSession) -> Response {
     let session = match session.get("user_id") {
-        None => None,
+        None => return StatusCode::UNAUTHORIZED.into_response(),
         Some(user_id) => {
             let user = User::get_async(user_id, &state.database.collections.users)
                 .await
@@ -26,9 +23,9 @@ pub async fn admin_session(
 
             let username = user.contents.username;
 
-            Some(AdminSessionInner { user_id, username })
+            AdminSessionInner { user_id, username }
         }
     };
 
-    Json::from(AdminSession { session })
+    Json::from(AdminSession { session }).into_response()
 }

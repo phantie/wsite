@@ -12,13 +12,16 @@ pub enum Route {
     #[at("/admin/dashboard")]
     AdminDashboard,
     #[not_found]
-    #[at("/404page")]
+    #[at("/404")]
     NotFound,
+    #[at("/401")]
+    Unauthorized,
 }
 
 fn switch(routes: Route) -> Html {
     match routes {
-        Route::NotFound => html! { <components::NoFound/> },
+        Route::NotFound => html! { <components::ErrorMessage message="not found 404"/> },
+        Route::Unauthorized => html! { <components::ErrorMessage message="unauthorized 401"/> },
         Route::Home => html! { <h1>{ "Hello Frontend" }</h1> },
         Route::Login => html! { <components::login::Login/> },
         Route::AdminDashboard => html! { <components::AdminDashboard/>},
