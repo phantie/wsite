@@ -1,6 +1,5 @@
 use crate::domain::SubscriberEmail;
-#[allow(unused_imports)]
-use secrecy::Secret;
+use secrecy::SecretString;
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string; // to deserialize variables provided via env vars
 
@@ -114,7 +113,7 @@ impl TryFrom<String> for Environment {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
-    pub authorization_token: secrecy::Secret<String>,
+    pub authorization_token: SecretString,
     pub timeout_milliseconds: u64,
 }
 impl EmailClientSettings {

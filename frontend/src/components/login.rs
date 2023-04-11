@@ -1,10 +1,5 @@
 use crate::components::imports::*;
-
-#[derive(Clone, Debug, Serialize)]
-struct LoginForm {
-    pub username: String,
-    pub password: String,
-}
+use interfacing::LoginForm;
 
 #[styled_component]
 pub fn Login() -> Html {
@@ -24,7 +19,10 @@ pub fn Login() -> Html {
             let username = username_ref.cast::<HtmlInputElement>().unwrap().value();
             let password = password_ref.cast::<HtmlInputElement>().unwrap().value();
 
-            let login_form = LoginForm { username, password };
+            let login_form = LoginForm {
+                username,
+                password: SecretString::new(password),
+            };
 
             wasm_bindgen_futures::spawn_local(async move {
                 console::log!(format!("submitting: {:?}", login_form));
