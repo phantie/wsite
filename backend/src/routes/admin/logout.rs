@@ -1,6 +1,6 @@
 use crate::routes::imports::*;
 
-pub async fn logout(mut session: WritableSession) -> Response {
+pub async fn logout(mut session: WritableSession) -> StatusCode {
     let user_id: Option<u64> = session.get("user_id");
 
     match user_id {
@@ -11,5 +11,5 @@ pub async fn logout(mut session: WritableSession) -> Response {
         }
     }
 
-    routes().root.login.redirect_to().into_response()
+    StatusCode::OK
 }

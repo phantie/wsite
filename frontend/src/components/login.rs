@@ -29,16 +29,11 @@ pub fn Login() -> Html {
             wasm_bindgen_futures::spawn_local(async move {
                 console::log!(format!("submitting: {:?}", login_form));
 
-                let login_post_request = Request::static_post(routes().api.login)
-                    .json(&login_form)
-                    .unwrap()
-                    .send()
-                    .await
-                    .unwrap();
+                let login_response = request_login(&login_form).await.unwrap();
 
-                console::log!(format!("submit status: {}", login_post_request.status()));
+                console_log_status(&login_response);
 
-                match login_post_request.status() {
+                match login_response.status() {
                     200 => {
                         navigator.push(&Route::AdminDashboard);
                     }
@@ -64,4 +59,12 @@ pub fn Login() -> Html {
             </form>
         </>
     }
+}
+
+async fn request_login(login_form: &LoginForm) -> request::SendResult {
+    Request::static_post(routes().api.login)
+        .json(&login_form)
+        .unwrap()
+        .send()
+        .await
 }

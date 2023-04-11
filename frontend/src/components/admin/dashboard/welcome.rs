@@ -72,8 +72,6 @@ impl Component for WelcomeMessage {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        console::log!("calling rendered");
-
         if first_render {
             ctx.link().send_future(async {
                 let username = fetch_username().await;
@@ -87,6 +85,5 @@ impl Component for WelcomeMessage {
                 }
             });
         }
-        console::console_dbg!(self.username);
     }
 }
