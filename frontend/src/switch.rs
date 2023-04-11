@@ -13,5 +13,8 @@ pub fn switch(routes: Route) -> Html {
         Route::AdminDashboard => {
             html! { <admin::Dashboard/>}
         }
+        Route::PasswordChange => {
+            html! { <admin::PasswordChange/>}
+        }
     }
 }

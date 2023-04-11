@@ -1,7 +1,7 @@
 use crate::authentication::compute_password_hash;
 use crate::routes::imports::*;
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct FormData {
     current_password: Secret<String>,
     new_password: Secret<String>,
@@ -11,13 +11,13 @@ pub struct FormData {
 pub async fn change_password(
     State(state): State<AppState>,
     session: ReadableSession,
-    Form(form): Form<FormData>,
+    Json(form): Json<FormData>,
 ) -> Result<Response, PasswordChangeError> {
-    let redirect_to_password_form = Ok(routes().root.admin.password.redirect_to().into_response());
+    // TODO distinguish BAD_REQUESTs
 
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
         tracing::info!("You entered two different new passwords - the field values must match.");
-        return redirect_to_password_form;
+        return Ok(StatusCode::BAD_REQUEST.into_response());
     }
 
     let user_id: u64 = reject_anonymous_users(&session).map_err(PasswordChangeError::AuthError)?;
@@ -40,12 +40,13 @@ pub async fn change_password(
                 .await
                 .unwrap();
             tracing::info!("Your password has been changed.");
+            Ok(StatusCode::OK.into_response())
         }
         Err(_e) => {
             tracing::info!("The current password is incorrect.");
+            Ok(StatusCode::BAD_REQUEST.into_response())
         }
     }
-    redirect_to_password_form
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -60,10 +61,7 @@ pub enum PasswordChangeError {
 impl axum::response::IntoResponse for PasswordChangeError {
     fn into_response(self) -> axum::response::Response {
         let (trace_message, response) = match &self {
-            Self::AuthError(_e) => (
-                self.to_string(),
-                routes().root.login.redirect_to().into_response(),
-            ),
+            Self::AuthError(_e) => (self.to_string(), StatusCode::UNAUTHORIZED.into_response()),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", self.to_string(), e.source().unwrap()),
                 StatusCode::INTERNAL_SERVER_ERROR.into_response(),

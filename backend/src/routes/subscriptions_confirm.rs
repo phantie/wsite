@@ -1,6 +1,6 @@
 use crate::routes::imports::*;
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 pub struct Parameters {
     pub subscription_token: String,
 }

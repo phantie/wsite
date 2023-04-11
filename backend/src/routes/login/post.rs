@@ -31,8 +31,7 @@ pub async fn login(
     Ok(StatusCode::OK)
 }
 
-#[derive(serde::Deserialize, Clone)]
-#[allow(dead_code)]
+#[derive(Deserialize, Clone)]
 pub struct FormData {
     username: String,
     password: Secret<String>,

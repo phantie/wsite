@@ -3,12 +3,10 @@ use crate::components::imports::*;
 use super::Logout;
 use super::WelcomeMessage;
 
-pub struct AdminDashboard;
+pub struct Dashboard;
 
-pub enum AdminDashboardMsg {}
-
-impl Component for AdminDashboard {
-    type Message = AdminDashboardMsg;
+impl Component for Dashboard {
+    type Message = ();
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
@@ -22,8 +20,9 @@ impl Component for AdminDashboard {
                 <p>{ "Available actions:" }</p>
                 <ol>
                     <li>
-                        <a href={ routes().root.admin.password.get().complete().to_owned() }>{ "Change password" }</a>
+                        <Link<Route> to={Route::PasswordChange}>{ "Change password" }</Link<Route>>
                     </li>
+                    <br/>
                     <li>
                         <Logout/>
                     </li>

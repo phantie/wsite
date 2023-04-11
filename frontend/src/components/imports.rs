@@ -1,3 +1,4 @@
+pub use crate::components::Colored;
 pub use crate::router::Route;
 pub use static_routes::*;
 

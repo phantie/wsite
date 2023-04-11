@@ -52,13 +52,17 @@ impl Component for WelcomeMessage {
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
-        let message = match &self.username {
-            None => "Welcome to Admin Dashboard".to_owned(),
-            Some(username) => format!("{}, welcome to Admin Dashboard", username),
-        };
-
-        html! {
-            { message }
+        match &self.username {
+            None => html! { "Welcome to dashboard" },
+            // Some(username) => format!("{}, welcome to dashboard", username),
+            Some(username) => html! {
+               <>
+                   <div>
+                       <Colored with="orange">{ username }</Colored>
+                       { ", welcome to dashboard" }
+                   </div>
+               </>
+            },
         }
     }
 

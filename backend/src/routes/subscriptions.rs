@@ -4,7 +4,7 @@ use crate::{
     email_client::EmailClient,
 };
 
-#[derive(serde::Deserialize, Clone)]
+#[derive(Deserialize, Clone)]
 #[allow(dead_code)]
 pub struct FormData {
     name: String,
