@@ -6,18 +6,18 @@ use argon2::{
 };
 use axum::headers::{authorization::Basic, Authorization};
 use axum_sessions::extractors::ReadableSession;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::{ExposeSecret, SecretString};
 
 pub struct Credentials {
     pub username: String,
-    pub password: Secret<String>,
+    pub password: SecretString,
 }
 
 impl From<Authorization<Basic>> for Credentials {
     fn from(value: Authorization<Basic>) -> Self {
         Self {
             username: value.username().into(),
-            password: Secret::new(value.password().into()),
+            password: SecretString::new(value.password().into()),
         }
     }
 }
@@ -34,7 +34,7 @@ pub async fn validate_credentials(
     credentials: &Credentials,
 ) -> Result<u64, AuthError> {
     let mut user_id: Option<u64> = None;
-    let mut expected_password_hash = Secret::new(
+    let mut expected_password_hash = SecretString::new(
         "$argon2id$v=19$m=15000,t=1,p=1$\
         gZiV/M1gPc22ElAH/Jh1Hw$\
         CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
@@ -52,7 +52,7 @@ pub async fn validate_credentials(
 
     if let Some(doc) = mapped_users.into_iter().next() {
         user_id = Some(doc.document.header.id);
-        expected_password_hash = Secret::new(doc.document.contents.password_hash.clone());
+        expected_password_hash = SecretString::new(doc.document.contents.password_hash.clone());
     }
 
     let current_span = tracing::Span::current();
@@ -77,8 +77,8 @@ pub async fn validate_credentials(
 )]
 /// It's a slow operation, 10ms kind of slow.
 fn verify_password_hash(
-    expected_password_hash: Secret<String>,
-    password_candidate: Secret<String>,
+    expected_password_hash: SecretString,
+    password_candidate: SecretString,
 ) -> Result<(), AuthError> {
     let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
         .context("Failed to parse hash in PHC string format.")
@@ -101,7 +101,7 @@ pub enum AuthError {
     UnexpectedError(#[from] anyhow::Error),
 }
 
-pub fn compute_password_hash(password: Secret<String>) -> Result<Secret<String>, anyhow::Error> {
+pub fn compute_password_hash(password: SecretString) -> Result<SecretString, anyhow::Error> {
     let salt = SaltString::generate(&mut rand::thread_rng());
     let password_hash = Argon2::new(
         Algorithm::Argon2id,
@@ -110,7 +110,7 @@ pub fn compute_password_hash(password: Secret<String>) -> Result<Secret<String>,
     )
     .hash_password(password.expose_secret().as_bytes(), &salt)?
     .to_string();
-    Ok(Secret::new(password_hash))
+    Ok(SecretString::new(password_hash))
 }
 
 pub fn reject_anonymous_users(session: &ReadableSession) -> Result<u64, anyhow::Error> {

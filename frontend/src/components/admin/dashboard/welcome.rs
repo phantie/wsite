@@ -14,16 +14,7 @@ enum FetchUsername {
 }
 
 async fn fetch_username() -> FetchUsername {
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct AdminSession {
-        session: AdminSessionInner,
-    }
-
-    #[derive(Serialize, Deserialize, Debug)]
-    pub struct AdminSessionInner {
-        user_id: u64,
-        username: String,
-    }
+    use interfacing::AdminSession;
 
     let response: Response = Request::static_get(routes().api.admin.session)
         .send()
@@ -34,7 +25,7 @@ async fn fetch_username() -> FetchUsername {
         200 => {
             let session = response.json::<AdminSession>().await.unwrap();
 
-            let username = session.session.username;
+            let username = session.username;
 
             FetchUsername::Username(username)
         }
@@ -54,13 +45,10 @@ impl Component for WelcomeMessage {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         match &self.username {
             None => html! { "Welcome to dashboard" },
-            // Some(username) => format!("{}, welcome to dashboard", username),
             Some(username) => html! {
                <>
-                   <div>
-                       <Colored with="orange">{ username }</Colored>
-                       { ", welcome to dashboard" }
-                   </div>
+                    <Colored with="orange">{ username }</Colored>
+                    { ", welcome to dashboard" }
                </>
             },
         }

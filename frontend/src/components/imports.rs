@@ -8,6 +8,7 @@ pub use serde::{Deserialize, Serialize};
 pub use stylist::yew::styled_component;
 pub use web_sys::HtmlInputElement;
 
+pub use secrecy::{ExposeSecret, SecretString};
 pub use stylist::{style, Style};
 pub use yew::prelude::*;
 pub use yew_router::prelude::*;

@@ -1,4 +1,5 @@
 use crate::routes::imports::*;
+use interfacing::LoginForm;
 
 #[tracing::instrument(
     skip(maybe_form, state, session),
@@ -8,7 +9,7 @@ use crate::routes::imports::*;
 pub async fn login(
     State(state): State<AppState>,
     mut session: WritableSession,
-    maybe_form: Result<Json<FormData>, JsonRejection>,
+    maybe_form: Result<Json<LoginForm>, JsonRejection>,
 ) -> Result<impl IntoResponse, LoginError> {
     let Json(form) = maybe_form?;
     let credentials: Credentials = form.into();
@@ -31,14 +32,8 @@ pub async fn login(
     Ok(StatusCode::OK)
 }
 
-#[derive(Deserialize, Clone)]
-pub struct FormData {
-    username: String,
-    password: Secret<String>,
-}
-
-impl From<FormData> for Credentials {
-    fn from(value: FormData) -> Self {
+impl From<LoginForm> for Credentials {
+    fn from(value: LoginForm) -> Self {
         Self {
             username: value.username,
             password: value.password,

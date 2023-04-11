@@ -1,11 +1,5 @@
 use crate::components::imports::*;
-
-#[derive(Clone, Debug, Serialize)]
-struct PasswordForm {
-    pub current_password: String,
-    pub new_password: String,
-    pub new_password_check: String,
-}
+use interfacing::PasswordChangeForm;
 
 #[styled_component]
 pub fn PasswordChange() -> Html {
@@ -35,10 +29,10 @@ pub fn PasswordChange() -> Html {
                 .unwrap()
                 .value();
 
-            let password_form = PasswordForm {
-                current_password,
-                new_password,
-                new_password_check,
+            let password_form = PasswordChangeForm {
+                current_password: SecretString::new(current_password),
+                new_password: SecretString::new(new_password),
+                new_password_check: SecretString::new(new_password_check),
             };
 
             wasm_bindgen_futures::spawn_local(async move {
@@ -88,7 +82,7 @@ pub fn PasswordChange() -> Html {
     }
 }
 
-async fn request_password_change(password_form: &PasswordForm) -> request::SendResult {
+async fn request_password_change(password_form: &PasswordChangeForm) -> request::SendResult {
     Request::static_post(routes().api.admin.password)
         .json(&password_form)
         .unwrap()

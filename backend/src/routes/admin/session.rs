@@ -1,15 +1,5 @@
 use crate::routes::imports::*;
-
-#[derive(Serialize)]
-pub struct AdminSession {
-    session: AdminSessionInner,
-}
-
-#[derive(Serialize)]
-pub struct AdminSessionInner {
-    user_id: u64,
-    username: String,
-}
+use interfacing::AdminSession;
 
 #[axum_macros::debug_handler]
 pub async fn admin_session(State(state): State<AppState>, session: ReadableSession) -> Response {
@@ -23,9 +13,9 @@ pub async fn admin_session(State(state): State<AppState>, session: ReadableSessi
 
             let username = user.contents.username;
 
-            AdminSessionInner { user_id, username }
+            AdminSession { user_id, username }
         }
     };
 
-    Json::from(AdminSession { session }).into_response()
+    Json::from(session).into_response()
 }

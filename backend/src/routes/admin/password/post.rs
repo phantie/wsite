@@ -1,17 +1,11 @@
 use crate::authentication::compute_password_hash;
 use crate::routes::imports::*;
-
-#[derive(Deserialize)]
-pub struct FormData {
-    current_password: Secret<String>,
-    new_password: Secret<String>,
-    new_password_check: Secret<String>,
-}
+use interfacing::PasswordChangeForm;
 
 pub async fn change_password(
     State(state): State<AppState>,
     session: ReadableSession,
-    Json(form): Json<FormData>,
+    Json(form): Json<PasswordChangeForm>,
 ) -> Result<Response, PasswordChangeError> {
     // TODO distinguish BAD_REQUESTs
 

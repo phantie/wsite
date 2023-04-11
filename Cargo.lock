@@ -113,6 +113,7 @@ dependencies = [
  "fake",
  "hyper",
  "include_dir",
+ "interfacing",
  "linkify",
  "mime_guess",
  "once_cell",
@@ -692,6 +693,7 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "interfacing",
  "static_routes",
 ]
 
@@ -1163,6 +1165,8 @@ version = "0.1.0"
 dependencies = [
  "gloo-console",
  "gloo-net",
+ "interfacing",
+ "secrecy",
  "serde",
  "serde_json",
  "static_routes",
@@ -1820,6 +1824,14 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "interfacing"
+version = "0.1.0"
+dependencies = [
+ "secrecy",
+ "serde",
 ]
 
 [[package]]
