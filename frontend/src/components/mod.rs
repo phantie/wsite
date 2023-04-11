@@ -1,8 +1,8 @@
 mod imports;
 
-pub mod admin;
-mod error_msg;
+mod colored;
 mod login;
 
-pub use error_msg::ErrorMessage;
+pub mod admin;
+pub use colored::Colored;
 pub use login::Login;
