@@ -1,8 +1,6 @@
 use crate::components::imports::*;
 
-#[derive(Default)]
 pub struct WelcomeMessage {
-    node_ref: NodeRef,
     username: Option<AttrValue>,
 }
 
@@ -50,7 +48,7 @@ impl Component for WelcomeMessage {
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
-        Self::default()
+        Self { username: None }
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
@@ -60,7 +58,7 @@ impl Component for WelcomeMessage {
         };
 
         html! {
-            <div ref={self.node_ref.clone()}>{ message }</div>
+            { message }
         }
     }
 
