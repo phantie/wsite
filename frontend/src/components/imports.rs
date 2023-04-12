@@ -5,7 +5,7 @@ pub use static_routes::*;
 pub use gloo_console as console;
 pub use gloo_net::http::{Request, Response};
 pub use serde::{Deserialize, Serialize};
-pub use stylist::yew::styled_component;
+pub use stylist::yew::{styled_component, Global};
 pub use web_sys::HtmlInputElement;
 
 pub use secrecy::{ExposeSecret, SecretString};
