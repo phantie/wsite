@@ -16,12 +16,13 @@ pub fn Login() -> Html {
             event.prevent_default();
             let window = web_sys::window().unwrap();
             let navigator = navigator.clone();
-            let username = username_ref.cast::<HtmlInputElement>().unwrap().value();
-            let password = password_ref.cast::<HtmlInputElement>().unwrap().value();
+
+            let username_field = username_ref.cast::<HtmlInputElement>().unwrap();
+            let password_field = password_ref.cast::<HtmlInputElement>().unwrap();
 
             let login_form = LoginForm {
-                username,
-                password: SecretString::new(password),
+                username: username_field.value(),
+                password: SecretString::new(password_field.value()),
             };
 
             wasm_bindgen_futures::spawn_local(async move {
@@ -36,6 +37,7 @@ pub fn Login() -> Html {
                         navigator.push(&Route::AdminDashboard);
                     }
                     401 => {
+                        password_field.set_value("");
                         window.alert_with_message("Unauthorized").unwrap();
                     }
                     _ => unreachable!(),
