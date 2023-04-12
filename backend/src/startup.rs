@@ -47,34 +47,26 @@ async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     use crate::routes::*;
 
-    let routes = routes();
+    let routes = routes().api;
 
-    let api_router = {
-        let routes = routes.api;
-        Router::new()
-            .route(routes.health_check.get().postfix(), get(health_check))
-            .route(routes.subs.post().postfix(), post(subscribe))
-            .route(routes.subs.confirm.get().postfix(), get(confirm))
-            .route(
-                routes.newsletters.post().postfix(),
-                post(publish_newsletter),
-            )
-            .route(routes.login.post().postfix(), post(login))
-            .route(
-                routes.admin.password.post().postfix(),
-                post(change_password),
-            )
-            .route(routes.admin.logout.post().postfix(), post(logout))
-            .route(routes.admin.session.get().postfix(), get(admin_session))
-    };
-
-    let frontend_router = {
-        let routes = routes.root;
-        Router::new().route(routes.subs.get().postfix(), get(all_subscriptions))
-    };
+    let api_router = Router::new()
+        .route(routes.health_check.get().postfix(), get(health_check))
+        .route(routes.subs.get().postfix(), get(all_subs))
+        .route(routes.subs.new.post().postfix(), post(subscribe))
+        .route(routes.subs.confirm.get().postfix(), get(sub_confirm))
+        .route(
+            routes.newsletters.post().postfix(),
+            post(publish_newsletter),
+        )
+        .route(routes.login.post().postfix(), post(login))
+        .route(
+            routes.admin.password.post().postfix(),
+            post(change_password),
+        )
+        .route(routes.admin.logout.post().postfix(), post(logout))
+        .route(routes.admin.session.get().postfix(), get(admin_session));
 
     Router::new()
-        .nest("/", frontend_router)
         .nest("/api", api_router)
         .fallback(fallback)
         .layer(
