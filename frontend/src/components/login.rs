@@ -46,15 +46,32 @@ pub fn Login() -> Html {
 
     html! {
         <>
-            <form {onsubmit} method="post">
-                <label>{ "Username" }
-                    <input ref={username_ref} type="text" placeholder="Enter Username" name="username"/>
-                </label>
-                <label>{ "Password" }
-                    <input ref={password_ref} type="password" placeholder="Enter Password" name="password"/>
-                </label>
-                <button type="submit">{ "Login" }</button>
-            </form>
+            <Global css={css!("
+                display: flex;
+                justify-content: center;
+            ")}/>
+
+            <h1 class={css!{"padding-top: 20px; padding-bottom: 20px;"}}>{ "Login" }</h1>
+
+            <div>
+                <form class={css!("width: 450px; max-width: 90vw;")}{onsubmit} method="post">
+                    <div class="form-group">
+                        <label class="col-form-label-lg" for="username_input">{ "Username" }</label>
+                        <input ref={username_ref} type="text" placeholder="Enter Username"
+                        name="username" id="username_input" class="form-control form-control-lg"
+                        required={true}/>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-form-label-lg" for="password_input">{ "Password" }</label>
+                        <input ref={password_ref} type="password" placeholder="Enter Password"
+                        name="password" id="password_input" class="form-control form-control-lg"
+                        required={true}/>
+                    </div>
+
+                    <button type="submit" class="btn btn-dark btn-lg">{ "Login" }</button>
+                </form>
+            </div>
         </>
     }
 }
