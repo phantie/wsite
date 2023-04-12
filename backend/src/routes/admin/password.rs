@@ -8,8 +8,8 @@ pub async fn change_password(
     Json(form): Json<PasswordChangeForm>,
 ) -> Result<StatusCode, PasswordChangeError> {
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
-        tracing::info!("You entered two different new passwords - the field values must match.");
-        Err(PasswordChangeError::PasswordConfirmDifferent)?
+        None.context("You entered two different new passwords - the field values must match.")
+            .map_err(PasswordChangeError::PasswordConfirmDifferent)?
     }
 
     let user_id: u64 = reject_anonymous_users(&session).map_err(PasswordChangeError::AuthError)?;
@@ -45,8 +45,8 @@ pub enum PasswordChangeError {
     #[error("Authentication failed")]
     AuthError(#[source] anyhow::Error),
 
-    #[error("Different password confirm")]
-    PasswordConfirmDifferent,
+    #[error("{0}")]
+    PasswordConfirmDifferent(#[source] anyhow::Error),
 
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
@@ -57,7 +57,7 @@ impl axum::response::IntoResponse for PasswordChangeError {
         let message = self.to_string();
         let (trace_message, response) = match &self {
             Self::AuthError(_e) => (self.to_string(), StatusCode::UNAUTHORIZED),
-            Self::PasswordConfirmDifferent => (self.to_string(), StatusCode::BAD_REQUEST),
+            Self::PasswordConfirmDifferent(_e) => (self.to_string(), StatusCode::BAD_REQUEST),
             Self::UnexpectedError(e) => (
                 format!("{}: {}", self.to_string(), e.source().unwrap()),
                 StatusCode::INTERNAL_SERVER_ERROR,
