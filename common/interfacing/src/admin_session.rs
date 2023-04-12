@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use crate::imports::*;
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AdminSession {
     pub user_id: u64,
     pub username: String,
