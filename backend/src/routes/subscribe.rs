@@ -4,22 +4,6 @@ use crate::{
     email_client::EmailClient,
 };
 
-#[derive(Deserialize, Clone)]
-#[allow(dead_code)]
-pub struct FormData {
-    name: String,
-    email: String,
-}
-
-impl TryFrom<FormData> for NewSubscriber {
-    type Error = String;
-    fn try_from(value: FormData) -> Result<Self, Self::Error> {
-        let name = SubscriberName::parse(value.name)?;
-        let email = SubscriberEmail::parse(value.email)?;
-        Ok(Self { email, name })
-    }
-}
-
 #[axum_macros::debug_handler]
 #[tracing::instrument(
     name = "Adding a new subscriber",
@@ -57,6 +41,21 @@ pub async fn subscribe(
         .context("Failed to insert into the database")?;
 
     Ok(StatusCode::OK)
+}
+
+#[derive(Deserialize, Clone)]
+pub struct FormData {
+    name: String,
+    email: String,
+}
+
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+        Ok(Self { email, name })
+    }
 }
 
 #[tracing::instrument(
@@ -112,19 +111,6 @@ pub async fn insert_subscriber(
     }
     .push_into_async(&state.database.collections.subscriptions)
     .await
-}
-
-#[tracing::instrument(name = "Getting all the subscribers", skip(state))]
-pub async fn all_subscriptions(State(state): State<AppState>) -> Json<Vec<Subscription>> {
-    let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
-        .await
-        .unwrap();
-    let subscriptions_contents = subscriptions_docs
-        .into_iter()
-        .map(|doc| doc.contents)
-        .collect::<Vec<_>>();
-
-    Json(subscriptions_contents)
 }
 
 /// Generate a random 25-characters-long case-sensitive subscription token.
