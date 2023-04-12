@@ -50,11 +50,17 @@ pub fn PasswordChange() -> Html {
                             .unwrap();
                     }
                     401 => {
-                        window.alert_with_message("Unauthorized").unwrap();
+                        window
+                            .alert_with_message(
+                                password_change_response.text().await.unwrap().as_ref(),
+                            )
+                            .unwrap();
                     }
                     400 => {
                         window
-                            .alert_with_message("Failed to change the password")
+                            .alert_with_message(
+                                password_change_response.text().await.unwrap().as_ref(),
+                            )
                             .unwrap();
                     }
                     _ => unimplemented!(),
