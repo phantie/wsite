@@ -41,7 +41,6 @@ impl Component for WelcomeMessage {
                 true
             }
             Self::Message::Unauthorized => {
-                console::log!("Unauthorized");
                 ctx.props().no_auth_cb.emit(());
                 false
             }
@@ -52,7 +51,7 @@ impl Component for WelcomeMessage {
         if first_render {
             ctx.link().send_future(async {
                 match fetch_admin_session().await {
-                    Ok(session) => Msg::SetUsername(AttrValue::from(session.username)),
+                    Ok(session) => Msg::SetUsername(session.username.into()),
                     Err(_e) => Msg::Unauthorized,
                 }
             });
