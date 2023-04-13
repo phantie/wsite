@@ -6,32 +6,7 @@ pub struct WelcomeMessage {
 
 pub enum Msg {
     SetUsername(AttrValue),
-}
-
-enum FetchUsername {
-    Username(String),
     Unauthorized,
-}
-
-async fn fetch_username() -> FetchUsername {
-    use interfacing::AdminSession;
-
-    let response: Response = Request::static_get(routes().api.admin.session)
-        .send()
-        .await
-        .unwrap();
-
-    match response.status() {
-        200 => {
-            let session = response.json::<AdminSession>().await.unwrap();
-
-            let username = session.username;
-
-            FetchUsername::Username(username)
-        }
-        401 => FetchUsername::Unauthorized,
-        _ => unreachable!(),
-    }
 }
 
 impl Component for WelcomeMessage {
@@ -60,20 +35,19 @@ impl Component for WelcomeMessage {
                 self.username = Some(username);
                 true
             }
+            Msg::Unauthorized => {
+                console::log!("Unauthorized");
+                false
+            }
         }
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
             ctx.link().send_future(async {
-                let username = fetch_username().await;
-
-                match username {
-                    FetchUsername::Username(username) => {
-                        Msg::SetUsername(AttrValue::from(username))
-                    }
-                    // TODO send Unauthorized event to the parent component
-                    _ => unimplemented!(),
+                match fetch_admin_session().await {
+                    Ok(session) => Msg::SetUsername(AttrValue::from(session.username)),
+                    Err(_e) => Msg::Unauthorized,
                 }
             });
         }

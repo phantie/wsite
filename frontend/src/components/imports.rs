@@ -35,3 +35,34 @@ pub fn console_log_status(response: &Response) {
 pub mod request {
     pub type SendResult = std::result::Result<gloo_net::http::Response, gloo_net::Error>;
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum FetchAdminSessionError {
+    #[error("Request error")]
+    RequestError(#[source] gloo_net::Error),
+
+    #[error("Authentication failed")]
+    AuthError,
+
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, FetchAdminSessionError> {
+    use anyhow::Context;
+
+    let response: Response = Request::static_get(routes().api.admin.session)
+        .send()
+        .await
+        .map_err(FetchAdminSessionError::RequestError)?;
+
+    if response.status() == 401 {
+        Err(FetchAdminSessionError::AuthError)?
+    }
+
+    Ok(response
+        .json::<interfacing::AdminSession>()
+        .await
+        .context("Failed to parse admin session")
+        .map_err(FetchAdminSessionError::UnexpectedError)?)
+}

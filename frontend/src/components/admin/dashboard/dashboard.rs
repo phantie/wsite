@@ -22,6 +22,9 @@ impl Component for Dashboard {
                     <li>
                         <Link<Route> to={Route::PasswordChange}>{ "Change password" }</Link<Route>>
                     </li>
+                    <li>
+                        <a href={ routes().api.subs.get().complete().to_owned() }>{ "Subs" }</a>
+                    </li>
                     <br/>
                     <li>
                         <Logout/>
