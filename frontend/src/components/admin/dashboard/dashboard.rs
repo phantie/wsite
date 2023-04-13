@@ -6,7 +6,7 @@ use super::WelcomeMessage;
 pub struct Dashboard;
 
 pub enum Msg {
-    Unauthorized,
+    Unauthorized(AttrValue),
 }
 
 impl Component for Dashboard {
@@ -18,11 +18,14 @@ impl Component for Dashboard {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let no_auth_cb = ctx.link().callback(|()| Msg::Unauthorized);
+        let no_auth_cb = |from: String| {
+            ctx.link()
+                .callback(move |()| Msg::Unauthorized(from.clone().into()))
+        };
 
         html! {
             <>
-                <h1><WelcomeMessage {no_auth_cb}/></h1>
+                <h1><WelcomeMessage no_auth_cb={ no_auth_cb("WelcomeMessage".into()) }/></h1>
                 <p>{ "Available actions:" }</p>
                 <ol>
                     <li>
@@ -43,7 +46,8 @@ impl Component for Dashboard {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         let navigator = ctx.link().navigator().unwrap();
         match msg {
-            Self::Message::Unauthorized => {
+            Self::Message::Unauthorized(from) => {
+                console::log!(format!("message Unauthorized from {} to Dashboard", from));
                 navigator
                     .push_with_query(
                         &Route::Login,
