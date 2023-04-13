@@ -7,6 +7,17 @@ pub fn Login() -> Html {
     let password_ref = use_node_ref();
 
     let navigator = use_navigator().unwrap();
+    let location = use_location().unwrap();
+    let query_params = location.query::<HashMap<String, String>>().unwrap();
+
+    let error_node = match query_params.get("error") {
+        None => html! {},
+        Some(error) => html! {
+            <div class="alert alert-warning" role="alert">
+                { error }
+            </div>
+        },
+    };
 
     let onsubmit = {
         let username_ref = username_ref.clone();
@@ -54,6 +65,8 @@ pub fn Login() -> Html {
             ")}/>
 
             <h1 class={css!{"padding-top: 20px; padding-bottom: 20px;"}}>{ "Login" }</h1>
+
+            { error_node }
 
             <div>
                 <form class={css!("width: 450px; max-width: 90vw;")}{onsubmit} method="post">
