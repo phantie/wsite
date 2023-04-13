@@ -4,6 +4,11 @@ pub struct WelcomeMessage {
     username: Option<AttrValue>,
 }
 
+#[derive(Properties, PartialEq)]
+pub struct Props {
+    pub no_auth_cb: Callback<()>,
+}
+
 pub enum Msg {
     SetUsername(AttrValue),
     Unauthorized,
@@ -11,7 +16,7 @@ pub enum Msg {
 
 impl Component for WelcomeMessage {
     type Message = Msg;
-    type Properties = ();
+    type Properties = Props;
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self { username: None }
@@ -29,14 +34,15 @@ impl Component for WelcomeMessage {
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::SetUsername(username) => {
+            Self::Message::SetUsername(username) => {
                 self.username = Some(username);
                 true
             }
-            Msg::Unauthorized => {
+            Self::Message::Unauthorized => {
                 console::log!("Unauthorized");
+                ctx.props().no_auth_cb.emit(());
                 false
             }
         }

@@ -2,6 +2,8 @@ pub use crate::components::Colored;
 pub use crate::router::Route;
 pub use static_routes::*;
 
+pub use std::collections::HashMap;
+
 pub use gloo_console as console;
 pub use gloo_net::http::{Request, Response};
 pub use serde::{Deserialize, Serialize};
