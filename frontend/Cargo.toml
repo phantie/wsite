@@ -19,3 +19,5 @@ serde.workspace = true
 serde_json.workspace = true
 static_routes.workspace = true
 interfacing.workspace = true
+thiserror = "1.0.40"
+anyhow = "1.0.70"
