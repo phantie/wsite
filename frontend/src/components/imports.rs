@@ -30,8 +30,14 @@ impl RequestExtend for Request {
     }
 }
 
-pub fn console_log_status(response: &Response) {
-    console::log!(format!("{} status {}", response.url(), response.status()));
+pub trait ResponseExtend {
+    fn log_status(&self);
+}
+
+impl ResponseExtend for Response {
+    fn log_status(&self) {
+        console::log!(format!("{} status {}", self.url(), self.status()));
+    }
 }
 
 pub mod request {
@@ -39,32 +45,39 @@ pub mod request {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum FetchAdminSessionError {
+pub enum FetchSessionError {
     #[error("Request error")]
     RequestError(#[source] gloo_net::Error),
 
     #[error("Authentication failed")]
     AuthError,
 
-    #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error),
+    #[error("Parse error")]
+    ParseError(#[source] gloo_net::Error),
 }
 
-pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, FetchAdminSessionError> {
-    use anyhow::Context;
-
+pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, FetchSessionError> {
     let response: Response = Request::static_get(routes().api.admin.session)
         .send()
         .await
-        .map_err(FetchAdminSessionError::RequestError)?;
+        .map_err(FetchSessionError::RequestError)?;
 
     if response.status() == 401 {
-        Err(FetchAdminSessionError::AuthError)?
+        Err(FetchSessionError::AuthError)?
     }
 
     Ok(response
         .json::<interfacing::AdminSession>()
         .await
-        .context("Failed to parse admin session")
-        .map_err(FetchAdminSessionError::UnexpectedError)?)
+        .map_err(FetchSessionError::ParseError)?)
+}
+
+pub fn internal_problems() -> Html {
+    html! {
+        <>
+            <Global css={ "display: flex; justify-content: center;" }/>
+
+            <h1>{ "Ooops... internal problems" }</h1>
+         </>
+    }
 }
