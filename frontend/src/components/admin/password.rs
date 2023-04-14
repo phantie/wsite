@@ -1,90 +1,117 @@
 use crate::components::imports::*;
 use interfacing::PasswordChangeForm;
 
-#[styled_component]
-pub fn PasswordChange() -> Html {
-    let current_password_ref = use_node_ref();
-    let new_password_ref = use_node_ref();
-    let new_password_check_ref = use_node_ref();
+#[derive(Default, Clone)]
+pub struct Refs {
+    current_password_ref: NodeRef,
+    new_password_ref: NodeRef,
+    new_password_check_ref: NodeRef,
+}
 
-    let navigator = use_navigator().unwrap();
+pub struct PasswordChange {
+    refs: Refs,
+}
 
-    let onsubmit = {
-        let current_password_ref = current_password_ref.clone();
-        let new_password_ref = new_password_ref.clone();
-        let new_password_check_ref = new_password_check_ref.clone();
+pub enum Msg {
+    PasswordChangeSuccess,
+    PasswordChangeFailure { error: AttrValue },
+}
 
-        Callback::from(move |event: SubmitEvent| {
-            event.prevent_default();
-            let window = web_sys::window().unwrap();
-            let _navigator = navigator.clone();
+impl Component for PasswordChange {
+    type Message = Msg;
+    type Properties = ();
 
-            let current_password = current_password_ref
-                .cast::<HtmlInputElement>()
-                .unwrap()
-                .value();
-            let new_password = new_password_ref.cast::<HtmlInputElement>().unwrap().value();
-            let new_password_check = new_password_check_ref
-                .cast::<HtmlInputElement>()
-                .unwrap()
-                .value();
+    #[allow(unused_variables)]
+    fn create(ctx: &Context<Self>) -> Self {
+        Self {
+            refs: Refs::default(),
+        }
+    }
 
-            let password_form = PasswordChangeForm {
-                current_password: SecretString::new(current_password),
-                new_password: SecretString::new(new_password),
-                new_password_check: SecretString::new(new_password_check),
-            };
+    #[allow(unused_variables)]
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let window = web_sys::window().unwrap();
+        match msg {
+            Self::Message::PasswordChangeSuccess => {
+                window
+                    .alert_with_message("You've changed your password")
+                    .unwrap();
+                false
+            }
+            Self::Message::PasswordChangeFailure { error } => {
+                window.alert_with_message(&error).unwrap();
+                false
+            }
+        }
+    }
 
-            wasm_bindgen_futures::spawn_local(async move {
-                console::log!(format!("submitting: {:?}", password_form));
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let Refs {
+            current_password_ref,
+            new_password_ref,
+            new_password_check_ref,
+        } = self.refs.clone();
 
-                let password_change_response =
-                    request_password_change(&password_form).await.unwrap();
+        let onsubmit = {
+            let Refs {
+                current_password_ref,
+                new_password_ref,
+                new_password_check_ref,
+            } = self.refs.clone();
 
-                console_log_status(&password_change_response);
+            ctx.link().callback_future(move |event: SubmitEvent| {
+                event.prevent_default();
 
-                match password_change_response.status() {
-                    200 => {
-                        window
-                            .alert_with_message("You've changed your password")
-                            .unwrap();
-                    }
-                    401 => {
-                        window
-                            .alert_with_message(
-                                password_change_response.text().await.unwrap().as_ref(),
-                            )
-                            .unwrap();
-                    }
-                    400 => {
-                        window
-                            .alert_with_message(
-                                password_change_response.text().await.unwrap().as_ref(),
-                            )
-                            .unwrap();
-                    }
-                    _ => unimplemented!(),
+                let current_password = current_password_ref
+                    .cast::<HtmlInputElement>()
+                    .unwrap()
+                    .value();
+                let new_password = new_password_ref.cast::<HtmlInputElement>().unwrap().value();
+                let new_password_check = new_password_check_ref
+                    .cast::<HtmlInputElement>()
+                    .unwrap()
+                    .value();
+
+                let password_form = PasswordChangeForm {
+                    current_password: SecretString::new(current_password),
+                    new_password: SecretString::new(new_password),
+                    new_password_check: SecretString::new(new_password_check),
                 };
-            })
-        })
-    };
 
-    html! {
-        <form {onsubmit} method="post">
-            <label>{ "Current password" }
-                <input ref={current_password_ref} type="password" name="current_password"/>
-            </label>
-            <br/>
-            <label>{ "New password" }
-                <input ref={new_password_ref} type="password" name="new_password"/>
-            </label>
-            <br/>
-            <label>{ "Confirm new password" }
-                <input ref={new_password_check_ref} type="password" name="new_password_check"/>
-            </label>
-            <br/>
-            <button type="submit">{ "Change password" }</button>
-        </form>
+                async move {
+                    console::log!(format!("submitting: {:?}", password_form));
+                    let password_change_response =
+                        request_password_change(&password_form).await.unwrap();
+                    console_log_status(&password_change_response);
+
+                    match password_change_response.status() {
+                        200 => Msg::PasswordChangeSuccess,
+                        401 | 400 => Msg::PasswordChangeFailure {
+                            error: password_change_response.text().await.unwrap().into(),
+                        },
+                        _ => unimplemented!(),
+                    }
+                }
+            })
+        };
+
+        html! {
+            <form {onsubmit} method="post">
+                <label>{ "Current password" }
+                    <input ref={current_password_ref} type="password" name="current_password"/>
+                </label>
+                <br/>
+                <label>{ "New password" }
+                    <input ref={new_password_ref} type="password" name="new_password"/>
+                </label>
+                <br/>
+                <label>{ "Confirm new password" }
+                    <input ref={new_password_check_ref} type="password" name="new_password_check"/>
+                </label>
+                <br/>
+                <button type="submit">{ "Change password" }</button>
+            </form>
+        }
     }
 }
 

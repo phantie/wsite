@@ -1173,7 +1173,6 @@ dependencies = [
  "static_routes",
  "stylist",
  "thiserror",
- "wasm-bindgen-futures",
  "web-sys",
  "yew",
  "yew-router",

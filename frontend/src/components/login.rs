@@ -1,8 +1,13 @@
 use crate::components::imports::*;
 
-pub struct Login {
+#[derive(Default, Clone)]
+pub struct Refs {
     username_ref: NodeRef,
     password_ref: NodeRef,
+}
+
+pub struct Login {
+    refs: Refs,
 }
 
 pub enum Msg {
@@ -19,8 +24,7 @@ impl Component for Login {
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            username_ref: NodeRef::default(),
-            password_ref: NodeRef::default(),
+            refs: Refs::default(),
         }
     }
 
@@ -33,7 +37,7 @@ impl Component for Login {
             }
             Self::Message::AuthFailure => {
                 let window = web_sys::window().unwrap();
-                let password_ref = self.password_ref.clone();
+                let password_ref = self.refs.password_ref.clone();
                 let password_field = password_ref.cast::<HtmlInputElement>().unwrap();
                 password_field.set_value("");
                 window.alert_with_message("Unauthorized").unwrap();
@@ -49,12 +53,16 @@ impl Component for Login {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let username_ref = self.username_ref.clone();
-        let password_ref = self.password_ref.clone();
+        let Refs {
+            username_ref,
+            password_ref,
+        } = self.refs.clone();
 
         let onsubmit = {
-            let username_ref = self.username_ref.clone();
-            let password_ref = self.password_ref.clone();
+            let Refs {
+                username_ref,
+                password_ref,
+            } = self.refs.clone();
 
             ctx.link().callback_future(move |event: SubmitEvent| {
                 event.prevent_default();
