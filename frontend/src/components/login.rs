@@ -55,9 +55,8 @@ impl Component for Login {
         let onsubmit = {
             let username_ref = self.username_ref.clone();
             let password_ref = self.password_ref.clone();
-            let link = ctx.link().clone();
 
-            ctx.link().callback(move |event: SubmitEvent| {
+            ctx.link().callback_future(move |event: SubmitEvent| {
                 event.prevent_default();
 
                 let username_field = username_ref.cast::<HtmlInputElement>().unwrap();
@@ -68,11 +67,9 @@ impl Component for Login {
                     password: SecretString::new(password_field.value()),
                 };
 
-                link.send_future(async move {
+                async move {
                     console::log!(format!("submitting: {:?}", login_form));
-
                     let login_response = request_login(&login_form).await.unwrap();
-
                     console_log_status(&login_response);
 
                     match login_response.status() {
@@ -80,9 +77,7 @@ impl Component for Login {
                         401 => Msg::AuthFailure,
                         _ => unimplemented!(),
                     }
-                });
-
-                Msg::Nothing
+                }
             })
         };
 
