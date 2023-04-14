@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 gloo-console = "0.2.3"
 gloo-net = "0.2.6"
-stylist = { version = "0.12.0", features = ["yew"] }
+stylist = { version = "0.12.0", features = ["yew", "parser"] }
 wasm-bindgen-futures = "0.4.34"
 web-sys = "0.3.61"
 yew = { version = "0.20.0", features = ["csr"] }

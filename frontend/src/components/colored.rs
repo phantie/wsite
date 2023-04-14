@@ -8,20 +8,7 @@ pub struct ListProps {
 }
 
 pub struct Colored {
-    pub style: Style,
-}
-
-impl Colored {
-    fn style(color: AttrValue) -> Style {
-        style!(
-            "
-                display: inline;
-                color: ${color};
-            ",
-            color = color
-        )
-        .unwrap()
-    }
+    pub style: stylist::StyleSource,
 }
 
 impl Component for Colored {
@@ -29,14 +16,21 @@ impl Component for Colored {
     type Properties = ListProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        Self {
-            style: Self::style(ctx.props().with.clone()),
-        }
+        let color = ctx.props().with.clone();
+        let style = css!(
+            "
+                display: inline;
+                color: ${color};
+            ",
+            color = color
+        );
+
+        Self { style }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <div class={self.style.clone()}>
+            <div class={ self.style.clone() }>
                 { for ctx.props().children.iter() }
             </div>
         }

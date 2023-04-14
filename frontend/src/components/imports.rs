@@ -11,7 +11,7 @@ pub use stylist::yew::{styled_component, Global};
 pub use web_sys::HtmlInputElement;
 
 pub use secrecy::{ExposeSecret, SecretString};
-pub use stylist::{style, Style};
+pub use stylist::{css, style, Style};
 pub use yew::prelude::*;
 pub use yew_router::prelude::*;
 
