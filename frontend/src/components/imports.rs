@@ -45,31 +45,31 @@ pub mod request {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum FetchSessionError {
-    #[error("Request error")]
-    RequestError(#[source] gloo_net::Error),
-
+pub enum SessionError {
     #[error("Authentication failed")]
     AuthError,
+
+    #[error("Request error")]
+    RequestError(#[source] gloo_net::Error),
 
     #[error("Parse error")]
     ParseError(#[source] gloo_net::Error),
 }
 
-pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, FetchSessionError> {
+pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, SessionError> {
     let response: Response = Request::static_get(routes().api.admin.session)
         .send()
         .await
-        .map_err(FetchSessionError::RequestError)?;
+        .map_err(SessionError::RequestError)?;
 
     if response.status() == 401 {
-        Err(FetchSessionError::AuthError)?
+        Err(SessionError::AuthError)?
     }
 
     Ok(response
         .json::<interfacing::AdminSession>()
         .await
-        .map_err(FetchSessionError::ParseError)?)
+        .map_err(SessionError::ParseError)?)
 }
 
 pub fn internal_problems() -> Html {
