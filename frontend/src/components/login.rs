@@ -1,13 +1,18 @@
 use crate::components::imports::*;
-use interfacing::LoginForm;
 
 pub struct Login {
     username_ref: NodeRef,
     password_ref: NodeRef,
 }
 
+pub enum Msg {
+    AuthSuccess,
+    AuthFailure,
+    Useless,
+}
+
 impl Component for Login {
-    type Message = ();
+    type Message = Msg;
     type Properties = ();
 
     #[allow(unused_variables)]
@@ -18,42 +23,46 @@ impl Component for Login {
         }
     }
 
-    #[allow(unused_variables)]
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let navigator = ctx.link().navigator().unwrap();
+        match msg {
+            Self::Message::AuthSuccess => {
+                navigator.push(&Route::AdminDashboard);
+                false
+            }
+            Self::Message::AuthFailure => {
+                let window = web_sys::window().unwrap();
+                let password_ref = self.password_ref.clone();
+                let password_field = password_ref.cast::<HtmlInputElement>().unwrap();
+                password_field.set_value("");
+                window.alert_with_message("Unauthorized").unwrap();
+                true
+            }
+            Self::Message::Useless => false,
+        }
+    }
+
     fn view(&self, ctx: &Context<Self>) -> Html {
         let username_ref = self.username_ref.clone();
         let password_ref = self.password_ref.clone();
 
-        let navigator = ctx.link().navigator().unwrap();
-        let location = ctx.link().location().unwrap();
-        let query_params = location.query::<HashMap<String, String>>().unwrap();
-
-        let error_node = match query_params.get("error") {
-            None => html! {},
-            Some(error) => html! {
-                <div class="alert alert-warning" role="alert">
-                    { error }
-                </div>
-            },
-        };
-
         let onsubmit = {
-            let username_ref = username_ref.clone();
-            let password_ref = password_ref.clone();
+            let username_ref = self.username_ref.clone();
+            let password_ref = self.password_ref.clone();
+            let link = ctx.link().clone();
 
-            Callback::from(move |event: SubmitEvent| {
+            ctx.link().callback(move |event: SubmitEvent| {
                 event.prevent_default();
-                let window = web_sys::window().unwrap();
-                let navigator = navigator.clone();
 
                 let username_field = username_ref.cast::<HtmlInputElement>().unwrap();
                 let password_field = password_ref.cast::<HtmlInputElement>().unwrap();
 
-                let login_form = LoginForm {
+                let login_form = interfacing::LoginForm {
                     username: username_field.value(),
                     password: SecretString::new(password_field.value()),
                 };
 
-                wasm_bindgen_futures::spawn_local(async move {
+                link.send_future(async move {
                     console::log!(format!("submitting: {:?}", login_form));
 
                     let login_response = request_login(&login_form).await.unwrap();
@@ -61,17 +70,27 @@ impl Component for Login {
                     console_log_status(&login_response);
 
                     match login_response.status() {
-                        200 => {
-                            navigator.push(&Route::AdminDashboard);
-                        }
-                        401 => {
-                            password_field.set_value("");
-                            window.alert_with_message("Unauthorized").unwrap();
-                        }
-                        _ => unreachable!(),
-                    };
-                })
+                        200 => Msg::AuthSuccess,
+                        401 => Msg::AuthFailure,
+                        _ => unimplemented!(),
+                    }
+                });
+
+                Msg::Useless
             })
+        };
+
+        let error_node = {
+            let location = ctx.link().location().unwrap();
+            let query_params = location.query::<HashMap<String, String>>().unwrap();
+            match query_params.get("error") {
+                None => html! {},
+                Some(error) => html! {
+                    <div class="alert alert-warning" role="alert">
+                        { error }
+                    </div>
+                },
+            }
         };
 
         html! {
@@ -106,7 +125,7 @@ impl Component for Login {
     }
 }
 
-async fn request_login(login_form: &LoginForm) -> request::SendResult {
+async fn request_login(login_form: &interfacing::LoginForm) -> request::SendResult {
     Request::static_post(routes().api.login)
         .json(&login_form)
         .unwrap()
