@@ -92,11 +92,7 @@ impl Component for Dashboard {
                     .unwrap();
                 false
             }
-            Self::Message::SessionError(e @ SessionError::ParseError(_)) => {
-                self.session = Session::Error(e);
-                true
-            }
-            Self::Message::SessionError(e @ SessionError::RequestError(_)) => {
+            Self::Message::SessionError(e) => {
                 self.session = Session::Error(e);
                 true
             }

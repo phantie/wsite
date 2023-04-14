@@ -52,6 +52,9 @@ pub enum SessionError {
     #[error("Request error")]
     RequestError(#[source] gloo_net::Error),
 
+    #[error("Bad status")]
+    BadStatus(u16),
+
     #[error("Parse error")]
     ParseError(#[source] gloo_net::Error),
 }
@@ -62,14 +65,14 @@ pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, SessionE
         .await
         .map_err(SessionError::RequestError)?;
 
-    if response.status() == 401 {
-        Err(SessionError::AuthError)?
+    match response.status() {
+        401 => Err(SessionError::AuthError),
+        200 => Ok(response
+            .json::<interfacing::AdminSession>()
+            .await
+            .map_err(SessionError::ParseError)?),
+        status => Err(SessionError::BadStatus(status)),
     }
-
-    Ok(response
-        .json::<interfacing::AdminSession>()
-        .await
-        .map_err(SessionError::ParseError)?)
 }
 
 pub fn internal_problems() -> Html {
