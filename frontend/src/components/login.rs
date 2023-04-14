@@ -8,7 +8,8 @@ pub struct Login {
 pub enum Msg {
     AuthSuccess,
     AuthFailure,
-    Useless,
+    AlreadyAuthed,
+    Nothing,
 }
 
 impl Component for Login {
@@ -38,7 +39,12 @@ impl Component for Login {
                 window.alert_with_message("Unauthorized").unwrap();
                 true
             }
-            Self::Message::Useless => false,
+            Self::Message::AlreadyAuthed => {
+                console::log!("already authed, redirect to dashboard");
+                navigator.push(&Route::AdminDashboard);
+                false
+            }
+            Self::Message::Nothing => false,
         }
     }
 
@@ -76,7 +82,7 @@ impl Component for Login {
                     }
                 });
 
-                Msg::Useless
+                Msg::Nothing
             })
         };
 
@@ -121,6 +127,17 @@ impl Component for Login {
                     </form>
                 </div>
             </>
+        }
+    }
+
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        if first_render {
+            ctx.link().send_future(async {
+                match fetch_admin_session().await {
+                    Ok(_session) => Self::Message::AlreadyAuthed,
+                    Err(_e) => Self::Message::Nothing,
+                }
+            });
         }
     }
 }
