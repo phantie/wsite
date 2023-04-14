@@ -2,8 +2,12 @@ use crate::components::imports::*;
 
 pub struct Logout;
 
+pub enum Msg {
+    LogoutSuccess,
+}
+
 impl Component for Logout {
-    type Message = ();
+    type Message = Msg;
     type Properties = ();
 
     #[allow(unused_variables)]
@@ -13,30 +17,35 @@ impl Component for Logout {
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let navigator = ctx.link().navigator().unwrap();
-
-        let onclick = Callback::from(move |event: MouseEvent| {
+        let onclick = ctx.link().callback_future(move |event: MouseEvent| {
             event.prevent_default();
 
-            let navigator = navigator.clone();
-
-            wasm_bindgen_futures::spawn_local(async move {
+            async {
                 let logout_response = request_logout().await.unwrap();
-
                 console_log_status(&logout_response);
 
                 match logout_response.status() {
-                    200 => {
-                        navigator.push(&Route::Login);
-                    }
-                    _ => unreachable!(),
-                };
-            })
+                    200 => Msg::LogoutSuccess,
+                    _ => unimplemented!(),
+                }
+            }
         });
 
         html! {
             // <a {onclick}>{ "Logout" }</a>
             <button {onclick} type="button">{ "Logout" }</button>
+        }
+    }
+
+    #[allow(unused_variables)]
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        let navigator = ctx.link().navigator().unwrap();
+
+        match msg {
+            Self::Message::LogoutSuccess => {
+                navigator.push(&Route::Login);
+                false
+            }
         }
     }
 }
