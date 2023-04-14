@@ -16,8 +16,7 @@ enum Session {
 impl Session {
     fn is_unexpected_error(&self) -> bool {
         match self {
-            Self::Error(SessionError::AuthError) => false,
-            Self::Error(_) => true,
+            Self::Error(SessionError::UnexpectedError(_)) => true,
             _ => false,
         }
     }
