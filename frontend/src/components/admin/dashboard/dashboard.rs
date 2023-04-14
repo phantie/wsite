@@ -9,16 +9,15 @@ pub struct Dashboard {
 
 enum Session {
     Unloaded,
-    Exist(interfacing::AdminSession),
-    Missing,
-    Unreachable,
-    Invalid,
+    Loaded(interfacing::AdminSession),
+    Error(SessionError),
 }
 
 impl Session {
-    fn is_error(&self) -> bool {
+    fn is_unexpected_error(&self) -> bool {
         match self {
-            Self::Unreachable | Self::Invalid => true,
+            Self::Error(SessionError::AuthError) => false,
+            Self::Error(_) => true,
             _ => false,
         }
     }
@@ -26,9 +25,7 @@ impl Session {
 
 pub enum Msg {
     SessionLoaded(interfacing::AdminSession),
-    SessionMissing,
-    SessionUnreachable,
-    SessionInvalid,
+    SessionError(SessionError),
 }
 
 impl Component for Dashboard {
@@ -42,16 +39,18 @@ impl Component for Dashboard {
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
-        if self.session.is_error() {
+        if self.session.is_unexpected_error() {
             return internal_problems();
         }
 
         let username: Option<AttrValue> = match &self.session {
             Session::Unloaded => None,
-            Session::Exist(session) => Some(session.username.clone().into()),
-            Session::Missing => unreachable!("because you are redirected to login"),
-            Session::Unreachable | Session::Invalid => {
-                unreachable!("because of self.session.is_error() guard")
+            Session::Loaded(session) => Some(session.username.clone().into()),
+            Session::Error(SessionError::AuthError) => {
+                unreachable!("because you are redirected to login")
+            }
+            Session::Error(_) => {
+                unreachable!("because of self.session.is_unexpected_error() guard")
             }
         };
 
@@ -79,11 +78,11 @@ impl Component for Dashboard {
         let navigator = ctx.link().navigator().unwrap();
         match msg {
             Self::Message::SessionLoaded(session) => {
-                self.session = Session::Exist(session);
+                self.session = Session::Loaded(session);
                 true
             }
-            Self::Message::SessionMissing => {
-                self.session = Session::Missing;
+            Self::Message::SessionError(e @ SessionError::AuthError) => {
+                self.session = Session::Error(e);
                 console::log!(format!("message SessionMissing from Dashboard"));
                 navigator
                     .push_with_query(
@@ -93,12 +92,12 @@ impl Component for Dashboard {
                     .unwrap();
                 false
             }
-            Self::Message::SessionInvalid => {
-                self.session = Session::Invalid;
+            Self::Message::SessionError(e @ SessionError::ParseError(_)) => {
+                self.session = Session::Error(e);
                 true
             }
-            Self::Message::SessionUnreachable => {
-                self.session = Session::Unreachable;
+            Self::Message::SessionError(e @ SessionError::RequestError(_)) => {
+                self.session = Session::Error(e);
                 true
             }
         }
@@ -109,11 +108,7 @@ impl Component for Dashboard {
             ctx.link().send_future(async {
                 match fetch_admin_session().await {
                     Ok(session) => Self::Message::SessionLoaded(session),
-                    Err(e) => match e {
-                        FetchSessionError::AuthError => Self::Message::SessionMissing,
-                        FetchSessionError::RequestError(_) => Self::Message::SessionUnreachable,
-                        FetchSessionError::ParseError(_) => Self::Message::SessionInvalid,
-                    },
+                    Err(e) => Self::Message::SessionError(e),
                 }
             });
         }
