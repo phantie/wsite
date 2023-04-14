@@ -78,7 +78,7 @@ impl Component for Login {
                 async move {
                     console::log!(format!("submitting: {:?}", login_form));
                     let login_response = request_login(&login_form).await.unwrap();
-                    console_log_status(&login_response);
+                    login_response.log_status();
 
                     match login_response.status() {
                         200 => Msg::AuthSuccess,

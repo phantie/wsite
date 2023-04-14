@@ -82,7 +82,7 @@ impl Component for PasswordChange {
                     console::log!(format!("submitting: {:?}", password_form));
                     let password_change_response =
                         request_password_change(&password_form).await.unwrap();
-                    console_log_status(&password_change_response);
+                    password_change_response.log_status();
 
                     match password_change_response.status() {
                         200 => Msg::PasswordChangeSuccess,

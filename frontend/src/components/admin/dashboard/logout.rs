@@ -22,7 +22,7 @@ impl Component for Logout {
 
             async {
                 let logout_response = request_logout().await.unwrap();
-                console_log_status(&logout_response);
+                logout_response.log_status();
 
                 match logout_response.status() {
                     200 => Msg::LogoutSuccess,
