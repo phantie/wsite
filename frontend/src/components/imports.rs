@@ -45,41 +45,42 @@ pub mod request {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum UnexpectedSessionError {
+pub enum SessionError {
+    #[error("Authentication failed")]
+    AuthError,
+
     #[error("Request error")]
     RequestError(#[source] gloo_net::Error),
 
-    #[error("Bad status {0}")]
+    #[error("Bad status")]
     BadStatus(u16),
 
     #[error("Parsing error")]
     ParsingError(#[source] gloo_net::Error),
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum SessionError {
-    #[error("Authentication failed")]
-    AuthError,
-
-    #[error(transparent)]
-    UnexpectedError(UnexpectedSessionError),
+impl SessionError {
+    pub fn is_unexpected(&self) -> bool {
+        match self {
+            Self::AuthError => false,
+            _ => true,
+        }
+    }
 }
 
 pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, SessionError> {
     let response: Response = Request::static_get(routes().api.admin.session)
         .send()
         .await
-        .map_err(|e| SessionError::UnexpectedError(UnexpectedSessionError::RequestError(e)))?;
+        .map_err(SessionError::RequestError)?;
 
     match response.status() {
-        401 => Err(SessionError::AuthError),
         200 => Ok(response
             .json::<interfacing::AdminSession>()
             .await
-            .map_err(|e| SessionError::UnexpectedError(UnexpectedSessionError::ParsingError(e)))?),
-        status => Err(SessionError::UnexpectedError(
-            UnexpectedSessionError::BadStatus(status),
-        )),
+            .map_err(SessionError::ParsingError)?),
+        401 => Err(SessionError::AuthError),
+        status => Err(SessionError::BadStatus(status)),
     }
 }
 
