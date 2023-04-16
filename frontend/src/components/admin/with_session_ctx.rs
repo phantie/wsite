@@ -117,7 +117,7 @@ impl Component for WithSession {
                 navigator
                     .push_with_query(
                         &Route::Login,
-                        &HashMap::from([("error", "Login to access dashboard")]),
+                        &HashMap::from([("error", "Login to access admin section")]),
                     )
                     .unwrap();
                 false
