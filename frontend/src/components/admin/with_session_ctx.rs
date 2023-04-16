@@ -1,6 +1,8 @@
 use crate::components::imports::*;
 
-pub struct WithAuth {
+pub type SessionCtx = Rc<Option<interfacing::AdminSession>>;
+
+pub struct WithSession {
     session: Session,
 }
 
@@ -23,7 +25,7 @@ pub enum Msg {
     SessionError(SessionError),
 }
 
-impl Component for WithAuth {
+impl Component for WithSession {
     type Message = Msg;
     type Properties = Props;
 
@@ -37,30 +39,25 @@ impl Component for WithAuth {
     fn view(&self, ctx: &Context<Self>) -> Html {
         match &self.session {
             Session::Unloaded => {
-                console::log!("drawing WithAuth with Unloaded");
+                console::log!("drawing WithSession with Unloaded");
 
-                let session = Rc::new(interfacing::AdminSession {
-                    user_id: 0,
-                    username: "unknown".into(),
-                });
+                let session = Rc::new(None);
 
                 html! {
-                    <ContextProvider<Rc<interfacing::AdminSession>> context={session}>
-                        <h3>{ "Loading session..."}</h3>
+                    <ContextProvider<SessionCtx> context={session}>
                         { ctx.props().children.clone() }
-                    </ContextProvider<Rc<interfacing::AdminSession>>>
+                    </ContextProvider<SessionCtx>>
                 }
             }
             Session::Loaded(session) => {
-                console::log!("drawing WithAuth with Loaded");
+                console::log!("drawing WithSession with Loaded");
                 let session = session.clone();
-                let session = Rc::new(session);
+                let session = Rc::new(Some(session));
 
                 html! {
-                    <ContextProvider<Rc<interfacing::AdminSession>> context={session}>
-                        <h3>{ "Session is loaded"}</h3>
+                    <ContextProvider<SessionCtx> context={session}>
                         { ctx.props().children.clone() }
-                    </ContextProvider<Rc<interfacing::AdminSession>>>
+                    </ContextProvider<SessionCtx>>
                 }
             }
             Session::Error(_) => return internal_problems(),
