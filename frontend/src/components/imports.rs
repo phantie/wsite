@@ -3,6 +3,7 @@ pub use crate::router::Route;
 pub use static_routes::*;
 
 pub use std::collections::HashMap;
+pub use std::rc::Rc;
 
 pub use gloo_console as console;
 pub use gloo_net::http::{Request, Response};
@@ -60,6 +61,7 @@ pub enum SessionError {
 }
 
 impl SessionError {
+    #[allow(dead_code)]
     pub fn is_unexpected(&self) -> bool {
         match self {
             Self::AuthError => false,
