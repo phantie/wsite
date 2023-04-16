@@ -6,7 +6,7 @@ pub struct WelcomeMessage {
 }
 
 pub enum Msg {
-    AuthContextUpdate(SessionCtx),
+    SessionContextUpdate(SessionCtx),
 }
 
 impl Component for WelcomeMessage {
@@ -15,7 +15,7 @@ impl Component for WelcomeMessage {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Self::Message::AuthContextUpdate(session_ctx) => {
+            Self::Message::SessionContextUpdate(session_ctx) => {
                 console::log!("WithSession context updated from WelcomeMessage");
                 self.session_ctx.set(session_ctx);
                 true
@@ -24,17 +24,9 @@ impl Component for WelcomeMessage {
     }
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (session_ctx, _session_ctx_handle) = ctx
-            .link()
-            .context(
-                ctx.link()
-                    .callback(|session_ctx: SessionCtx| Msg::AuthContextUpdate(session_ctx)),
-            )
-            .expect("Session context must exist");
+        let session_ctx = SessionCtxSub::subscribe(ctx, Msg::SessionContextUpdate);
 
-        Self {
-            session_ctx: SessionCtxSub::new(session_ctx, _session_ctx_handle),
-        }
+        Self { session_ctx }
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
