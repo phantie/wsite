@@ -1,10 +1,8 @@
-use crate::components::admin::SessionCtx;
+use crate::components::admin::{SessionCtx, SessionCtxSub};
 use crate::components::imports::*;
 
 pub struct WelcomeMessage {
-    session_ctx: SessionCtx,
-    // keep handle for component rerender after a session is loaded
-    _session_ctx_handle: ContextHandle<SessionCtx>,
+    session_ctx: SessionCtxSub,
 }
 
 pub enum Msg {
@@ -19,7 +17,7 @@ impl Component for WelcomeMessage {
         match msg {
             Self::Message::AuthContextUpdate(session_ctx) => {
                 console::log!("WithSession context updated from WelcomeMessage");
-                self.session_ctx = session_ctx;
+                self.session_ctx.set(session_ctx);
                 true
             }
         }
@@ -35,17 +33,16 @@ impl Component for WelcomeMessage {
             .expect("Session context must exist");
 
         Self {
-            session_ctx,
-            _session_ctx_handle,
+            session_ctx: SessionCtxSub::new(session_ctx, _session_ctx_handle),
         }
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         let session_ctx = &self.session_ctx;
 
-        console::log!(format!("drawing Welcome with {:?}", &session_ctx));
+        console::log!(format!("drawing Welcome with {:?}", session_ctx.as_ref()));
 
-        let username: Option<AttrValue> = match (**session_ctx).clone() {
+        let username: Option<AttrValue> = match session_ctx.as_ref() {
             None => None,
             Some(session) => Some(session.username.clone().into()),
         };
