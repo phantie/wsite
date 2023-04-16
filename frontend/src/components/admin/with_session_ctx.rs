@@ -6,6 +6,31 @@ pub struct WithSession {
     session: Session,
 }
 
+pub struct SessionCtxSub {
+    session_ctx: SessionCtx,
+    // keep handle for component rerender after a session is loaded
+    _session_ctx_handle: ContextHandle<SessionCtx>,
+}
+
+impl AsRef<Option<interfacing::AdminSession>> for SessionCtxSub {
+    fn as_ref(&self) -> &Option<interfacing::AdminSession> {
+        &self.session_ctx
+    }
+}
+
+impl SessionCtxSub {
+    pub fn new(session_ctx: SessionCtx, _session_ctx_handle: ContextHandle<SessionCtx>) -> Self {
+        Self {
+            session_ctx,
+            _session_ctx_handle,
+        }
+    }
+
+    pub fn set(&mut self, ctx: SessionCtx) {
+        self.session_ctx = ctx;
+    }
+}
+
 enum Session {
     Unloaded,
     Loaded(interfacing::AdminSession),
