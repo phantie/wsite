@@ -1,15 +1,14 @@
+use crate::components::admin::SessionCtx;
 use crate::components::imports::*;
 
-type Session = Rc<interfacing::AdminSession>;
-
 pub struct WelcomeMessage {
-    session: Session,
+    session_ctx: SessionCtx,
     // keep handle for component rerender after a session is loaded
-    _session_context_handle: ContextHandle<Session>,
+    _session_ctx_handle: ContextHandle<SessionCtx>,
 }
 
 pub enum Msg {
-    AuthContextUpdate(Session),
+    AuthContextUpdate(SessionCtx),
 }
 
 impl Component for WelcomeMessage {
@@ -18,38 +17,41 @@ impl Component for WelcomeMessage {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Self::Message::AuthContextUpdate(session) => {
-                console::log!("WithAuth context updated from WelcomeMessage");
-                self.session = session;
+            Self::Message::AuthContextUpdate(session_ctx) => {
+                console::log!("WithSession context updated from WelcomeMessage");
+                self.session_ctx = session_ctx;
                 true
             }
         }
     }
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (session, _session_context_handle) = ctx
+        let (session_ctx, _session_ctx_handle) = ctx
             .link()
             .context(
                 ctx.link()
-                    .callback(|session: Session| Msg::AuthContextUpdate(session)),
+                    .callback(|session_ctx: SessionCtx| Msg::AuthContextUpdate(session_ctx)),
             )
-            .unwrap();
+            .expect("Session context must exist");
 
         Self {
-            session: session,
-            _session_context_handle,
+            session_ctx,
+            _session_ctx_handle,
         }
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
-        let session = &self.session;
+        let session_ctx = &self.session_ctx;
 
-        console::log!(format!("drawing Welcome with {:?}", &session));
+        console::log!(format!("drawing Welcome with {:?}", &session_ctx));
 
-        let username: Option<AttrValue> = Some(session.username.clone().into());
+        let username: Option<AttrValue> = match (**session_ctx).clone() {
+            None => None,
+            Some(session) => Some(session.username.clone().into()),
+        };
 
         match username {
-            None => html! { "Welcome to dashboard" },
+            None => html! { "Welcome to dashboard, loading session..." },
             Some(username) => html! {
                <>
                     <Colored with="orange">{ username }</Colored>

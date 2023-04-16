@@ -1,8 +1,8 @@
+use crate::components::admin::{
+    dashboard::{Logout, WelcomeMessage},
+    WithSession,
+};
 use crate::components::imports::*;
-
-use super::super::WithAuth;
-use super::Logout;
-use super::WelcomeMessage;
 
 pub struct Dashboard;
 
@@ -18,7 +18,7 @@ impl Component for Dashboard {
         console::log!("drawing Dashboard");
 
         html! {
-            <WithAuth>
+            <WithSession>
                 <h1><WelcomeMessage/></h1>
                 <p>{ "Available actions:" }</p>
                 <ol>
@@ -33,7 +33,7 @@ impl Component for Dashboard {
                         <Logout/>
                     </li>
                 </ol>
-            </WithAuth>
+            </WithSession>
         }
     }
 }
