@@ -1,4 +1,6 @@
+use crate::components::admin::WithSession;
 use crate::components::imports::*;
+
 use interfacing::PasswordChangeForm;
 
 #[derive(Default, Clone)]
@@ -96,21 +98,23 @@ impl Component for PasswordChange {
         };
 
         html! {
-            <form {onsubmit} method="post">
-                <label>{ "Current password" }
-                    <input ref={current_password_ref} type="password" name="current_password"/>
-                </label>
-                <br/>
-                <label>{ "New password" }
-                    <input ref={new_password_ref} type="password" name="new_password"/>
-                </label>
-                <br/>
-                <label>{ "Confirm new password" }
-                    <input ref={new_password_check_ref} type="password" name="new_password_check"/>
-                </label>
-                <br/>
-                <button type="submit">{ "Change password" }</button>
-            </form>
+            <WithSession>
+                <form {onsubmit} method="post">
+                    <label>{ "Current password" }
+                        <input ref={current_password_ref} type="password" name="current_password"/>
+                    </label>
+                    <br/>
+                    <label>{ "New password" }
+                        <input ref={new_password_ref} type="password" name="new_password"/>
+                    </label>
+                    <br/>
+                    <label>{ "Confirm new password" }
+                        <input ref={new_password_check_ref} type="password" name="new_password_check"/>
+                    </label>
+                    <br/>
+                    <button type="submit">{ "Change password" }</button>
+                </form>
+            </WithSession>
         }
     }
 }
