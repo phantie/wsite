@@ -19,11 +19,25 @@ impl AsRef<Option<interfacing::AdminSession>> for SessionCtxSub {
 }
 
 impl SessionCtxSub {
-    pub fn new(session_ctx: SessionCtx, _session_ctx_handle: ContextHandle<SessionCtx>) -> Self {
+    fn new(session_ctx: SessionCtx, _session_ctx_handle: ContextHandle<SessionCtx>) -> Self {
         Self {
             session_ctx,
             _session_ctx_handle,
         }
+    }
+
+    pub fn subscribe<COMP, F, M>(ctx: &Context<COMP>, f: F) -> Self
+    where
+        COMP: Component,
+        M: Into<COMP::Message>,
+        F: Fn(SessionCtx) -> M + 'static,
+    {
+        let (session_ctx, _session_ctx_handle) = ctx
+            .link()
+            .context(ctx.link().callback(f))
+            .expect("Session context does not exist");
+
+        Self::new(session_ctx, _session_ctx_handle)
     }
 
     pub fn set(&mut self, ctx: SessionCtx) {
