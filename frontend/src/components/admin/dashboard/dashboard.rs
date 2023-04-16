@@ -1,7 +1,4 @@
-use crate::components::admin::{
-    dashboard::{Logout, WelcomeMessage},
-    WithSession,
-};
+use crate::components::admin::dashboard::{Logout, WelcomeMessage};
 use crate::components::imports::*;
 
 pub struct Dashboard;
@@ -18,7 +15,7 @@ impl Component for Dashboard {
         console::log!("drawing Dashboard");
 
         html! {
-            <WithSession>
+            <>
                 <h1><WelcomeMessage/></h1>
                 <p>{ "Available actions:" }</p>
                 <ol>
@@ -33,7 +30,7 @@ impl Component for Dashboard {
                         <Logout/>
                     </li>
                 </ol>
-            </WithSession>
+            </>
         }
     }
 }

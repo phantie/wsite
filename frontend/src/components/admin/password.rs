@@ -1,4 +1,3 @@
-use crate::components::admin::WithSession;
 use crate::components::imports::*;
 
 use interfacing::PasswordChangeForm;
@@ -98,7 +97,7 @@ impl Component for PasswordChange {
         };
 
         html! {
-            <WithSession>
+            <>
                 <form {onsubmit} method="post">
                     <label>{ "Current password" }
                         <input ref={current_password_ref} type="password" name="current_password"/>
@@ -114,7 +113,7 @@ impl Component for PasswordChange {
                     <br/>
                     <button type="submit">{ "Change password" }</button>
                 </form>
-            </WithSession>
+            </>
         }
     }
 }
