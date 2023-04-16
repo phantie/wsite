@@ -1,3 +1,4 @@
+use crate::components::admin::WithSession;
 use crate::router::Route;
 
 use yew::prelude::*;
@@ -11,10 +12,10 @@ pub fn switch(routes: Route) -> Html {
         Route::Home => html! { <h1>{ "Hello Frontend" }</h1> },
         Route::Login => html! { <Login/> },
         Route::AdminDashboard => {
-            html! { <admin::Dashboard/>}
+            html! {<WithSession><admin::Dashboard/></WithSession>}
         }
         Route::PasswordChange => {
-            html! { <admin::PasswordChange/>}
+            html! {<WithSession><admin::PasswordChange/></WithSession>}
         }
     }
 }
