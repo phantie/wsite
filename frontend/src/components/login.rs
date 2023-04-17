@@ -1,4 +1,5 @@
 use crate::components::imports::*;
+use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 #[derive(Default, Clone)]
 pub struct Refs {
@@ -7,6 +8,7 @@ pub struct Refs {
 }
 
 pub struct Login {
+    theme_ctx: ThemeCtxSub,
     refs: Refs,
 }
 
@@ -15,6 +17,7 @@ pub enum Msg {
     AuthFailure,
     AlreadyAuthed,
     Nothing,
+    ThemeContextUpdate(ThemeCtx),
 }
 
 impl Component for Login {
@@ -25,6 +28,7 @@ impl Component for Login {
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             refs: Refs::default(),
+            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
         }
     }
 
@@ -49,10 +53,55 @@ impl Component for Login {
                 false
             }
             Self::Message::Nothing => false,
+            Self::Message::ThemeContextUpdate(theme_ctx) => {
+                console::log!("WithTheme context updated from Login");
+                self.theme_ctx.set(theme_ctx);
+                true
+            }
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        console::log!(format!(
+            "drawing Login with theme {:?}",
+            self.theme_ctx.as_ref()
+        ));
+
+        let theme = self.theme_ctx.as_ref();
+
+        let bg_color = &theme.bg_color;
+        let text_color = &theme.text_color;
+        let input_border_color = &theme.input_border_color;
+
+        let btn_style = match theme.id {
+            Themes::Dark => "btn-outline-light",
+            Themes::Light => "btn-outline-dark",
+            Themes::Pastel => "btn-outline-warning",
+        };
+
+        let btn_classes = classes!("btn", "btn-lg", btn_style);
+
+        let input_text_color = match theme.id {
+            Themes::Dark => "white",
+            Themes::Light => "black",
+            Themes::Pastel => "white",
+        };
+
+        let input_classes = classes!(
+            "form-control",
+            "form-control-lg",
+            css!(
+                "
+                    color: ${input_text_color}!important;
+                    border-top: none!important;
+                    border-right: none!important;
+                    border-left: none!important;
+                    border-radius: 0!important;
+                ",
+                input_text_color = input_text_color
+            )
+        );
+
         let Refs {
             username_ref,
             password_ref,
@@ -102,9 +151,40 @@ impl Component for Login {
             }
         };
 
-        html! {
+        html! (
             <>
-                <Global css={ "display: flex; justify-content: center;" }/>
+                <Global css={css!("
+
+                    display: flex;
+                    justify-content: center;
+                    background-color: ${bg_color}!important;
+
+                    body {
+                        font-family: \"Trebuchet MS\";
+                        background-color: ${bg_color};
+                        color: ${text_color};
+                    }
+
+                    input {
+                        background-color: transparent!important;
+                        border-width: 3px!important;
+                        border-color: ${input_border_color}!important;
+                    }
+                    
+                    input::placeholder {
+                        color: ${text_color}!important;
+                    }
+
+                    *:focus {
+                        outline: none!important;
+                        outline-style: none!important;
+                        box-shadow: none!important;
+                    }
+                ",
+                    bg_color = bg_color,
+                    text_color = text_color,
+                    input_border_color = input_border_color
+                )} />
 
                 <h1 class={ css!{"padding-top: 20px; padding-bottom: 20px;"} }>{ "Login" }</h1>
 
@@ -113,24 +193,27 @@ impl Component for Login {
                 <div>
                     <form class={ css!{"width: 450px; max-width: 90vw;"} }{ onsubmit } method="post">
                         <div class="form-group">
-                            <label class="col-form-label-lg" for="username_input">{ "Username" }</label>
-                            <input ref={username_ref} type="text" placeholder="Enter Username"
-                            name="username" id="username_input" class="form-control form-control-lg"
+                            <h4><label for="username_input">{ "Username" }</label></h4>
+                            <input ref={username_ref} type="text"
+                            name="username" id="username_input"
+                            class={ input_classes.clone() }
                             required={true}/>
                         </div>
 
                         <div class="form-group">
-                            <label class="col-form-label-lg" for="password_input">{ "Password" }</label>
-                            <input ref={password_ref} type="password" placeholder="Enter Password"
-                            name="password" id="password_input" class="form-control form-control-lg"
+                            <h4><label for="password_input">{ "Password" }</label></h4>
+                            <input ref={password_ref} type="password"
+                            name="password" id="password_input"
+                            class={ input_classes }
                             required={true}/>
                         </div>
 
-                        <button type="submit" class="btn btn-dark btn-lg">{ "Login" }</button>
+                        <br/>
+                        <button type="submit" class={btn_classes} >{ "Login" }</button>
                     </form>
                 </div>
             </>
-        }
+        )
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
