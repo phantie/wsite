@@ -1,4 +1,5 @@
 use crate::components::imports::*;
+#[allow(unused_imports)]
 use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 #[derive(Default, Clone)]
@@ -62,45 +63,74 @@ impl Component for Login {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        console::log!(format!(
-            "drawing Login with theme {:?}",
-            self.theme_ctx.as_ref()
-        ));
-
         let theme = self.theme_ctx.as_ref();
 
         let bg_color = &theme.bg_color;
         let text_color = &theme.text_color;
-        let input_border_color = &theme.input_border_color;
+        let box_border_color = &theme.box_border_color;
 
-        let btn_style = match theme.id {
-            Themes::Dark => "btn-outline-light",
-            Themes::Light => "btn-outline-dark",
-            Themes::Pastel => "btn-outline-warning",
-        };
+        let global_style = css!(
+            "
+                body {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    font-family: \"Trebuchet MS\";
+                    background-color: ${bg_color};
+                    color: ${text_color};
+                }
+            ",
+            bg_color = bg_color,
+            text_color = text_color,
+        );
 
-        let btn_classes = classes!("btn", "btn-lg", btn_style);
+        let input_style = {
+            let input_text_color = text_color;
+            let padding_horizontal = "20px";
 
-        let input_text_color = match theme.id {
-            Themes::Dark => "white",
-            Themes::Light => "black",
-            Themes::Pastel => "white",
-        };
-
-        let input_classes = classes!(
-            "form-control",
-            "form-control-lg",
             css!(
                 "
-                    color: ${input_text_color}!important;
-                    border-top: none!important;
-                    border-right: none!important;
-                    border-left: none!important;
-                    border-radius: 0!important;
+                    color: ${input_text_color};
+                    width: calc(100% - 2 * ${padding_horizontal});
+                    background-color: transparent;
+                    border: 3px solid ${box_border_color};
+                    height: 30px;
+                    padding: 15px ${padding_horizontal};
+                    font-size: 150%;
+
+                    :focus {
+                        outline-style: none;
+                    }
                 ",
-                input_text_color = input_text_color
+                input_text_color = input_text_color,
+                box_border_color = box_border_color,
+                padding_horizontal = padding_horizontal
             )
-        );
+        };
+
+        let button_style = {
+            let button_border_color = &theme.box_border_color;
+
+            css!(
+                "
+                padding: 15px 20px;
+                border: 3px solid ${button_border_color};
+                background-color: transparent;
+                color: ${text_color};
+                font-size: 150%;
+                width: 100px;
+                margin-top: 30px;
+                transition: opacity .2s ease-in;
+                cursor: pointer;
+
+                :hover {
+                    opacity: 0.8;
+                }
+            ",
+                text_color = text_color,
+                button_border_color = button_border_color
+            )
+        };
 
         let Refs {
             username_ref,
@@ -153,63 +183,31 @@ impl Component for Login {
 
         html! (
             <>
-                <Global css={css!("
-
-                    display: flex;
-                    justify-content: center;
-                    background-color: ${bg_color}!important;
-
-                    body {
-                        font-family: \"Trebuchet MS\";
-                        background-color: ${bg_color};
-                        color: ${text_color};
-                    }
-
-                    input {
-                        background-color: transparent!important;
-                        border-width: 3px!important;
-                        border-color: ${input_border_color}!important;
-                    }
-                    
-                    input::placeholder {
-                        color: ${text_color}!important;
-                    }
-
-                    *:focus {
-                        outline: none!important;
-                        outline-style: none!important;
-                        box-shadow: none!important;
-                    }
-                ",
-                    bg_color = bg_color,
-                    text_color = text_color,
-                    input_border_color = input_border_color
-                )} />
+                <Global css={global_style}/>
 
                 <h1 class={ css!{"padding-top: 20px; padding-bottom: 20px;"} }>{ "Login" }</h1>
 
                 { error_node }
 
-                <div>
-                    <form class={ css!{"width: 450px; max-width: 90vw;"} }{ onsubmit } method="post">
-                        <div class="form-group">
-                            <h4><label for="username_input">{ "Username" }</label></h4>
-                            <input ref={username_ref} type="text"
+                <div class={ css!{"width: 450px; max-width: 90vw;"} }>
+                    <form { onsubmit } method="post">
+                        <div>
+                            <h2><label for="username_input">{ "Username" }</label></h2>
+                            <input ref={ username_ref } type="text"
                             name="username" id="username_input"
-                            class={ input_classes.clone() }
+                            class={ input_style.clone() }
                             required={true}/>
                         </div>
 
-                        <div class="form-group">
-                            <h4><label for="password_input">{ "Password" }</label></h4>
-                            <input ref={password_ref} type="password"
+                        <div>
+                            <h2><label for="password_input">{ "Password" }</label></h2>
+                            <input ref={ password_ref } type="password"
                             name="password" id="password_input"
-                            class={ input_classes }
+                            class={ input_style }
                             required={true}/>
                         </div>
 
-                        <br/>
-                        <button type="submit" class={btn_classes} >{ "Login" }</button>
+                        <button class={ button_style } type="submit">{ "login" }</button>
                     </form>
                 </div>
             </>

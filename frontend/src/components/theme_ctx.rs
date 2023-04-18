@@ -6,39 +6,59 @@ pub struct Theme {
     pub id: Themes,
     pub bg_color: AttrValue,
     pub text_color: AttrValue,
-    pub input_border_color: AttrValue,
+    pub box_border_color: AttrValue,
 }
 
-impl Theme {
+struct RawTheme<'a> {
+    pub name: &'a str,
+    pub id: Themes,
+    pub bg_color: &'a str,
+    pub text_color: &'a str,
+    pub box_border_color: &'a str,
+}
+
+impl<'a> From<RawTheme<'a>> for Theme {
+    fn from(theme: RawTheme) -> Self {
+        Theme {
+            name: theme.name.to_owned().into(),
+            id: theme.id,
+            bg_color: theme.bg_color.to_owned().into(),
+            text_color: theme.text_color.to_owned().into(),
+            box_border_color: theme.box_border_color.to_owned().into(),
+        }
+    }
+}
+
+impl<'a> RawTheme<'a> {
     pub fn dark() -> Self {
         Self {
-            name: "Dark".into(),
+            name: "Dark",
             id: Themes::Dark,
-            bg_color: "#1B2430".into(),
-            text_color: "white".into(),
-            input_border_color: "white".into(),
+            bg_color: "#1B2430",
+            text_color: "white",
+            box_border_color: "white",
         }
     }
 
     pub fn light() -> Self {
         let dark = "#212529";
         Self {
-            name: "Light".into(),
+            name: "Light",
             id: Themes::Light,
-            bg_color: "#FEFCF3".into(),
-            text_color: dark.into(),
-            input_border_color: dark.into(),
+            bg_color: "#FEFCF3",
+            text_color: dark,
+            box_border_color: dark,
         }
     }
 
     pub fn pastel() -> Self {
-        let white = "#F2F7A1";
+        let light = "#fffccd";
         Self {
-            name: "Pastel".into(),
+            name: "Pastel",
             id: Themes::Pastel,
-            bg_color: "#453C67".into(),
-            text_color: white.into(),
-            input_border_color: white.into(),
+            bg_color: "#453C67",
+            text_color: light,
+            box_border_color: light,
         }
     }
 }
@@ -53,10 +73,11 @@ pub enum Themes {
 impl From<&Themes> for Theme {
     fn from(value: &Themes) -> Self {
         match value {
-            Themes::Dark => Theme::dark(),
-            Themes::Light => Theme::light(),
-            Themes::Pastel => Theme::pastel(),
+            Themes::Dark => RawTheme::dark(),
+            Themes::Light => RawTheme::light(),
+            Themes::Pastel => RawTheme::pastel(),
         }
+        .into()
     }
 }
 
@@ -125,25 +146,31 @@ impl Component for WithTheme {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let theme = Rc::new(Theme::from(&self.theme));
+        let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
 
-        let onclick = ctx.link().callback(|_| Self::Message::ToggleTheme);
+        let theme = Theme::from(&self.theme);
+        let toggle_border_color = &theme.box_border_color;
+        let toggle_style = css!(
+            "
+                position: absolute; right: 15px; top: 15px;
+                outline: 5px solid ${toggle_border_color};
+                height: 2em; width: 2em;
+                border-radius: 100%;
+                cursor: pointer;
+                transition: opacity .2s ease-in;
 
-        let _btn_text = format!("{} theme", theme.name);
-
-        let toggle_border_color = theme.text_color.clone();
+                :hover {
+                    opacity: 0.8;
+                }
+            ",
+            toggle_border_color = toggle_border_color
+        );
 
         html! {
-            <ContextProvider<ThemeCtx> context={theme}>
+            <ContextProvider<ThemeCtx> context={ Rc::new(theme) }>
                 { ctx.props().children.clone() }
 
-                <div {onclick} class={ css!("
-                    position: absolute; right: 10px; top: 10px;
-                    border: 5px solid ${toggle_border_color};
-                    height: 2em; width: 2em;
-                    border-radius: 100%;
-                    cursor: pointer;
-                ", toggle_border_color = toggle_border_color) }/>
+                <div {onclick} class={ toggle_style }/>
             </ContextProvider<ThemeCtx>>
         }
     }
