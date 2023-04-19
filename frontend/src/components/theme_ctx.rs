@@ -5,6 +5,7 @@ pub struct Theme {
     pub name: AttrValue,
     pub id: Themes,
     pub bg_color: AttrValue,
+    pub code_bg_color: AttrValue,
     pub text_color: AttrValue,
     pub box_border_color: AttrValue,
 }
@@ -13,6 +14,7 @@ struct RawTheme<'a> {
     pub name: &'a str,
     pub id: Themes,
     pub bg_color: &'a str,
+    pub code_bg_color: &'a str,
     pub text_color: &'a str,
     pub box_border_color: &'a str,
 }
@@ -23,6 +25,7 @@ impl<'a> From<RawTheme<'a>> for Theme {
             name: theme.name.to_owned().into(),
             id: theme.id,
             bg_color: theme.bg_color.to_owned().into(),
+            code_bg_color: theme.code_bg_color.to_owned().into(),
             text_color: theme.text_color.to_owned().into(),
             box_border_color: theme.box_border_color.to_owned().into(),
         }
@@ -35,6 +38,7 @@ impl<'a> RawTheme<'a> {
             name: "Dark",
             id: Themes::Dark,
             bg_color: "#1B2430",
+            code_bg_color: "#11171e",
             text_color: "white",
             box_border_color: "white",
         }
@@ -46,6 +50,7 @@ impl<'a> RawTheme<'a> {
             name: "Light",
             id: Themes::Light,
             bg_color: "#FEFCF3",
+            code_bg_color: "#efede6",
             text_color: dark,
             box_border_color: dark,
         }
@@ -57,6 +62,7 @@ impl<'a> RawTheme<'a> {
             name: "Pastel",
             id: Themes::Pastel,
             bg_color: "#453C67",
+            code_bg_color: "#312b49",
             text_color: light,
             box_border_color: light,
         }
