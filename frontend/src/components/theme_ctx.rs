@@ -4,6 +4,7 @@ use crate::components::imports::*;
 pub struct Theme {
     pub name: AttrValue,
     pub id: Themes,
+    pub session_id: AttrValue,
     pub bg_color: AttrValue,
     pub code_bg_color: AttrValue,
     pub text_color: AttrValue,
@@ -14,6 +15,7 @@ pub struct Theme {
 struct RawTheme<'a> {
     pub name: &'a str,
     pub id: Themes,
+    pub session_id: &'a str,
     pub bg_color: &'a str,
     pub code_bg_color: &'a str,
     pub text_color: &'a str,
@@ -26,6 +28,7 @@ impl<'a> From<RawTheme<'a>> for Theme {
         Theme {
             name: theme.name.to_owned().into(),
             id: theme.id,
+            session_id: theme.session_id.to_owned().into(),
             bg_color: theme.bg_color.to_owned().into(),
             code_bg_color: theme.code_bg_color.to_owned().into(),
             text_color: theme.text_color.to_owned().into(),
@@ -42,6 +45,7 @@ impl<'a> RawTheme<'a> {
         Self {
             name: "Dark",
             id: Themes::Dark,
+            session_id: "dark",
             bg_color: "#1B2430",
             code_bg_color: "#11171e",
             text_color: light,
@@ -55,6 +59,7 @@ impl<'a> RawTheme<'a> {
         Self {
             name: "Light",
             id: Themes::Light,
+            session_id: "light",
             bg_color: "#FEFCF3",
             code_bg_color: "#efede6",
             text_color: dark,
@@ -68,6 +73,7 @@ impl<'a> RawTheme<'a> {
         Self {
             name: "Pastel",
             id: Themes::Pastel,
+            session_id: "pastel",
             bg_color: "#453C67",
             code_bg_color: "#312b49",
             text_color: light,
@@ -84,6 +90,45 @@ pub enum Themes {
     Pastel,
 }
 
+impl Default for Themes {
+    fn default() -> Self {
+        Self::Pastel
+    }
+}
+
+impl Themes {
+    const SESSION_KEY: &str = "theme";
+
+    pub fn derived() -> Self {
+        let remembered = || {
+            use gloo_storage::{SessionStorage, Storage};
+            SessionStorage::get::<String>(Self::SESSION_KEY)
+        };
+
+        let remembered_default = || {
+            let theme = Self::default();
+            theme.remember();
+            theme
+        };
+
+        match remembered() {
+            Ok(theme) => match Self::try_from(theme.as_str()) {
+                Ok(theme) => theme,
+                Err(_) => remembered_default(),
+            },
+            Err(_) => remembered_default(),
+        }
+    }
+
+    pub fn remember(&self) {
+        use gloo_storage::{SessionStorage, Storage};
+        match SessionStorage::set(Self::SESSION_KEY, Theme::from(self).session_id.to_string()) {
+            Ok(()) => {}
+            Err(_) => console::log!("failed to store theme in session storage"),
+        }
+    }
+}
+
 impl From<&Themes> for Theme {
     fn from(value: &Themes) -> Self {
         match value {
@@ -92,6 +137,24 @@ impl From<&Themes> for Theme {
             Themes::Pastel => RawTheme::pastel(),
         }
         .into()
+    }
+}
+
+impl TryFrom<&str> for Themes {
+    type Error = ();
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let theme = match value {
+            "dark" => Self::Dark,
+            "light" => Self::Light,
+            "pastel" => Self::Pastel,
+            _ => return Err(()),
+        };
+        assert_eq!(
+            Theme::from(&theme).session_id,
+            value,
+            "resulting theme's session_id must match with the provided value"
+        );
+        Ok(theme)
     }
 }
 
@@ -155,7 +218,7 @@ impl Component for WithTheme {
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            theme: Themes::Pastel,
+            theme: Themes::derived(),
         }
     }
 
@@ -199,6 +262,7 @@ impl Component for WithTheme {
                     Themes::Pastel => Themes::Dark,
                 };
 
+                new_theme.remember();
                 self.theme = new_theme;
                 true
             }
