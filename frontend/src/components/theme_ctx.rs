@@ -101,8 +101,8 @@ impl Themes {
 
     pub fn derived() -> Self {
         let remembered = || {
-            use gloo_storage::{SessionStorage, Storage};
-            SessionStorage::get::<String>(Self::SESSION_KEY)
+            use gloo_storage::{LocalStorage, Storage};
+            LocalStorage::get::<String>(Self::SESSION_KEY)
         };
 
         let remembered_default = || {
@@ -121,8 +121,8 @@ impl Themes {
     }
 
     pub fn remember(&self) {
-        use gloo_storage::{SessionStorage, Storage};
-        match SessionStorage::set(Self::SESSION_KEY, Theme::from(self).session_id.to_string()) {
+        use gloo_storage::{LocalStorage, Storage};
+        match LocalStorage::set(Self::SESSION_KEY, Theme::from(self).session_id.to_string()) {
             Ok(()) => {}
             Err(_) => console::log!("failed to store theme in session storage"),
         }
