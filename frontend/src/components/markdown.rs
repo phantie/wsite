@@ -49,14 +49,26 @@ impl Component for Markdown {
         let bg_color = &theme.bg_color;
         let code_bg_color = &theme.code_bg_color;
         let text_color = &theme.text_color;
+        let link_color = &theme.link_color;
 
         let global_style = css!(
             "
                 .markdown-body pre {
                     background-color: ${code_bg_color};
                 }
+
+                .markdown-body a:after {
+                    content: \"ᴴ\";
+                    margin-left: 0.1em;
+                    margin-right: 0.1em;
+                }
+
+                .markdown-body a {
+                    color: ${link_color};
+                }
             ",
             code_bg_color = code_bg_color,
+            link_color = link_color
         );
 
         let style = css!(
