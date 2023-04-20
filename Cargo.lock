@@ -1166,6 +1166,7 @@ dependencies = [
  "anyhow",
  "gloo-console",
  "gloo-net",
+ "gloo-storage",
  "interfacing",
  "pulldown-cmark",
  "secrecy",
