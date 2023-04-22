@@ -21,5 +21,11 @@ pub fn switch(routes: Route) -> Html {
         Route::PasswordChange => {
             html! {<WithSession><admin::PasswordChange/></WithSession>}
         }
+        Route::ArticleEditor => {
+            html! {<WithTheme><WithSession><ArticleEditor/></WithSession></WithTheme>}
+        }
+        Route::MarkdownPreview => {
+            html! {<WithTheme><MarkdownPreviewPage/></WithTheme>}
+        }
     }
 }

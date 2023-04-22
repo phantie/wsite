@@ -9,6 +9,15 @@ pub struct Routes {
     pub newsletters: Newsletters,
     pub login: Login,
     pub admin: Admin,
+    pub articles: Articles,
+}
+
+#[derive(Default)]
+pub struct Admin {
+    pub password: AdminPassword,
+    pub logout: AdminLogout,
+    pub session: AdminSession,
+    pub articles: AdminArticles,
 }
 
 #[derive(Default, Get)]
@@ -92,13 +101,6 @@ impl Url for Login {
     }
 }
 
-#[derive(Default)]
-pub struct Admin {
-    pub password: AdminPassword,
-    pub logout: AdminLogout,
-    pub session: AdminSession,
-}
-
 #[derive(Default, Post)]
 pub struct AdminPassword;
 
@@ -131,6 +133,32 @@ pub struct AdminSession;
 impl Url for AdminSession {
     fn postfix(&self) -> &str {
         "/admin/session"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
+}
+
+#[derive(Default, Get)]
+pub struct Articles;
+
+impl Url for Articles {
+    fn postfix(&self) -> &str {
+        "/articles"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
+}
+
+#[derive(Default, Post)]
+pub struct AdminArticles;
+
+impl Url for AdminArticles {
+    fn postfix(&self) -> &str {
+        "/admin/articles"
     }
 
     fn prefix(&self) -> &str {

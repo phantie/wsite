@@ -102,11 +102,45 @@ impl ViewSchema for UserByUsername {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
+#[collection(name = "articles", views = [ArticleByPublicID])]
+pub struct Article {
+    pub title: String,
+    pub public_id: String,
+    pub markdown: String,
+}
+
+#[derive(Debug, Clone, View)]
+#[view(collection = Article, key = String, value = u32, name = "by-public-id")]
+pub struct ArticleByPublicID;
+
+impl ViewSchema for ArticleByPublicID {
+    type View = Self;
+
+    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
+        let user = Article::document_contents(document)?;
+        document.header.emit_key_and_value(user.public_id, 1)
+    }
+
+    fn unique(&self) -> bool {
+        true
+    }
+
+    fn reduce(
+        &self,
+        mappings: &[ViewMappedValue<Self::View>],
+        _rereduce: bool,
+    ) -> ReduceResult<Self::View> {
+        Ok(mappings.iter().map(|mapping| mapping.value).sum())
+    }
+}
+
 pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     let mut configuration = StorageConfiguration::new(dir);
     configuration.memory_only = memory_only;
     let configuration = configuration.with_schema::<Subscription>().unwrap();
     let configuration = configuration.with_schema::<User>().unwrap();
+    let configuration = configuration.with_schema::<Article>().unwrap();
     let configuration = configuration.with_schema::<()>().unwrap();
 
     AsyncStorage::open(configuration).await.unwrap()
@@ -123,6 +157,7 @@ pub struct Database {
 pub struct Collections {
     pub subscriptions: AsyncDatabase,
     pub users: AsyncDatabase,
+    pub articles: AsyncDatabase,
 }
 
 impl Database {
@@ -134,6 +169,10 @@ impl Database {
                 .unwrap(),
             users: storage
                 .create_database::<User>("users", true)
+                .await
+                .unwrap(),
+            articles: storage
+                .create_database::<Article>("articles", true)
                 .await
                 .unwrap(),
         };

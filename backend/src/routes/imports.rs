@@ -10,7 +10,7 @@ pub use anyhow::Context;
 pub use axum::{
     extract::{
         rejection::{FormRejection, JsonRejection, TypedHeaderRejection},
-        Form, Json, Query, State, TypedHeader,
+        Form, Json, Path, Query, State, TypedHeader,
     },
     headers::{authorization::Basic, Authorization},
     http::{header, StatusCode},

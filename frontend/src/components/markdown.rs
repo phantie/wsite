@@ -4,7 +4,6 @@ use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 pub struct Markdown {
     theme_ctx: ThemeCtxSub,
-    file: String,
 }
 
 pub enum Msg {
@@ -14,7 +13,7 @@ pub enum Msg {
 #[derive(Properties, PartialEq)]
 
 pub struct Props {
-    pub file: String,
+    pub md: AttrValue,
 }
 
 impl Component for Markdown {
@@ -23,9 +22,7 @@ impl Component for Markdown {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
-        let file = &ctx.props().file;
         Self {
-            file: file.into(),
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
         }
     }
@@ -42,12 +39,12 @@ impl Component for Markdown {
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let md_body = parse_md(&self.file);
+        let md_body = parse_md(ctx.props().md.as_str());
 
         let theme = self.theme_ctx.as_ref();
 
         let bg_color = &theme.bg_color;
-        let code_bg_color = &theme.code_bg_color;
+        let code_bg_color = &theme.contrast_bg_color;
         let text_color = &theme.text_color;
         let link_color = &theme.link_color;
 

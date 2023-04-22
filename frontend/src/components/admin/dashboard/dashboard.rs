@@ -20,6 +20,9 @@ impl Component for Dashboard {
                 <p>{ "Available actions:" }</p>
                 <ol>
                     <li>
+                        <Link<Route> to={ Route::ArticleEditor }>{ "Create article" }</Link<Route>>
+                    </li>
+                    <li>
                         <Link<Route> to={ Route::PasswordChange }>{ "Change password" }</Link<Route>>
                     </li>
                     <li>
