@@ -47,7 +47,7 @@ impl Component for Post {
 
         html! {
             <div class={ style }>
-                <Markdown file={ include_str!("../../md/home.md") } />
+                <Markdown md={ include_str!("../../md/home.md") } />
             </div>
         }
     }
