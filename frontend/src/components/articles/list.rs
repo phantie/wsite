@@ -21,7 +21,6 @@ impl Component for ArticleList {
     type Message = Msg;
     type Properties = ();
 
-    #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             articles: None,
@@ -30,7 +29,6 @@ impl Component for ArticleList {
         }
     }
 
-    #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
         let theme = self.theme_ctx.as_ref();
         let session = self.session_ctx.as_ref();
@@ -48,6 +46,11 @@ impl Component for ArticleList {
                         body {
                             background-color: ${bg_color};
                             color: ${text_color};
+                        }
+
+                        a {
+                            text-decoration: none;
+                            color: inherit;
                         }
                     ",
                     bg_color = bg_color,
@@ -70,33 +73,23 @@ impl Component for ArticleList {
                     margin-bottom: 20px;
                     padding: 15px 30px;
                     border-radius: 5px;
-                    user-select: none;
-                    cursor: pointer;
-                ",
-                    box_border_color = box_border_color
+                    background-color: ${contrast_bg_color};
+                    ",
+                    box_border_color = box_border_color,
+                    contrast_bg_color = contrast_bg_color
                 );
-
-                let navigator = ctx.link().navigator().unwrap();
 
                 let articles = articles
                     .iter()
                     .map(|article| {
-                        let onclick = {
-                            let navigator = navigator.clone();
-                            let public_id = article.public_id.clone();
-                            Callback::from(move |_| {
-                                navigator.push(&Route::ArticleViewer {
-                                    public_id: public_id.clone(),
-                                });
-                            })
-                        };
+                        let public_id = article.public_id.clone();
                         let article_node_ref = NodeRef::default();
 
                         let delete_button = match session {
                             None => html! {},
                             Some(_session) => {
                                 let onclick = {
-                                    let public_id = article.public_id.clone();
+                                    let public_id = public_id.clone();
                                     let article_node_ref = article_node_ref.clone();
 
                                     ctx.link().callback_future(move |_| {
@@ -130,17 +123,25 @@ impl Component for ArticleList {
                         };
 
                         html! {
-                            <div key={article.public_id.clone()} ref={article_node_ref} class={article_classes.clone()}>
-                                <h1 {onclick}>{ &article.title }</h1>
+                            <div key={public_id.clone()} ref={article_node_ref} class={article_classes.clone()}>
+
+                                <Link<Route> to={ Route::ArticleViewer { public_id: public_id.clone() } }>
+                                    <h1>{ &article.title }</h1>
+                                </Link<Route>>
+
                                 {delete_button.clone()}
                             </div>
                         }
                     })
                     .collect::<Html>();
 
+                let title_classes = css!("text-align: center; margin-bottom: 30px;");
+
                 html! {
                     <>
                         <Global css={global_style}/>
+
+                        <h1 class={title_classes}>{"Articles"}</h1>
 
                         <div class={article_wrapper_classes}>
                             {articles}
