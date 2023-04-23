@@ -38,25 +38,25 @@ impl Component for ArticleList {
         let text_color = &theme.text_color;
         let box_border_color = &theme.box_border_color;
 
+        let global_style = css!(
+            "
+                body {
+                    background-color: ${bg_color};
+                    color: ${text_color};
+                }
+
+                a {
+                    text-decoration: none;
+                    color: inherit;
+                }
+            ",
+            bg_color = bg_color,
+            text_color = text_color,
+        );
+
         match &self.articles {
-            None => html! {},
+            None => html! { <Global css={global_style}/> },
             Some(articles) => {
-                let global_style = css!(
-                    "
-                        body {
-                            background-color: ${bg_color};
-                            color: ${text_color};
-                        }
-
-                        a {
-                            text-decoration: none;
-                            color: inherit;
-                        }
-                    ",
-                    bg_color = bg_color,
-                    text_color = text_color,
-                );
-
                 let article_wrapper_classes = css!(
                     "
                     display: flex;
