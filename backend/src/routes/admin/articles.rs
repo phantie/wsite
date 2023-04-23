@@ -8,8 +8,19 @@ pub async fn new_article(
 ) -> Response {
     // let _user_id: u64 = reject_anonymous_users(&session).unwrap();
 
-    let articles = &state.database.collections.articles;
+    let valid_public_id_charset = body
+        .public_id
+        .chars()
+        .all(|c| char::is_alphanumeric(c) || ['-'].contains(&c));
 
+    let invalid_public_id = body.public_id.is_empty() || !valid_public_id_charset;
+    let invalid_title = body.title.is_empty();
+
+    if invalid_public_id || invalid_title {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let articles = &state.database.collections.articles;
     Article {
         title: body.title,
         public_id: body.public_id,
