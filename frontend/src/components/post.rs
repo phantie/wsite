@@ -5,6 +5,12 @@ use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 pub struct Post {
     theme_ctx: ThemeCtxSub,
+    md: AttrValue,
+}
+
+#[derive(Clone, PartialEq, Properties)]
+pub struct Props {
+    pub md: AttrValue,
 }
 
 pub enum Msg {
@@ -13,12 +19,13 @@ pub enum Msg {
 
 impl Component for Post {
     type Message = Msg;
-    type Properties = ();
+    type Properties = Props;
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
+            md: ctx.props().md.clone(),
         }
     }
 
@@ -37,17 +44,20 @@ impl Component for Post {
         let theme = self.theme_ctx.as_ref();
 
         let bg_color = &theme.bg_color;
+        let padding_vertical = "2em";
         let style = css!(
             "
                 background-color: ${bg_color};
-                padding: 2em 4em;
+                padding: ${padding_vertical} 4em;
+                min-height: calc(100vh - 2 * ${padding_vertical});
             ",
             bg_color = bg_color,
+            padding_vertical = padding_vertical
         );
 
         html! {
             <div class={ style }>
-                <Markdown md={ include_str!("../../md/home.md") } />
+                <Markdown md={ self.md.clone() } />
             </div>
         }
     }

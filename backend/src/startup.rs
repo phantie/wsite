@@ -2,7 +2,7 @@ use crate::{configuration::Settings, database::*, email_client::EmailClient};
 use static_routes::*;
 
 use axum::{
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 use axum_sessions::{
@@ -67,6 +67,7 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
         .route(routes.admin.session.get().postfix(), get(admin_session))
         .route(routes.articles.get().postfix(), get(all_articles))
         .route("/articles/:public_id", get(article_by_public_id))
+        .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article));
 

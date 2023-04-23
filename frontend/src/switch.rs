@@ -11,7 +11,7 @@ pub fn switch(routes: Route) -> Html {
         Route::Unauthorized => html! {<Colored with="red"><h1>{"unauthorized 401"}</h1></Colored> },
         Route::Home => html! {
             <WithTheme>
-                <Post/>
+                <Post md={""}/>
             </WithTheme>
         },
         Route::Login => html! { <WithTheme><Login/></WithTheme> },
@@ -26,6 +26,12 @@ pub fn switch(routes: Route) -> Html {
         }
         Route::MarkdownPreview => {
             html! {<WithTheme><MarkdownPreviewPage/></WithTheme>}
+        }
+        Route::ArticleList => {
+            html! {<WithTheme><ArticleList/></WithTheme>}
+        }
+        Route::ArticleViewer { public_id } => {
+            html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>}
         }
     }
 }
