@@ -117,7 +117,7 @@ impl Component for ArticleEditor {
                 let title_field = title_ref.cast::<HtmlInputElement>().unwrap();
                 let public_id_field = public_id_ref.cast::<HtmlInputElement>().unwrap();
 
-                let new_article = Article {
+                let new_article = interfacing::Article {
                     public_id: public_id_field.value(),
                     title: title_field.value(),
                     markdown: md_value.clone(),
@@ -127,6 +127,16 @@ impl Component for ArticleEditor {
                     console::log!(format!("submitting: {:?}", new_article));
                     let r = request_article_post(&new_article).await.unwrap();
                     r.log_status();
+
+                    let window = web_sys::window().unwrap();
+                    match r.status() {
+                        200 => {
+                            window.alert_with_message("Created!").unwrap();
+                        }
+                        _ => {
+                            window.alert_with_message("ERROR").unwrap();
+                        }
+                    }
 
                     Msg::Nothing
                 }
@@ -173,14 +183,7 @@ impl Component for ArticleEditor {
     }
 }
 
-#[derive(Serialize, Debug)]
-pub struct Article {
-    title: String,
-    public_id: String,
-    markdown: String,
-}
-
-async fn request_article_post(article: &Article) -> request::SendResult {
+async fn request_article_post(article: &interfacing::Article) -> request::SendResult {
     Request::static_post(routes().api.admin.articles)
         .json(&article)
         .unwrap()

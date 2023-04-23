@@ -9,6 +9,10 @@ pub enum Route {
     Login,
     #[at("/md")]
     MarkdownPreview,
+    #[at("/articles")]
+    ArticleList,
+    #[at("/articles/:public_id")]
+    ArticleViewer { public_id: String },
     #[at("/admin/dashboard")]
     AdminDashboard,
     #[at("/admin/password")]

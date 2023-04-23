@@ -10,7 +10,7 @@ mod post;
 mod theme_ctx;
 
 pub mod admin;
-pub use articles::ArticleEditor;
+pub use articles::*;
 pub use colored::Colored;
 pub use login::Login;
 pub use markdown::Markdown;

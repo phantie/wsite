@@ -4,7 +4,7 @@ use crate::routes::imports::*;
 pub async fn new_article(
     State(state): State<AppState>,
     _session: ReadableSession,
-    Json(body): Json<BodyData>,
+    Json(body): Json<interfacing::Article>,
 ) -> Response {
     // let _user_id: u64 = reject_anonymous_users(&session).unwrap();
 
@@ -22,18 +22,11 @@ pub async fn new_article(
     StatusCode::OK.into_response()
 }
 
-#[derive(Deserialize)]
-pub struct BodyData {
-    title: String,
-    public_id: String,
-    markdown: String,
-}
-
 #[axum_macros::debug_handler]
 pub async fn update_article(
     State(state): State<AppState>,
     _session: ReadableSession,
-    Json(body): Json<BodyData>,
+    Json(body): Json<interfacing::Article>,
 ) -> Response {
     let articles = &state.database.collections.articles;
 
@@ -51,6 +44,30 @@ pub async fn update_article(
             doc.contents.title = body.title;
             doc.contents.markdown = body.markdown;
             doc.update_async(articles).await.unwrap();
+            StatusCode::OK.into_response()
+        }
+    }
+}
+
+#[axum_macros::debug_handler]
+pub async fn delete_article(
+    State(state): State<AppState>,
+    _session: ReadableSession,
+    Path(public_id): Path<String>,
+) -> Response {
+    let articles = &state.database.collections.articles;
+
+    let mapped_articles = articles
+        .view::<ArticleByPublicID>()
+        .with_key(public_id)
+        .query_with_collection_docs()
+        .await
+        .unwrap();
+
+    match mapped_articles.into_iter().next() {
+        None => StatusCode::NOT_FOUND.into_response(),
+        Some(mapped_doc) => {
+            mapped_doc.document.delete_async(articles).await.unwrap();
             StatusCode::OK.into_response()
         }
     }
