@@ -43,24 +43,20 @@ impl Component for ArticleEditor {
         let text_color = &theme.text_color;
         let box_border_color = &theme.box_border_color;
 
-        let actions_style = css!(
+        let global_style = css!(
             "
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 0 5em;
-            background-color: ${bg_color};
-        ",
+                body {
+                    background-color: ${bg_color};
+                }
+            ",
             bg_color = bg_color,
         );
-
-        let actions_classes = actions_style;
 
         let action_classes = css!(
             "
             background-color: ${bg_color}; height: 50px; color: ${text_color};
             display: flex; align-items: center; padding: 0 20px; margin: 0 10px;
+            cursor: pointer;
         ",
             bg_color = contrast_bg_color,
             text_color = text_color
@@ -68,9 +64,10 @@ impl Component for ArticleEditor {
 
         let metadata_style = css!(
             "
-            height: 60px;
             background-color: ${bg_color};
             display: flex;
+            flex-direction: column;
+            width: 350px;
             align-items: center;
         ",
             bg_color = bg_color,
@@ -79,9 +76,19 @@ impl Component for ArticleEditor {
 
         let metadatum_style = css!(
             "
-            margin: 0 20px;
+            width: 85%;
+            margin-bottom: 10px;
+
+            label {
+                color: ${label_text_color};
+                font-size: 1.5em;
+                font-weight: bold;
+                margin-bottom: 10px;
+                display: block;
+            }
 
             input {
+                width: inherit;
                 height: 40px;
                 color: ${input_text_color};
                 background-color: transparent;
@@ -89,7 +96,7 @@ impl Component for ArticleEditor {
                 height: 30px;
                 font-size: 150%;
                 padding: 5px 15px;
-                width: 400px;
+                margin-bottom: 15px;
             }
 
             input::placeholder {
@@ -100,6 +107,7 @@ impl Component for ArticleEditor {
                 outline-style: none;
             }
         ",
+            label_text_color = text_color,
             input_text_color = text_color,
             box_border_color = box_border_color
         );
@@ -145,22 +153,28 @@ impl Component for ArticleEditor {
 
         html! {
             <>
-                <div class={actions_classes}>
-                    <div class={action_classes.clone()}>{ "Reset" }</div>
-                    <div onclick={onclick_save} class={action_classes.clone()}>{ "Save" }</div>
-                </div>
+                <Global css={global_style}/>
 
-                <div class={metadata_classes}>
-                    <div class={metadatum_classes.clone()}>
-                        <input ref={self.refs.title_ref.clone()} placeholder="#title"/>
+                <div class={css!("display:flex;")}>
+                    <div class={css!("height: 100vh; width: 100%;")}>
+                        <MarkdownPreview {oninput}/>
                     </div>
-                    <div class={metadatum_classes.clone()}>
-                        <input ref={self.refs.public_id_ref.clone()} placeholder="#public_id"/>
-                    </div>
-                </div>
 
-                <div class={css!("height: calc(100vh - 60px - 60px);")}>
-                    <MarkdownPreview {oninput}/>
+                    <div class={metadata_classes}>
+                        <div class={css!{"height: 80px;"}}/>
+
+                        <div class={metadatum_classes.clone()}>
+                            <label for="title_input">{ "Title" }</label>
+                            <input name="title_input"
+                                ref={self.refs.title_ref.clone()}/>
+                        </div>
+                        <div class={metadatum_classes.clone()}>
+                            <label for="public_id_input">{ "Public ID" }</label>
+                            <input name="public_id_input"
+                                ref={self.refs.public_id_ref.clone()}/>
+                        </div>
+                        <div onclick={onclick_save} class={action_classes.clone()}>{ "Save" }</div>
+                    </div>
                 </div>
             </>
         }
