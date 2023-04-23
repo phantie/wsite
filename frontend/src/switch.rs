@@ -28,7 +28,7 @@ pub fn switch(routes: Route) -> Html {
             html! {<WithTheme><MarkdownPreviewPage/></WithTheme>}
         }
         Route::ArticleList => {
-            html! {<WithTheme><ArticleList/></WithTheme>}
+            html! {<WithSession optional={true}><WithTheme><ArticleList/></WithTheme></WithSession>}
         }
         Route::ArticleViewer { public_id } => {
             html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>}

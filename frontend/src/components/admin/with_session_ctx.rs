@@ -54,6 +54,9 @@ enum Session {
 #[derive(Properties, PartialEq)]
 
 pub struct Props {
+    #[prop_or(false)]
+    pub optional: bool,
+
     #[prop_or_default]
     pub children: Children,
 }
@@ -76,35 +79,34 @@ impl Component for WithSession {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        match &self.session {
+        let session = match &self.session {
             Session::Unloaded => {
                 console::log!("drawing WithSession with Unloaded");
-
-                let session = Rc::new(None);
-
-                html! {
-                    <ContextProvider<SessionCtx> context={session}>
-                        { ctx.props().children.clone() }
-                    </ContextProvider<SessionCtx>>
-                }
+                Rc::new(None)
             }
             Session::Loaded(session) => {
                 console::log!("drawing WithSession with Loaded");
                 let session = session.clone();
-                let session = Rc::new(Some(session));
-
-                html! {
-                    <ContextProvider<SessionCtx> context={session}>
-                        { ctx.props().children.clone() }
-                    </ContextProvider<SessionCtx>>
+                Rc::new(Some(session))
+            }
+            Session::Error(SessionError::AuthError) => {
+                if ctx.props().optional {
+                    Rc::new(None)
+                } else {
+                    unreachable!("because of redirect to Login")
                 }
             }
             Session::Error(_) => return internal_problems(),
+        };
+
+        html! {
+            <ContextProvider<SessionCtx> context={session}>
+                { ctx.props().children.clone() }
+            </ContextProvider<SessionCtx>>
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        console::console_dbg!(&msg);
         let navigator = ctx.link().navigator().unwrap();
         match msg {
             Self::Message::SessionLoaded(session) => {
@@ -113,14 +115,19 @@ impl Component for WithSession {
             }
             Self::Message::SessionError(e @ SessionError::AuthError) => {
                 self.session = Session::Error(e);
-                console::log!(format!("message SessionMissing from Dashboard"));
-                navigator
-                    .push_with_query(
-                        &Route::Login,
-                        &HashMap::from([("error", "Login to access admin section")]),
-                    )
-                    .unwrap();
-                false
+                if ctx.props().optional {
+                    console::log!(format!("message SessionMissing [optional] from Dashboard"));
+                    true
+                } else {
+                    console::log!(format!("message SessionMissing from Dashboard"));
+                    navigator
+                        .push_with_query(
+                            &Route::Login,
+                            &HashMap::from([("error", "Login to access admin section")]),
+                        )
+                        .unwrap();
+                    false
+                }
             }
             Self::Message::SessionError(e) => {
                 self.session = Session::Error(e);
