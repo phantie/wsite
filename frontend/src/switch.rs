@@ -22,7 +22,10 @@ pub fn switch(routes: Route) -> Html {
             html! {<WithSession><admin::PasswordChange/></WithSession>}
         }
         Route::ArticleEditor => {
-            html! {<WithTheme><WithSession><ArticleEditor/></WithSession></WithTheme>}
+            html! {<WithTheme><WithSession><ArticleEditor mode={ ArticleEditorMode::Create }/></WithSession></WithTheme>}
+        }
+        Route::EditArticle { public_id } => {
+            html! {<WithTheme><WithSession><EditArticle {public_id}/></WithSession></WithTheme>}
         }
         Route::MarkdownPreview => {
             html! {<WithTheme><MarkdownPreviewPage/></WithTheme>}

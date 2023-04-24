@@ -13,6 +13,8 @@ pub struct MarkdownPreview {
 pub struct Props {
     #[prop_or(Callback::noop())]
     pub oninput: Callback<AttrValue>,
+    #[prop_or("".into())]
+    pub md: AttrValue,
 }
 
 pub enum Msg {
@@ -27,7 +29,7 @@ impl Component for MarkdownPreview {
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            input_value: "".into(),
+            input_value: ctx.props().md.clone(),
             input_node_ref: NodeRef::default(),
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
         }
@@ -47,7 +49,7 @@ impl Component for MarkdownPreview {
             height: 100%;
         "
         );
-        let md_preview_classes = classes!("md_preview", md_preview_style);
+        let md_preview_classes = classes!(md_preview_style);
 
         let input_style = css!(
             "
@@ -98,7 +100,11 @@ impl Component for MarkdownPreview {
         html! {
             <>
                 <div class={ md_preview_classes }>
-                    <textarea { oninput } ref={ input_node_ref } class={ input_classes }/>
+                    <textarea { oninput }
+                        ref={ input_node_ref }
+                        class={ input_classes }
+                        value= { self.input_value.clone() }
+                    />
                     <div class={ preview_style }>
                         <Markdown md={ self.input_value.clone() }/>
                     </div>

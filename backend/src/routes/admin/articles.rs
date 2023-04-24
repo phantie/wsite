@@ -1,5 +1,17 @@
 use crate::routes::imports::*;
 
+fn valid_article(article: &interfacing::Article) -> bool {
+    let valid_public_id_charset = article
+        .public_id
+        .chars()
+        .all(|c| char::is_alphanumeric(c) || ['-'].contains(&c));
+
+    let valid_public_id = !article.public_id.is_empty() && valid_public_id_charset;
+    let valid_title = !article.title.is_empty();
+
+    valid_public_id && valid_title
+}
+
 #[axum_macros::debug_handler]
 pub async fn new_article(
     State(state): State<AppState>,
@@ -8,15 +20,7 @@ pub async fn new_article(
 ) -> Response {
     // let _user_id: u64 = reject_anonymous_users(&session).unwrap();
 
-    let valid_public_id_charset = body
-        .public_id
-        .chars()
-        .all(|c| char::is_alphanumeric(c) || ['-'].contains(&c));
-
-    let invalid_public_id = body.public_id.is_empty() || !valid_public_id_charset;
-    let invalid_title = body.title.is_empty();
-
-    if invalid_public_id || invalid_title {
+    if !valid_article(&body) {
         return StatusCode::BAD_REQUEST.into_response();
     }
 
@@ -39,6 +43,10 @@ pub async fn update_article(
     _session: ReadableSession,
     Json(body): Json<interfacing::Article>,
 ) -> Response {
+    if !valid_article(&body) {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
     let articles = &state.database.collections.articles;
 
     let mapped_articles = articles
