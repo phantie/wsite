@@ -53,7 +53,7 @@ impl Component for ArticleEditor {
         Self {
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
             refs: Refs::default(),
-            md_value: "".into(),
+            md_value: initial_article.markdown.clone().into(),
             mode: ctx.props().mode.clone(),
             initial_article,
         }
