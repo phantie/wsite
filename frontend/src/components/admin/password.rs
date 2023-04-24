@@ -97,7 +97,7 @@ impl Component for PasswordChange {
         };
 
         html! {
-            <>
+            <DefaultStyling>
                 <form {onsubmit} method="post">
                     <label>{ "Current password" }
                         <input ref={current_password_ref} type="password" name="current_password"/>
@@ -113,7 +113,7 @@ impl Component for PasswordChange {
                     <br/>
                     <button type="submit">{ "Change password" }</button>
                 </form>
-            </>
+            </DefaultStyling>
         }
     }
 }
