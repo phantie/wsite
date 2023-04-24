@@ -1,12 +1,9 @@
 use crate::components::imports::*;
 use crate::components::Post;
-#[allow(unused_imports)]
-use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 pub struct ArticleViewer {
     public_id: AttrValue,
     article: Option<interfacing::Article>,
-    theme_ctx: ThemeCtxSub,
 }
 
 #[derive(Properties, PartialEq)]
@@ -16,7 +13,6 @@ pub struct Props {
 
 pub enum Msg {
     ArticleLoaded(interfacing::Article),
-    ThemeContextUpdate(ThemeCtx),
     Nothing,
 }
 
@@ -28,23 +24,14 @@ impl Component for ArticleViewer {
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             article: None,
-            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
             public_id: ctx.props().public_id.clone(),
         }
     }
 
-    #[allow(unused_variables)]
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let theme = self.theme_ctx.as_ref();
-
-        let bg_color = &theme.bg_color;
-        let contrast_bg_color = &theme.contrast_bg_color;
-        let text_color = &theme.text_color;
-        let box_border_color = &theme.box_border_color;
-
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         match &self.article {
             None => html! {
-                <Global css={ css!("body {background-color: ${bg_color};}", bg_color = bg_color )}/>
+                <DefaultStyling/>
             },
             Some(article) => {
                 html! {
@@ -70,11 +57,6 @@ impl Component for ArticleViewer {
         match msg {
             Self::Message::ArticleLoaded(article) => {
                 self.article = Some(article);
-                true
-            }
-            Self::Message::ThemeContextUpdate(theme_ctx) => {
-                console::log!("WithTheme context updated from Markdown Preview");
-                self.theme_ctx.set(theme_ctx);
                 true
             }
             Self::Message::Nothing => false,

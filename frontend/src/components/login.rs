@@ -65,7 +65,6 @@ impl Component for Login {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let theme = self.theme_ctx.as_ref();
 
-        let bg_color = &theme.bg_color;
         let text_color = &theme.text_color;
         let box_border_color = &theme.box_border_color;
 
@@ -76,12 +75,8 @@ impl Component for Login {
                     flex-direction: column;
                     align-items: center;
                     font-family: \"Trebuchet MS\";
-                    background-color: ${bg_color};
-                    color: ${text_color};
                 }
             ",
-            bg_color = bg_color,
-            text_color = text_color,
         );
 
         let input_style = {
@@ -182,7 +177,7 @@ impl Component for Login {
         };
 
         html! (
-            <>
+            <DefaultStyling>
                 <Global css={global_style}/>
 
                 <h1 class={ css!{"padding-top: 20px; padding-bottom: 20px;"} }>{ "Login" }</h1>
@@ -210,7 +205,7 @@ impl Component for Login {
                         <button class={ button_style } type="submit">{ "login" }</button>
                     </form>
                 </div>
-            </>
+            </DefaultStyling>
         )
     }
 

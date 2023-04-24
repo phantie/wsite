@@ -1,16 +1,12 @@
 use crate::components::imports::*;
 #[allow(unused_imports)]
 use crate::components::{ArticleEditor, ArticleEditorMode};
-#[allow(unused_imports)]
-use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 pub struct EditArticle {
-    theme_ctx: ThemeCtxSub,
     article: Option<interfacing::Article>,
 }
 
 pub enum Msg {
-    ThemeContextUpdate(ThemeCtx),
     ArticleLoaded(interfacing::Article),
     Nothing,
 }
@@ -27,32 +23,18 @@ impl Component for EditArticle {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
-        Self {
-            article: None,
-            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
-        }
+        Self { article: None }
     }
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let theme = self.theme_ctx.as_ref();
-
-        let bg_color = &theme.bg_color;
-
-        let global_style = css!(
-            "
-                body {
-                    background-color: ${bg_color};
-                }
-            ",
-            bg_color = bg_color,
-        );
-
         match &self.article {
-            None => html! { <Global css={global_style}/> },
+            None => html! { <DefaultStyling/> },
             Some(article) => {
                 html! {
+                <DefaultStyling>
                     <ArticleEditor mode={ArticleEditorMode::Edit(self.article.clone().unwrap())}/>
+                </DefaultStyling>
                 }
             }
         }
@@ -73,11 +55,6 @@ impl Component for EditArticle {
         match msg {
             Self::Message::ArticleLoaded(article) => {
                 self.article = Some(article);
-                true
-            }
-            Self::Message::ThemeContextUpdate(theme_ctx) => {
-                console::log!("WithTheme context updated from Markdown Preview");
-                self.theme_ctx.set(theme_ctx);
                 true
             }
             Self::Message::Nothing => false,

@@ -16,7 +16,7 @@ pub fn switch(routes: Route) -> Html {
         },
         Route::Login => html! { <WithTheme><Login/></WithTheme> },
         Route::AdminDashboard => {
-            html! {<WithSession><admin::Dashboard/></WithSession>}
+            html! {<WithTheme><WithSession><admin::Dashboard/></WithSession></WithTheme>}
         }
         Route::PasswordChange => {
             html! {<WithSession><admin::PasswordChange/></WithSession>}

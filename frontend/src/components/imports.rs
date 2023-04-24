@@ -1,4 +1,5 @@
 pub use crate::components::Colored;
+pub use crate::components::DefaultStyling;
 pub use crate::router::Route;
 pub use static_routes::*;
 
@@ -88,10 +89,9 @@ pub async fn fetch_admin_session() -> Result<interfacing::AdminSession, SessionE
 
 pub fn internal_problems() -> Html {
     html! {
-        <>
+        <DefaultStyling>
             <Global css={ "display: flex; justify-content: center;" }/>
-
             <h1>{ "Ooops... internal problems" }</h1>
-         </>
+         </DefaultStyling>
     }
 }
