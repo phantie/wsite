@@ -22,6 +22,15 @@ impl Component for Dashboard {
 
                 a {
                     color: inherit;
+                    text-decoration: none;
+                }
+                
+                a:hover {
+                    text-decoration: underline;
+                }
+
+                li {
+                    margin-bottom: 10px;
                 }
             "
         );
@@ -31,10 +40,16 @@ impl Component for Dashboard {
                 <Global css={global_style}/>
 
                 <h1><WelcomeMessage/></h1>
-                <p>{ "Available actions:" }</p>
-                <ol>
+
+                <ul>
                     <li>
-                        <Link<Route> to={ Route::ArticleEditor }>{ "Create article" }</Link<Route>>
+                        <Link<Route> to={ Route::MarkdownPreview }>{ "Markdown preview" }</Link<Route>>
+                    </li>
+                    <li>
+                        <Link<Route> to={ Route::ArticleList }>{ "Articles" }</Link<Route>>
+                    </li>
+                    <li>
+                        <Link<Route> to={ Route::CreateArticle }>{ "Create article" }</Link<Route>>
                     </li>
                     <li>
                         <Link<Route> to={ Route::PasswordChange }>{ "Change password" }</Link<Route>>
@@ -46,7 +61,7 @@ impl Component for Dashboard {
                     <li>
                         <Logout/>
                     </li>
-                </ol>
+                </ul>
             </DefaultStyling>
         }
     }

@@ -15,10 +15,12 @@ fn valid_article(article: &interfacing::Article) -> bool {
 #[axum_macros::debug_handler]
 pub async fn new_article(
     State(state): State<AppState>,
-    _session: ReadableSession,
+    session: ReadableSession,
     Json(body): Json<interfacing::Article>,
 ) -> Response {
-    // let _user_id: u64 = reject_anonymous_users(&session).unwrap();
+    if let Err(_) = reject_anonymous_users(&session) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
 
     if !valid_article(&body) {
         return StatusCode::BAD_REQUEST.into_response();
@@ -40,9 +42,13 @@ pub async fn new_article(
 #[axum_macros::debug_handler]
 pub async fn update_article(
     State(state): State<AppState>,
-    _session: ReadableSession,
+    session: ReadableSession,
     Json(body): Json<interfacing::Article>,
 ) -> Response {
+    if let Err(_) = reject_anonymous_users(&session) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
     if !valid_article(&body) {
         return StatusCode::BAD_REQUEST.into_response();
     }
@@ -71,9 +77,13 @@ pub async fn update_article(
 #[axum_macros::debug_handler]
 pub async fn delete_article(
     State(state): State<AppState>,
-    _session: ReadableSession,
+    session: ReadableSession,
     Path(public_id): Path<String>,
 ) -> Response {
+    if let Err(_) = reject_anonymous_users(&session) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+
     let articles = &state.database.collections.articles;
 
     let mapped_articles = articles

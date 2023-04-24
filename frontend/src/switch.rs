@@ -11,7 +11,7 @@ pub fn switch(routes: Route) -> Html {
         Route::Unauthorized => html! {<Colored with="red"><h1>{"unauthorized 401"}</h1></Colored> },
         Route::Home => html! {
             <WithTheme>
-                <Post md={""}/>
+                <Post md={"<h1>Hola!</h1>"}/>
             </WithTheme>
         },
         Route::Login => html! { <WithTheme><Login/></WithTheme> },
@@ -19,9 +19,9 @@ pub fn switch(routes: Route) -> Html {
             html! {<WithTheme><WithSession><admin::Dashboard/></WithSession></WithTheme>}
         }
         Route::PasswordChange => {
-            html! {<WithSession><admin::PasswordChange/></WithSession>}
+            html! {<WithTheme><WithSession><admin::PasswordChange/></WithSession></WithTheme>}
         }
-        Route::ArticleEditor => {
+        Route::CreateArticle => {
             html! {<WithTheme><WithSession><ArticleEditor mode={ ArticleEditorMode::Create }/></WithSession></WithTheme>}
         }
         Route::EditArticle { public_id } => {
