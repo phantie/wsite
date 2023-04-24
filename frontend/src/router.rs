@@ -19,6 +19,8 @@ pub enum Route {
     PasswordChange,
     #[at("/admin/articles")]
     ArticleEditor,
+    #[at("/admin/articles/:public_id/edit")]
+    EditArticle { public_id: String },
     #[not_found]
     #[at("/404")]
     NotFound,

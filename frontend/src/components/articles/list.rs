@@ -122,6 +122,23 @@ impl Component for ArticleList {
                             }
                         };
 
+                        let edit_button = match session {
+                            None => html! {},
+                            Some(_session) => {
+                                let navigator = ctx.link().navigator().unwrap();
+                                let public_id = public_id.clone();
+                                let onclick = Callback::from(move |_| {
+                                    let navigator = navigator.clone();
+                                    let public_id = public_id.clone();
+                                    navigator.push(&Route::EditArticle { public_id });
+                                });
+
+                                html! {
+                                    <button {onclick}>{ "Edit" }</button>
+                                }
+                            }
+                        };
+
                         html! {
                             <div key={public_id.clone()} ref={article_node_ref} class={article_classes.clone()}>
 
@@ -129,7 +146,8 @@ impl Component for ArticleList {
                                     <h1>{ &article.title }</h1>
                                 </Link<Route>>
 
-                                {delete_button.clone()}
+                                {delete_button}
+                                {edit_button}
                             </div>
                         }
                     })
