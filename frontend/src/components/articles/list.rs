@@ -33,30 +33,21 @@ impl Component for ArticleList {
         let theme = self.theme_ctx.as_ref();
         let session = self.session_ctx.as_ref();
 
-        let bg_color = &theme.bg_color;
         let contrast_bg_color = &theme.contrast_bg_color;
-        let text_color = &theme.text_color;
         let box_border_color = &theme.box_border_color;
 
-        let global_style = css!(
-            "
-                body {
-                    background-color: ${bg_color};
-                    color: ${text_color};
-                }
-
-                a {
-                    text-decoration: none;
-                    color: inherit;
-                }
-            ",
-            bg_color = bg_color,
-            text_color = text_color,
-        );
-
         match &self.articles {
-            None => html! { <Global css={global_style}/> },
+            None => html! { <DefaultStyling/> },
             Some(articles) => {
+                let global_style = css!(
+                    "
+                        a {
+                            text-decoration: none;
+                            color: inherit;
+                        }
+                    "
+                );
+
                 let article_wrapper_classes = css!(
                     "
                     display: flex;
@@ -156,7 +147,7 @@ impl Component for ArticleList {
                 let title_classes = css!("text-align: center; margin-bottom: 30px;");
 
                 html! {
-                    <>
+                    <DefaultStyling>
                         <Global css={global_style}/>
 
                         <h1 class={title_classes}>{"Articles"}</h1>
@@ -164,7 +155,7 @@ impl Component for ArticleList {
                         <div class={article_wrapper_classes}>
                             {articles}
                         </div>
-                    </>
+                    </DefaultStyling>
                 }
             }
         }

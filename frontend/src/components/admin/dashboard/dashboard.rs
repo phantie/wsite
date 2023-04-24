@@ -14,8 +14,22 @@ impl Component for Dashboard {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         console::log!("drawing Dashboard");
 
+        let global_style = css!(
+            "
+                font-size: 150%;
+
+                padding-left: 50px;
+
+                a {
+                    color: inherit;
+                }
+            "
+        );
+
         html! {
-            <>
+            <DefaultStyling>
+                <Global css={global_style}/>
+
                 <h1><WelcomeMessage/></h1>
                 <p>{ "Available actions:" }</p>
                 <ol>
@@ -33,7 +47,7 @@ impl Component for Dashboard {
                         <Logout/>
                     </li>
                 </ol>
-            </>
+            </DefaultStyling>
         }
     }
 }

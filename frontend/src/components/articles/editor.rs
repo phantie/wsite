@@ -73,15 +73,6 @@ impl Component for ArticleEditor {
             ArticleEditorMode::Edit(_) => "Edit mode",
         };
 
-        let global_style = css!(
-            "
-                body {
-                    background-color: ${bg_color};
-                }
-            ",
-            bg_color = bg_color,
-        );
-
         let action_classes = css!(
             "
             background-color: ${bg_color}; height: 50px; color: ${text_color};
@@ -230,9 +221,7 @@ impl Component for ArticleEditor {
         };
 
         html! {
-            <>
-                <Global css={global_style}/>
-
+            <DefaultStyling>
                 <div class={css!("display:flex;")}>
                     <div class={css!("height: 100vh; width: 100%;")}>
                         <MarkdownPreview {oninput} md={self.initial_article.markdown.clone()}/>
@@ -261,7 +250,7 @@ impl Component for ArticleEditor {
                         { actions_block }
                     </div>
                 </div>
-            </>
+            </DefaultStyling>
         }
     }
 

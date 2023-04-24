@@ -2,6 +2,7 @@ mod imports;
 
 mod articles;
 mod colored;
+mod default_styling;
 mod login;
 mod markdown;
 mod markdown_preview;
@@ -12,6 +13,7 @@ mod theme_ctx;
 pub mod admin;
 pub use articles::*;
 pub use colored::Colored;
+pub use default_styling::DefaultStyling;
 pub use login::Login;
 pub use markdown::Markdown;
 pub use markdown_preview::MarkdownPreview;
