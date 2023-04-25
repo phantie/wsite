@@ -98,6 +98,8 @@ impl Component for PasswordChange {
 
         html! {
             <DefaultStyling>
+                <PageTitle title={"Password change"}/>
+
                 <form {onsubmit} method="post">
                     <label>{ "Current password" }
                         <input ref={current_password_ref} type="password" name="current_password"/>

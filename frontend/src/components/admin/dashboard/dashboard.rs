@@ -38,6 +38,7 @@ impl Component for Dashboard {
         html! {
             <DefaultStyling>
                 <Global css={global_style}/>
+                <PageTitle title={"Dashboard"}/>
 
                 <h1><WelcomeMessage/></h1>
 

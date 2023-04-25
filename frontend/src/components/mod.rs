@@ -9,6 +9,7 @@ mod markdown_preview;
 mod markdown_preview_page;
 mod post;
 mod theme_ctx;
+mod title;
 
 pub mod admin;
 pub use articles::*;
@@ -20,3 +21,4 @@ pub use markdown_preview::MarkdownPreview;
 pub use markdown_preview_page::MarkdownPreviewPage;
 pub use post::Post;
 pub use theme_ctx::{ThemeCtx, ThemeCtxSub, Themes, WithTheme};
+pub use title::PageTitle;

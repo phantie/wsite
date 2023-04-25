@@ -11,6 +11,7 @@ pub fn switch(routes: Route) -> Html {
         Route::Unauthorized => html! {<Colored with="red"><h1>{"unauthorized 401"}</h1></Colored> },
         Route::Home => html! {
             <WithTheme>
+                <PageTitle title={"Home"}/>
                 <Post md={"<h1>Hola!</h1>"}/>
             </WithTheme>
         },

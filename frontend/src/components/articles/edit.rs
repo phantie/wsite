@@ -29,12 +29,12 @@ impl Component for EditArticle {
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
         match &self.article {
-            None => html! { <DefaultStyling/> },
+            None => html! {<DefaultStyling/>},
             Some(article) => {
                 html! {
-                <DefaultStyling>
-                    <ArticleEditor mode={ArticleEditorMode::Edit(self.article.clone().unwrap())}/>
-                </DefaultStyling>
+                    <DefaultStyling>
+                        <ArticleEditor mode={ArticleEditorMode::Edit(self.article.clone().unwrap())}/>
+                    </DefaultStyling>
                 }
             }
         }
