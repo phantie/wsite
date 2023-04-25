@@ -288,17 +288,17 @@ impl Component for ArticleEditor {
             Self::Message::PublicIDChanged(value) => {
                 console::log!(format!("public ID changed from ArticleEditor"));
                 self.current_article_state.public_id = value;
-                true
+                false
             }
             Self::Message::MarkdownChanged(value) => {
                 console::log!(format!("markdown changed from ArticleEditor"));
                 self.current_article_state.markdown = value.to_string();
-                true
+                false
             }
             Self::Message::NewArticleVersion(value) => {
                 console::log!(format!("new article version saved from ArticleEditor"));
                 self.article_history.push(value);
-                true
+                false
             }
             Self::Message::Nothing => false,
         }
