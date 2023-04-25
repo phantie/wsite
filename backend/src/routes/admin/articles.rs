@@ -31,6 +31,7 @@ pub async fn new_article(
         title: body.title,
         public_id: body.public_id,
         markdown: body.markdown,
+        draft: body.draft,
     }
     .push_into_async(articles)
     .await
@@ -68,6 +69,7 @@ pub async fn update_article(
             let mut doc = mapped_doc.document.clone();
             doc.contents.title = body.title;
             doc.contents.markdown = body.markdown;
+            doc.contents.draft = body.draft;
             doc.update_async(articles).await.unwrap();
             StatusCode::OK.into_response()
         }
@@ -99,5 +101,50 @@ pub async fn delete_article(
             mapped_doc.document.delete_async(articles).await.unwrap();
             StatusCode::OK.into_response()
         }
+    }
+}
+
+pub async fn article_list(
+    State(state): State<AppState>,
+    session: ReadableSession,
+) -> Json<Vec<Article>> {
+    let docs = Article::all_async(&state.database.collections.articles)
+        .await
+        .unwrap();
+
+    // for doc in docs {
+    //     let _r = doc
+    //         .delete_async(&state.database.collections.articles)
+    //         .await
+    //         .unwrap();
+    // }
+    // let contents = vec![];
+
+    let contents = docs.into_iter().map(|doc| doc.contents).collect::<Vec<_>>();
+
+    let contents = match reject_anonymous_users(&session) {
+        Ok(_) => contents,
+        Err(_) => contents.into_iter().filter(|a| !a.draft).collect(),
+    };
+
+    Json(contents)
+}
+
+pub async fn article_by_public_id(
+    State(state): State<AppState>,
+    Path(public_id): Path<String>,
+) -> Response {
+    let articles = &state.database.collections.articles;
+
+    let mapped_articles = articles
+        .view::<ArticleByPublicID>()
+        .with_key(public_id)
+        .query_with_collection_docs()
+        .await
+        .unwrap();
+
+    match mapped_articles.into_iter().next() {
+        None => StatusCode::NOT_FOUND.into_response(),
+        Some(article) => Json(&article.document.contents).into_response(),
     }
 }

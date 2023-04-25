@@ -127,12 +127,19 @@ impl Component for ArticleList {
                             }
                         };
 
+                        let draft = match article.draft {
+                            true => html!{"draft"},
+                            false => html!{"not draft"},
+                        };
+
                         html! {
                             <div key={public_id.clone()} ref={article_node_ref} class={article_classes.clone()}>
 
                                 <Link<Route> to={ Route::ArticleViewer { public_id: public_id.clone() } }>
                                     <h1>{ &article.title }</h1>
                                 </Link<Route>>
+
+                                {draft}
 
                                 {delete_button}
                                 {edit_button}

@@ -65,7 +65,7 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
         )
         .route(routes.admin.logout.post().postfix(), post(logout))
         .route(routes.admin.session.get().postfix(), get(admin_session))
-        .route(routes.articles.get().postfix(), get(all_articles))
+        .route(routes.articles.get().postfix(), get(article_list))
         .route("/articles/:public_id", get(article_by_public_id))
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
