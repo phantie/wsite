@@ -1,18 +1,21 @@
 use crate::components::imports::*;
 use crate::components::MarkdownPreview;
 
+type Article = interfacing::Article;
+
 #[derive(PartialEq, Clone)]
 pub enum ArticleEditorMode {
     Create,
-    Edit(interfacing::Article),
+    Edit(Article),
 }
 
 pub struct ArticleEditor {
     theme_ctx: ThemeCtxSub,
     refs: Refs,
-    md_value: AttrValue,
     mode: ArticleEditorMode,
-    initial_article: interfacing::Article,
+    // TODO
+    article_history: Vec<Article>,
+    current_article_state: Article,
 }
 
 #[derive(Default, Clone)]
@@ -23,8 +26,10 @@ pub struct Refs {
 
 pub enum Msg {
     ThemeContextUpdate(ThemeCtx),
+    TitleChanged(String),
+    PublicIDChanged(String),
     MarkdownChanged(AttrValue),
-    UpdateInitialArticle(interfacing::Article),
+    NewArticleVersion(Article),
     Nothing,
 }
 
@@ -38,10 +43,9 @@ impl Component for ArticleEditor {
     type Message = Msg;
     type Properties = Props;
 
-    #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         let initial_article = match &ctx.props().mode {
-            ArticleEditorMode::Create => interfacing::Article {
+            ArticleEditorMode::Create => Article {
                 title: "".into(),
                 public_id: "".into(),
                 markdown: "".into(),
@@ -52,9 +56,9 @@ impl Component for ArticleEditor {
         Self {
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
             refs: Refs::default(),
-            md_value: initial_article.markdown.clone().into(),
             mode: ctx.props().mode.clone(),
-            initial_article,
+            article_history: vec![initial_article.clone()],
+            current_article_state: initial_article,
         }
     }
 
@@ -139,21 +143,11 @@ impl Component for ArticleEditor {
         let actions_block = match &self.mode {
             ArticleEditorMode::Create => {
                 let onclick = {
-                    let title_ref = self.refs.title_ref.clone();
-                    let public_id_ref = self.refs.public_id_ref.clone();
-                    let md_value = self.md_value.to_string();
+                    let new_article = self.current_article_state.clone();
                     let navigator = ctx.link().navigator().unwrap();
 
                     ctx.link().callback_future(move |_| {
-                        let title_field = title_ref.cast::<HtmlInputElement>().unwrap();
-                        let public_id_field = public_id_ref.cast::<HtmlInputElement>().unwrap();
-
-                        let new_article = interfacing::Article {
-                            public_id: public_id_field.value(),
-                            title: title_field.value(),
-                            markdown: md_value.clone(),
-                        };
-
+                        let new_article = new_article.clone();
                         let navigator = navigator.clone();
 
                         async move {
@@ -185,19 +179,10 @@ impl Component for ArticleEditor {
             }
             ArticleEditorMode::Edit(_article) => {
                 let onclick = {
-                    let title_ref = self.refs.title_ref.clone();
-                    let public_id_ref = self.refs.public_id_ref.clone();
-                    let md_value = self.md_value.to_string();
+                    let new_article = self.current_article_state.clone();
 
                     ctx.link().callback_future(move |_| {
-                        let title_field = title_ref.cast::<HtmlInputElement>().unwrap();
-                        let public_id_field = public_id_ref.cast::<HtmlInputElement>().unwrap();
-
-                        let new_article = interfacing::Article {
-                            public_id: public_id_field.value(),
-                            title: title_field.value(),
-                            markdown: md_value.clone(),
-                        };
+                        let new_article = new_article.clone();
 
                         async move {
                             console::log!(format!("submitting: {:?}", new_article));
@@ -208,7 +193,7 @@ impl Component for ArticleEditor {
                             match r.status() {
                                 200 => {
                                     window.alert_with_message("Updated!").unwrap();
-                                    Msg::UpdateInitialArticle(new_article)
+                                    Msg::NewArticleVersion(new_article)
                                 }
                                 _ => {
                                     window.alert_with_message("ERROR").unwrap();
@@ -225,11 +210,29 @@ impl Component for ArticleEditor {
             }
         };
 
+        let title_oninput = {
+            let input_node_ref = self.refs.title_ref.clone();
+            ctx.link().callback(move |_| {
+                let input_field = input_node_ref.cast::<HtmlInputElement>().unwrap();
+                let value = input_field.value();
+                Self::Message::TitleChanged(value.into())
+            })
+        };
+
+        let public_id_oninput = {
+            let input_node_ref = self.refs.public_id_ref.clone();
+            ctx.link().callback(move |_| {
+                let input_field = input_node_ref.cast::<HtmlInputElement>().unwrap();
+                let value = input_field.value();
+                Self::Message::PublicIDChanged(value.into())
+            })
+        };
+
         html! {
             <DefaultStyling>
                 <div class={css!("display:flex;")}>
                     <div class={css!("height: 100vh; width: 100%;")}>
-                        <MarkdownPreview {oninput} md={self.initial_article.markdown.clone()}/>
+                        <MarkdownPreview {oninput} md={self.current_article_state.markdown.clone()}/>
                     </div>
 
                     <div class={metadata_classes}>
@@ -239,16 +242,16 @@ impl Component for ArticleEditor {
 
                         <div class={metadatum_classes.clone()}>
                             <label for="title_input">{ "Title" }</label>
-                            <input name="title_input"
+                            <input oninput={title_oninput} name="title_input"
                                 ref={self.refs.title_ref.clone()}
-                                value={ self.initial_article.title.clone() }
+                                value={ self.current_article_state.title.clone() }
                             />
                         </div>
                         <div class={metadatum_classes.clone()}>
                             <label for="public_id_input">{ "Public ID" }</label>
-                            <input name="public_id_input"
+                            <input oninput={public_id_oninput} name="public_id_input"
                                 ref={self.refs.public_id_ref.clone()}
-                                value={ self.initial_article.public_id.clone() }
+                                value={ self.current_article_state.public_id.clone() }
                             />
                         </div>
 
@@ -266,13 +269,24 @@ impl Component for ArticleEditor {
                 self.theme_ctx.set(theme_ctx);
                 true
             }
-            Self::Message::MarkdownChanged(value) => {
-                console::log!(format!("markdown changed from ArticleEditor"));
-                self.md_value = value;
+            Self::Message::TitleChanged(value) => {
+                console::log!(format!("title changed from ArticleEditor"));
+                self.current_article_state.title = value;
                 true
             }
-            Self::Message::UpdateInitialArticle(article) => {
-                self.initial_article = article;
+            Self::Message::PublicIDChanged(value) => {
+                console::log!(format!("public ID changed from ArticleEditor"));
+                self.current_article_state.public_id = value;
+                true
+            }
+            Self::Message::MarkdownChanged(value) => {
+                console::log!(format!("markdown changed from ArticleEditor"));
+                self.current_article_state.markdown = value.to_string();
+                true
+            }
+            Self::Message::NewArticleVersion(value) => {
+                console::log!(format!("new article version saved from ArticleEditor"));
+                self.article_history.push(value);
                 true
             }
             Self::Message::Nothing => false,
@@ -280,7 +294,7 @@ impl Component for ArticleEditor {
     }
 }
 
-async fn request_article_post(article: &interfacing::Article) -> request::SendResult {
+async fn request_article_post(article: &Article) -> request::SendResult {
     Request::static_post(routes().api.admin.articles)
         .json(&article)
         .unwrap()
@@ -288,7 +302,7 @@ async fn request_article_post(article: &interfacing::Article) -> request::SendRe
         .await
 }
 
-async fn request_article_edit(article: &interfacing::Article) -> request::SendResult {
+async fn request_article_edit(article: &Article) -> request::SendResult {
     Request::put("/api/admin/articles")
         .json(&article)
         .unwrap()
