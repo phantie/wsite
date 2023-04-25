@@ -1,6 +1,4 @@
 use crate::components::imports::*;
-#[allow(unused_imports)]
-use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 pub struct DefaultStyling {
     theme_ctx: ThemeCtxSub,
