@@ -108,6 +108,7 @@ pub struct Article {
     pub title: String,
     pub public_id: String,
     pub markdown: String,
+    pub draft: bool,
 }
 
 #[derive(Debug, Clone, View)]

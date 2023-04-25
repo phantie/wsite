@@ -22,6 +22,7 @@ pub struct ArticleEditor {
 pub struct Refs {
     title_ref: NodeRef,
     public_id_ref: NodeRef,
+    draft_ref: NodeRef,
 }
 
 pub enum Msg {
@@ -29,6 +30,7 @@ pub enum Msg {
     TitleChanged(String),
     PublicIDChanged(String),
     MarkdownChanged(AttrValue),
+    DraftStateChanged(bool),
     NewArticleVersion(Article),
     Nothing,
 }
@@ -49,6 +51,7 @@ impl Component for ArticleEditor {
                 title: "".into(),
                 public_id: "".into(),
                 markdown: "".into(),
+                draft: true,
             },
             ArticleEditorMode::Edit(article) => article.clone(),
         };
@@ -114,7 +117,6 @@ impl Component for ArticleEditor {
 
             input {
                 width: inherit;
-                height: 40px;
                 background-color: transparent;
                 border: 3px solid ${box_border_color};
                 color: inherit;
@@ -137,6 +139,23 @@ impl Component for ArticleEditor {
         );
 
         let metadatum_classes = metadatum_style;
+
+        let checkbox_classes = css!(
+            "
+            font-size: 150%;
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 30px;
+
+            label {
+                margin-right: 15px;
+            }
+
+            input {
+                transform: scale(1.5);
+            }
+        "
+        );
 
         let oninput = ctx.link().callback(Self::Message::MarkdownChanged);
 
@@ -228,6 +247,15 @@ impl Component for ArticleEditor {
             })
         };
 
+        let draft_oninput = {
+            let input_node_ref = self.refs.draft_ref.clone();
+            ctx.link().callback(move |_| {
+                let input_field = input_node_ref.cast::<HtmlInputElement>().unwrap();
+                let value = input_field.checked();
+                Self::Message::DraftStateChanged(value)
+            })
+        };
+
         let title = match &self.mode {
             ArticleEditorMode::Create => html! {
                 <PageTitle title={format!("New: {}", self.current_article_state.title)}/>
@@ -266,6 +294,14 @@ impl Component for ArticleEditor {
                             />
                         </div>
 
+                        <div class={checkbox_classes.clone()}>
+                            <label for="draft_input">{ "Draft" }</label>
+                            <input oninput={draft_oninput} name="draft_input" type="checkbox"
+                                ref={self.refs.draft_ref.clone()}
+                                checked={ self.current_article_state.draft }
+                            />
+                        </div>
+
                         { actions_block }
                     </div>
                 </div>
@@ -288,12 +324,17 @@ impl Component for ArticleEditor {
             Self::Message::PublicIDChanged(value) => {
                 console::log!(format!("public ID changed from ArticleEditor"));
                 self.current_article_state.public_id = value;
-                false
+                true
             }
             Self::Message::MarkdownChanged(value) => {
                 console::log!(format!("markdown changed from ArticleEditor"));
                 self.current_article_state.markdown = value.to_string();
-                false
+                true
+            }
+            Self::Message::DraftStateChanged(value) => {
+                console::log!(format!("draft state changed from ArticleEditor"));
+                self.current_article_state.draft = value;
+                true
             }
             Self::Message::NewArticleVersion(value) => {
                 console::log!(format!("new article version saved from ArticleEditor"));
