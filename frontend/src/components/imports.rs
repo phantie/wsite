@@ -1,6 +1,7 @@
 pub use crate::components::admin::{SessionCtx, SessionCtxSub};
 pub use crate::components::Colored;
 pub use crate::components::DefaultStyling;
+pub use crate::components::PageTitle;
 pub use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 pub use crate::router::Route;
 pub use static_routes::*;

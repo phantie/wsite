@@ -21,9 +21,12 @@ impl Component for MarkdownPreviewPage {
         );
 
         html! {
-            <div class={ wrapper_classes }>
-                <MarkdownPreview/>
-            </div>
+            <>
+                <PageTitle title={"Markdown preview"}/>
+                <div class={ wrapper_classes }>
+                    <MarkdownPreview/>
+                </div>
+            </>
         }
     }
 }

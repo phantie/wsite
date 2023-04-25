@@ -31,11 +31,17 @@ impl Component for ArticleViewer {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         match &self.article {
             None => html! {
-                <DefaultStyling/>
+                <DefaultStyling>
+                  <PageTitle title={"Article"}/>
+                </DefaultStyling>
             },
             Some(article) => {
+                console::log!("rendering with loaded article");
                 html! {
-                    <Post md={article.markdown.clone()}/>
+                    <>
+                        <PageTitle title={article.title.clone()}/>
+                        <Post md={article.markdown.clone()}/>
+                    </>
                 }
             }
         }

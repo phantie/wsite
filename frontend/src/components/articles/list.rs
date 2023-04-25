@@ -146,6 +146,7 @@ impl Component for ArticleList {
                 html! {
                     <DefaultStyling>
                         <Global css={global_style}/>
+                        <PageTitle title={"Articles"}/>
 
                         <h1 class={title_classes}>{"Articles"}</h1>
 

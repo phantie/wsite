@@ -228,8 +228,19 @@ impl Component for ArticleEditor {
             })
         };
 
+        let title = match &self.mode {
+            ArticleEditorMode::Create => html! {
+                <PageTitle title={format!("New: {}", self.current_article_state.title)}/>
+            },
+            ArticleEditorMode::Edit(_) => html! {
+                <PageTitle title={format!("Edit: {}", self.current_article_state.title)}/>
+            },
+        };
+
         html! {
             <DefaultStyling>
+                { title }
+
                 <div class={css!("display:flex;")}>
                     <div class={css!("height: 100vh; width: 100%;")}>
                         <MarkdownPreview {oninput} md={self.current_article_state.markdown.clone()}/>
