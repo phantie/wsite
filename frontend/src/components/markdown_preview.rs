@@ -1,7 +1,5 @@
 use crate::components::imports::*;
 use crate::components::Markdown;
-#[allow(unused_imports)]
-use crate::components::{ThemeCtx, ThemeCtxSub, Themes};
 
 pub struct MarkdownPreview {
     input_value: AttrValue,

@@ -3,8 +3,8 @@ use crate::router::Route;
 use yew::prelude::*;
 
 pub fn switch(routes: Route) -> Html {
-    use crate::components::admin::WithSession;
     use crate::components::*;
+    use admin::WithSession;
 
     match routes {
         Route::NotFound => html! {<Colored with="red"><h1>{"not found 404"}</h1></Colored> },
