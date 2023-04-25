@@ -47,6 +47,10 @@ impl Component for Post {
         let padding_vertical = "2em";
         let style = css!(
             "
+                .markdown-body {
+                    font-size: 130%;
+                }
+
                 background-color: ${bg_color};
                 padding: ${padding_vertical} 4em;
                 min-height: calc(100vh - 2 * ${padding_vertical});

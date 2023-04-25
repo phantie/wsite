@@ -53,10 +53,9 @@ impl Component for MarkdownPreview {
 
         let input_style = css!(
             "
+            font-size: 150%;
             border: none;
             resize: none;
-            font-size: 150%;
-
             height: 100%;
             width: 50%;
             padding: 1.5em;
@@ -77,6 +76,10 @@ impl Component for MarkdownPreview {
 
         let preview_style = css!(
             "
+            .markdown-body {
+                font-size: 130%;
+            }
+
             height: 100%;
             width: 50%;
             padding: 2em;

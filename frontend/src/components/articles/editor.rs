@@ -26,6 +26,7 @@ pub struct Refs {
 pub enum Msg {
     ThemeContextUpdate(ThemeCtx),
     MarkdownChanged(AttrValue),
+    UpdateInitialArticle(interfacing::Article),
     Nothing,
 }
 
@@ -143,6 +144,7 @@ impl Component for ArticleEditor {
                     let title_ref = self.refs.title_ref.clone();
                     let public_id_ref = self.refs.public_id_ref.clone();
                     let md_value = self.md_value.to_string();
+                    let navigator = ctx.link().navigator().unwrap();
 
                     ctx.link().callback_future(move |_| {
                         let title_field = title_ref.cast::<HtmlInputElement>().unwrap();
@@ -154,6 +156,8 @@ impl Component for ArticleEditor {
                             markdown: md_value.clone(),
                         };
 
+                        let navigator = navigator.clone();
+
                         async move {
                             console::log!(format!("submitting: {:?}", new_article));
                             let r = request_article_post(&new_article).await.unwrap();
@@ -162,13 +166,16 @@ impl Component for ArticleEditor {
                             let window = web_sys::window().unwrap();
                             match r.status() {
                                 200 => {
+                                    let navigator = navigator.clone();
                                     window.alert_with_message("Created!").unwrap();
+                                    navigator.push(&Route::EditArticle {
+                                        public_id: new_article.public_id,
+                                    });
                                 }
                                 _ => {
                                     window.alert_with_message("ERROR").unwrap();
                                 }
                             }
-
                             Msg::Nothing
                         }
                     })
@@ -203,13 +210,13 @@ impl Component for ArticleEditor {
                             match r.status() {
                                 200 => {
                                     window.alert_with_message("Updated!").unwrap();
+                                    Msg::UpdateInitialArticle(new_article)
                                 }
                                 _ => {
                                     window.alert_with_message("ERROR").unwrap();
+                                    Msg::Nothing
                                 }
                             }
-
-                            Msg::Nothing
                         }
                     })
                 };
@@ -257,7 +264,7 @@ impl Component for ArticleEditor {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::ThemeContextUpdate(theme_ctx) => {
-                console::log!("WithTheme context updated from Markdown Preview");
+                console::log!("WithTheme context updated from ArticleEditor");
                 self.theme_ctx.set(theme_ctx);
                 true
             }
@@ -266,7 +273,11 @@ impl Component for ArticleEditor {
                 self.md_value = value;
                 true
             }
-            _ => false,
+            Self::Message::UpdateInitialArticle(article) => {
+                self.initial_article = article;
+                true
+            }
+            Self::Message::Nothing => false,
         }
     }
 }
