@@ -12,6 +12,10 @@ use axum_sessions::{
 use bonsaidb::core::keyvalue::AsyncKeyValue;
 use secrecy::ExposeSecret;
 use std::sync::Arc;
+use tower_http::{
+    trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    LatencyUnit, ServiceBuilderExt,
+};
 
 static FRONTEND_DIR: include_dir::Dir<'_> =
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist/");
@@ -44,6 +48,27 @@ async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
     }
 }
 
+#[derive(Clone, Default)]
+pub struct RequestIdProducer {
+    counter: Arc<std::sync::atomic::AtomicU64>,
+}
+
+impl tower_http::request_id::MakeRequestId for RequestIdProducer {
+    fn make_request_id<B>(
+        &mut self,
+        _request: &hyper::http::Request<B>,
+    ) -> Option<tower_http::request_id::RequestId> {
+        let request_id = self
+            .counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            .to_string()
+            .parse()
+            .unwrap();
+
+        Some(tower_http::request_id::RequestId::new(request_id))
+    }
+}
+
 pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     use crate::routes::*;
 
@@ -71,33 +96,33 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article));
 
+    let request_tracing_layer = tower::ServiceBuilder::new()
+        .set_x_request_id(RequestIdProducer::default())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(tracing::Level::DEBUG).include_headers(true))
+                .make_span_with(|request: &hyper::http::Request<hyper::Body>| {
+                    tracing::info_span!(
+                        "request",
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        version = ?request.version(),
+                        request_id = %request.headers().get("x-request-id").unwrap().to_str().unwrap(),
+                    )
+                })
+                .on_request(DefaultOnRequest::new().level(tracing::Level::INFO))
+                .on_response(
+                    DefaultOnResponse::new()
+                        .level(tracing::Level::INFO)
+                        .latency_unit(LatencyUnit::Seconds),
+                ),
+        )
+        .propagate_x_request_id();
+
     Router::new()
         .nest("/api", api_router)
         .fallback(fallback)
-        .layer(
-            tower::ServiceBuilder::new()
-                .layer(tower_request_id::RequestIdLayer)
-                .layer(
-                    tower_http::trace::TraceLayer::new_for_http().make_span_with(
-                        |request: &hyper::http::Request<hyper::Body>| {
-                            // We get the request id from the extensions
-                            let request_id = request
-                                .extensions()
-                                .get::<tower_request_id::RequestId>()
-                                .map(ToString::to_string)
-                                // .unwrap_or_else(|| "unknown".into());
-                                .expect("Request ID assigning layer is missing");
-                            // And then we put it along with other information into the `request` span
-                            tracing::error_span!(
-                                "request",
-                                id = %request_id,
-                                method = %request.method(),
-                                uri = %request.uri(),
-                            )
-                        },
-                    ),
-                ),
-        )
+        .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
             let store = BonsaiDBSessionStore { database: sessions };
