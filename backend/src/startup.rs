@@ -94,7 +94,9 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
         .route("/articles/:public_id", get(article_by_public_id))
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
-        .route("/admin/articles", put(update_article));
+        .route("/admin/articles", put(update_article))
+        .route("/shapes", get(all_shapes))
+        .route("/shapes", post(new_shape));
 
     let request_tracing_layer = tower::ServiceBuilder::new()
         .set_x_request_id(RequestIdProducer::default())
@@ -188,6 +190,7 @@ pub struct AppState {
     pub database: Arc<Database>,
     pub email_client: Arc<EmailClient>,
     pub base_url: String,
+    pub remote_database: RemoteDatabase,
 }
 
 pub struct Application {
@@ -195,6 +198,8 @@ pub struct Application {
     server: std::pin::Pin<Box<dyn std::future::Future<Output = hyper::Result<()>> + Send>>,
     database: Arc<Database>,
     host: String,
+    #[allow(dead_code)]
+    remote_database: RemoteDatabase,
 }
 
 impl Application {
@@ -246,11 +251,13 @@ impl Application {
             database: Arc<Database>,
             email_client: Arc<EmailClient>,
             base_url: String,
+            remote_database: RemoteDatabase,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
             let app_state = AppState {
                 database,
                 email_client,
                 base_url,
+                remote_database,
             };
 
             let app = router(app_state.database.clone()).with_state(app_state);
@@ -260,11 +267,21 @@ impl Application {
                 .serve(app.into_make_service())
         }
 
+        let client = bonsaidb::client::Client::build(
+            bonsaidb::client::url::Url::parse("bonsaidb://localhost").unwrap(),
+        )
+        .with_certificate(load_certificate())
+        .finish()
+        .unwrap();
+
+        let remote_database = RemoteDatabase::configure("abada-dabada", client).await;
+
         let server = Box::pin(run(
             listener,
             database.clone(),
             email_client,
             configuration.application.base_url.clone(),
+            remote_database.clone(),
         ));
 
         Self {
@@ -272,6 +289,7 @@ impl Application {
             database: database.clone(),
             port,
             host,
+            remote_database,
         }
     }
 
