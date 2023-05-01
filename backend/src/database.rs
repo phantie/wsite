@@ -1,6 +1,5 @@
 pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::connection::AsyncStorageConnection;
-pub use bonsaidb::core::connection::StorageConnection;
 pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
 pub use bonsaidb::local::config::Builder;
@@ -188,5 +187,61 @@ impl Database {
             collections,
             sessions,
         }
+    }
+}
+
+pub fn load_certificate() -> fabruic::Certificate {
+    include_bytes!("../../database/server-data.bonsaidb/pinned-certificate.der")
+        .to_vec()
+        .try_into()
+        .unwrap()
+}
+
+use remote_database::shema::*;
+
+#[derive(Clone)]
+pub struct RemoteDatabase {
+    client: bonsaidb::client::Client,
+    name: String,
+    pub collections: RemoteCollections,
+}
+
+#[derive(Clone)]
+pub struct RemoteCollections {
+    pub shapes: bonsaidb::client::RemoteDatabase,
+}
+
+impl AsRef<bonsaidb::client::Client> for RemoteDatabase {
+    fn as_ref(&self) -> &bonsaidb::client::Client {
+        &self.client
+    }
+}
+
+pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;
+
+impl RemoteDatabase {
+    pub async fn configure(name: &str, client: bonsaidb::client::Client) -> Self {
+        let shapes = client.create_database::<Shape>(name, true).await.unwrap();
+
+        Self {
+            client,
+            name: name.into(),
+            collections: RemoteCollections { shapes },
+        }
+    }
+
+    pub async fn request_database<DB: bonsaidb::core::schema::Schema>(
+        &self,
+    ) -> ClientResult<bonsaidb::client::RemoteDatabase> {
+        self.client.database::<DB>(&self.name).await
+    }
+
+    pub async fn request_create_collection<DB: bonsaidb::core::schema::Schema>(
+        &self,
+        only_if_needed: bool,
+    ) -> ClientResult<bonsaidb::client::RemoteDatabase> {
+        self.client
+            .create_database::<DB>(&self.name, only_if_needed)
+            .await
     }
 }

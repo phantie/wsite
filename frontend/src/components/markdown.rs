@@ -52,10 +52,20 @@ impl Component for Markdown {
                     background-color: ${code_bg_color};
                 }
 
-                .markdown-body a:after {
+                .markdown-body a:not(:has(code)):after {
                     content: \"ᴴ\";
                     margin-left: 0.1em;
                     margin-right: 0.1em;
+                }
+
+                .markdown-body a > code:last-of-type:after {
+                    content: \"ᴴ\";
+                    margin-left: 0.1em;
+                    margin-right: 0.1em;
+                }
+
+                .markdown-body a > code {
+                    background-color: ${code_bg_color};
                 }
 
                 .markdown-body a {

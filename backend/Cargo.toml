@@ -17,7 +17,7 @@ name = "create_user"
 
 [dependencies]
 axum = { version = "0.6.10", features = ["headers"] }
-bonsaidb = { version = "0.4.1", features = ["local", "local-async"] }
+bonsaidb = { version = "0.4.1", features = ["local", "local-async", "client"] }
 config = "0.13.3"
 hyper = "0.14.24"
 tokio = { version = "1.26.0", features = ["rt", "macros"] }
@@ -42,6 +42,8 @@ clap = { version = "4.1.11", features = ["derive"] }
 rpassword = "7.2.0"
 mime_guess = "2.0.4"
 include_dir = "0.7.3"
+fabruic = "0.0.1-dev.6"
+remote_database = { package = "database", path = "../database" }
 
 static_routes.workspace = true
 interfacing.workspace = true
