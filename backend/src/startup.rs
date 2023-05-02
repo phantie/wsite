@@ -9,11 +9,7 @@ use axum_sessions::{
     async_session::{async_trait, Session, SessionStore},
     SessionLayer,
 };
-use bonsaidb::core::{
-    admin::Role,
-    connection::{Authentication, SensitiveString},
-    keyvalue::AsyncKeyValue,
-};
+use bonsaidb::core::keyvalue::AsyncKeyValue;
 use secrecy::ExposeSecret;
 use std::sync::Arc;
 use tower_http::{
@@ -271,30 +267,12 @@ impl Application {
                 .serve(app.into_make_service())
         }
 
-        let client = bonsaidb::client::Client::build(
-            bonsaidb::client::url::Url::parse("bonsaidb://localhost").unwrap(),
-        )
-        .with_certificate(load_certificate())
-        .finish()
-        .unwrap();
+        let remote_client_params = RemoteClientParams {
+            url: "bonsaidb://localhost".into(),
+            password: "1".into(),
+        };
 
-        const ADMIN_PASSWORD: &str = "1";
-
-        let client = client
-            .authenticate(
-                "admin",
-                Authentication::Password(SensitiveString(ADMIN_PASSWORD.into())),
-            )
-            .await
-            .expect("failed to authenticate admin");
-
-        let client = Role::assume_identity_async("superuser", &client)
-            .await
-            .expect("failed to auth as superuser");
-
-        tracing::info!("Authenticated client as superuser");
-
-        let remote_database = RemoteDatabase::configure("abada-dabada", client).await;
+        let remote_database = RemoteDatabase::configure("abada-dabada", remote_client_params).await;
 
         let server = Box::pin(run(
             listener,

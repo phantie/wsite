@@ -203,7 +203,50 @@ use remote_database::shema::*;
 pub struct RemoteDatabase {
     client: bonsaidb::client::Client,
     name: String,
+    client_params: RemoteClientParams,
     pub collections: RemoteCollections,
+}
+
+#[derive(Clone)]
+pub struct RemoteClientParams {
+    pub url: String,
+    pub password: String,
+}
+
+pub struct RemoteClient {}
+
+impl RemoteClient {
+    pub async fn create(params: RemoteClientParams) -> bonsaidb::client::Client {
+        use bonsaidb::core::{
+            admin::Role,
+            connection::{Authentication, SensitiveString},
+        };
+
+        let client = bonsaidb::client::Client::build(
+            bonsaidb::client::url::Url::parse(&params.url).unwrap(),
+        )
+        .with_certificate(load_certificate())
+        .finish()
+        .unwrap();
+
+        let admin_password = params.password;
+
+        let client = client
+            .authenticate(
+                "admin",
+                Authentication::Password(SensitiveString(admin_password.into())),
+            )
+            .await
+            .expect("failed to authenticate admin");
+
+        let client = Role::assume_identity_async("superuser", &client)
+            .await
+            .expect("failed to auth as superuser");
+
+        tracing::info!("Authenticated client as superuser");
+
+        client
+    }
 }
 
 #[derive(Clone)]
@@ -220,14 +263,42 @@ impl AsRef<bonsaidb::client::Client> for RemoteDatabase {
 pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;
 
 impl RemoteDatabase {
-    pub async fn configure(name: &str, client: bonsaidb::client::Client) -> Self {
+    pub async fn configure(name: &str, params: RemoteClientParams) -> Self {
+        let client = RemoteClient::create(params.clone()).await;
+
+        // try to solve a problem of client hanging forever
+        // when not accessed for some time (empirically found more than 10 minutes)
+        {
+            let client = client.clone();
+            tokio::task::spawn(async move {
+                loop {
+                    match client.list_databases().await {
+                        Ok(_) => tracing::info!("Ping database"),
+                        Err(_) => unreachable!(),
+                    }
+                    // ping database every 5 minutes, to have connection alive
+                    tokio::time::sleep(std::time::Duration::from_secs(60 * 5)).await;
+                }
+            });
+        }
+
         let shapes = client.create_database::<Shape>(name, true).await.unwrap();
 
         Self {
             client,
             name: name.into(),
             collections: RemoteCollections { shapes },
+            client_params: params,
         }
+    }
+
+    pub async fn reconfigure(&mut self) {
+        tracing::info!("Reconfiguring... remote database client");
+        let db = Self::configure(&self.name, self.client_params.clone()).await;
+        tracing::info!("Reconfigured remote database client");
+
+        self.client = db.client;
+        self.collections = db.collections;
     }
 
     pub async fn request_database<DB: bonsaidb::core::schema::Schema>(
