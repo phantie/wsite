@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.71"
-bonsaidb = { version = "0.4.1", features = ["server"] }
+bonsaidb.workspace = true
 serde.workspace = true
 tokio = "1.28.0"

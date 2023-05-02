@@ -9,7 +9,11 @@ use axum_sessions::{
     async_session::{async_trait, Session, SessionStore},
     SessionLayer,
 };
-use bonsaidb::core::keyvalue::AsyncKeyValue;
+use bonsaidb::core::{
+    admin::Role,
+    connection::{Authentication, SensitiveString},
+    keyvalue::AsyncKeyValue,
+};
 use secrecy::ExposeSecret;
 use std::sync::Arc;
 use tower_http::{
@@ -273,6 +277,22 @@ impl Application {
         .with_certificate(load_certificate())
         .finish()
         .unwrap();
+
+        const ADMIN_PASSWORD: &str = "1";
+
+        let client = client
+            .authenticate(
+                "admin",
+                Authentication::Password(SensitiveString(ADMIN_PASSWORD.into())),
+            )
+            .await
+            .expect("failed to authenticate admin");
+
+        let client = Role::assume_identity_async("superuser", &client)
+            .await
+            .expect("failed to auth as superuser");
+
+        tracing::info!("Authenticated client as superuser");
 
         let remote_database = RemoteDatabase::configure("abada-dabada", client).await;
 
