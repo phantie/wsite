@@ -1,3 +1,4 @@
+use bonsaidb::client::Client;
 pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::document::CollectionDocument;
@@ -262,6 +263,21 @@ impl AsRef<bonsaidb::client::Client> for RemoteDatabase {
 
 pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;
 
+#[async_trait::async_trait]
+pub trait Ping {
+    async fn ping(&self) -> Result<(), anyhow::Error>;
+}
+
+#[async_trait::async_trait]
+impl Ping for Client {
+    async fn ping(&self) -> Result<(), anyhow::Error> {
+        match self.list_databases().await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e)?,
+        }
+    }
+}
+
 impl RemoteDatabase {
     pub async fn configure(name: &str, params: RemoteClientParams) -> Self {
         let client = RemoteClient::create(params.clone()).await;
@@ -272,8 +288,8 @@ impl RemoteDatabase {
             let client = client.clone();
             tokio::task::spawn(async move {
                 loop {
-                    match client.list_databases().await {
-                        Ok(_) => tracing::info!("Ping database"),
+                    match client.ping().await {
+                        Ok(()) => tracing::info!("Ping database"),
                         Err(_) => unreachable!(),
                     }
                     // ping database every 5 minutes, to have connection alive
