@@ -50,6 +50,7 @@ secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 bonsaidb.workspace = true
+async-trait = "0.1.68"
 
 [features]
 
