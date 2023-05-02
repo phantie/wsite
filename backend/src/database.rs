@@ -17,7 +17,11 @@ use bonsaidb::core::schema::ViewSchema;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::AsyncDatabase;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
+#[allow(unused_imports)]
+use tokio::task::JoinHandle;
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
 #[collection(name = "subscriptions", views = [SubscriptionByStatus, SubscriptionByToken])]
@@ -206,6 +210,8 @@ pub struct RemoteDatabase {
     name: String,
     client_params: RemoteClientParams,
     pub collections: RemoteCollections,
+    pub id: u32,
+    // ping_handle: Arc<JoinHandle<()>>,
 }
 
 #[derive(Clone)]
@@ -278,15 +284,18 @@ impl Ping for Client {
     }
 }
 
+#[allow(non_upper_case_globals)]
+static mut RemoteDatabaseID: AtomicU32 = AtomicU32::new(0);
+
 impl RemoteDatabase {
     pub async fn configure(name: &str, params: RemoteClientParams) -> Self {
         let client = RemoteClient::create(params.clone()).await;
 
         // try to solve a problem of client hanging forever
         // when not accessed for some time (empirically found more than 10 minutes)
-        {
+        let _ping_handle = {
             let client = client.clone();
-            tokio::task::spawn(async move {
+            let ping_handle = tokio::task::spawn(async move {
                 loop {
                     match client.ping().await {
                         Ok(()) => tracing::info!("Ping database"),
@@ -296,25 +305,34 @@ impl RemoteDatabase {
                     tokio::time::sleep(std::time::Duration::from_secs(60 * 5)).await;
                 }
             });
-        }
+            Arc::new(ping_handle)
+        };
 
         let shapes = client.create_database::<Shape>(name, true).await.unwrap();
+
+        let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
+        unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };
 
         Self {
             client,
             name: name.into(),
             collections: RemoteCollections { shapes },
             client_params: params,
+            // ping_handle,
+            id,
         }
     }
 
     pub async fn reconfigure(&mut self) {
         tracing::info!("Reconfiguring... remote database client");
-        let db = Self::configure(&self.name, self.client_params.clone()).await;
-        tracing::info!("Reconfigured remote database client");
+        // self.ping_handle.abort();
+        let renewed = Self::configure(&self.name, self.client_params.clone()).await;
+        tracing::info!("Reconfigured remote database client ID: {}", renewed.id);
 
-        self.client = db.client;
-        self.collections = db.collections;
+        self.client = renewed.client;
+        self.collections = renewed.collections;
+        self.id = renewed.id;
+        // self.ping_handle = renewed.ping_handle;
     }
 
     pub async fn request_database<DB: bonsaidb::core::schema::Schema>(

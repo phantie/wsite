@@ -3,7 +3,36 @@ use remote_database::shema::Shape;
 
 #[axum_macros::debug_handler]
 #[allow(unused_mut)]
+// FIX app state mutation from handlers does not work
 pub async fn all_shapes(State(mut state): State<AppState>) -> Response {
+    // async fn retry_maybe<F>(future: F, remote_database: &mut RemoteDatabase) -> Result<(), ()>
+    // where
+    //     F: std::future::Future + Clone,
+    // {
+    //     let mut retried_times = 0;
+
+    //     loop {
+    //         match tokio::time::timeout_at(
+    //             tokio::time::Instant::now() + std::time::Duration::from_secs(2),
+    //             future.clone(),
+    //         )
+    //         .await
+    //         {
+    //             Ok(_) => return Ok(()),
+    //             Err(_) => {
+    //                 if retried_times >= 1 {
+    //                     return Err(());
+    //                 }
+
+    //                 remote_database.reconfigure().await;
+    //                 retried_times += 1;
+    //             }
+    //         }
+    //     }
+    // }
+
+    tracing::info!("Remote database ID: {}", state.remote_database.id);
+
     // Original solution to hanging client replaced by perpetural database pinging
     // Also a solution to any connection teardown
     // for example, to restore connection with a restarted database server
