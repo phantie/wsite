@@ -36,6 +36,7 @@ impl HangingStrategy {
                 let mut retried_times = 0;
 
                 loop {
+                    let id = shared_database.read().await.id;
                     match tokio::time::timeout_at(
                         tokio::time::Instant::now() + sleep,
                         closure(Arc::clone(&shared_database)),
@@ -45,12 +46,20 @@ impl HangingStrategy {
                         Ok(r) => return Ok(r),
                         Err(_elapsed) => {
                             if retried_times >= max_times {
-                                tracing::info!("FUCKING ERROR");
                                 return Err(ApiError::DatabaseHangs);
                             }
 
-                            shared_database.write().await.reconfigure().await;
-                            retried_times += 1;
+                            // When several requests hang - reconfigure the client once, let others wait
+                            // Before deciding whether to reconfigure client -
+                            // check the id of the client the request was tried with
+                            // if ID does not match - client has changed, so retry the request
+                            {
+                                let mut shared_database = shared_database.write().await;
+                                if shared_database.id == id {
+                                    shared_database.reconfigure().await;
+                                    retried_times += 1;
+                                }
+                            }
                         }
                     }
                 }
