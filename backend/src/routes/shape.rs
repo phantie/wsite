@@ -1,6 +1,6 @@
 use crate::routes::imports::*;
 use remote_database::shema::Shape;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 enum HangingStrategy {
     #[allow(dead_code)]
@@ -25,8 +25,8 @@ impl HangingStrategy {
         shared_database: SharedRemoteDatabase,
     ) -> Result<R, ApiError>
     where
+        C: Fn(SharedRemoteDatabase) -> F,
         F: std::future::Future<Output = R>,
-        C: Fn() -> F,
     {
         match self {
             Self::LinearRetry {
@@ -36,8 +36,11 @@ impl HangingStrategy {
                 let mut retried_times = 0;
 
                 loop {
-                    match tokio::time::timeout_at(tokio::time::Instant::now() + sleep, closure())
-                        .await
+                    match tokio::time::timeout_at(
+                        tokio::time::Instant::now() + sleep,
+                        closure(Arc::clone(&shared_database)),
+                    )
+                    .await
                     {
                         Ok(r) => return Ok(r),
                         Err(_elapsed) => {
@@ -62,11 +65,14 @@ pub async fn all_shapes(
 ) -> Result<Json<Vec<Shape>>, ApiError> {
     tracing::info!("Remote database ID: {}", shared_database.read().await.id);
 
-    // BUG after shared database is updated it still uses the old ref, &shapes in this case
-    let shapes = shared_database.read().await.collections.shapes.clone();
-
     let docs = HangingStrategy::default()
-        .execute(|| Shape::all_async(&shapes), shared_database.clone())
+        .execute(
+            |shared_database| async move {
+                let shapes = &shared_database.read().await.collections.shapes;
+                Shape::all_async(shapes).await
+            },
+            shared_database.clone(),
+        )
         .await?
         .expect("failed to fetch valid data");
 
