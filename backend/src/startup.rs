@@ -12,7 +12,9 @@ use axum_sessions::{
 use bonsaidb::core::keyvalue::AsyncKeyValue;
 use secrecy::ExposeSecret;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use tower_http::{
+    add_extension::AddExtensionLayer,
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     LatencyUnit, ServiceBuilderExt,
 };
@@ -69,7 +71,7 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(sessions: Arc<Database>) -> Router<AppState> {
+pub fn router(sessions: Arc<Database>, shared_state: SharedRemoteDatabase) -> Router<AppState> {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -124,6 +126,7 @@ pub fn router(sessions: Arc<Database>) -> Router<AppState> {
     Router::new()
         .nest("/api", api_router)
         .fallback(fallback)
+        .layer(AddExtensionLayer::new(shared_state))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
@@ -190,8 +193,9 @@ pub struct AppState {
     pub database: Arc<Database>,
     pub email_client: Arc<EmailClient>,
     pub base_url: String,
-    pub remote_database: RemoteDatabase,
 }
+
+pub type SharedRemoteDatabase = Arc<RwLock<RemoteDatabase>>;
 
 pub struct Application {
     port: u16,
@@ -199,7 +203,7 @@ pub struct Application {
     database: Arc<Database>,
     host: String,
     #[allow(dead_code)]
-    remote_database: RemoteDatabase,
+    shared_state: SharedRemoteDatabase,
 }
 
 impl Application {
@@ -251,35 +255,38 @@ impl Application {
             database: Arc<Database>,
             email_client: Arc<EmailClient>,
             base_url: String,
-            remote_database: RemoteDatabase,
+            shared_state: SharedRemoteDatabase,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
             let app_state = AppState {
                 database,
                 email_client,
                 base_url,
-                remote_database,
             };
 
-            let app = router(app_state.database.clone()).with_state(app_state);
+            let app = router(app_state.database.clone(), shared_state).with_state(app_state);
 
             axum::Server::from_tcp(listener)
                 .unwrap()
                 .serve(app.into_make_service())
         }
 
-        let remote_client_params = RemoteClientParams {
-            url: "bonsaidb://localhost".into(),
-            password: "1".into(),
-        };
+        let remote_database = RemoteDatabase::configure(
+            "abada-dabada",
+            RemoteClientParams {
+                url: "bonsaidb://localhost".into(),
+                password: "1".into(),
+            },
+        )
+        .await;
 
-        let remote_database = RemoteDatabase::configure("abada-dabada", remote_client_params).await;
+        let shared_state = Arc::new(RwLock::new(remote_database));
 
         let server = Box::pin(run(
             listener,
             database.clone(),
             email_client,
             configuration.application.base_url.clone(),
-            remote_database.clone(),
+            shared_state.clone(),
         ));
 
         Self {
@@ -287,7 +294,7 @@ impl Application {
             database: database.clone(),
             port,
             host,
-            remote_database,
+            shared_state,
         }
     }
 

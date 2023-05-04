@@ -3,8 +3,7 @@ use remote_database::shema::Shape;
 
 #[axum_macros::debug_handler]
 #[allow(unused_mut)]
-// FIX app state mutation from handlers does not work
-pub async fn all_shapes(State(mut state): State<AppState>) -> Response {
+pub async fn all_shapes(Extension(shared_database): Extension<SharedRemoteDatabase>) -> Response {
     // async fn retry_maybe<F>(future: F, remote_database: &mut RemoteDatabase) -> Result<(), ()>
     // where
     //     F: std::future::Future + Clone,
@@ -31,14 +30,15 @@ pub async fn all_shapes(State(mut state): State<AppState>) -> Response {
     //     }
     // }
 
-    tracing::info!("Remote database ID: {}", state.remote_database.id);
+    tracing::info!("Remote database ID: {}", shared_database.read().await.id);
 
     // Original solution to hanging client replaced by perpetural database pinging
     // Also a solution to any connection teardown
     // for example, to restore connection with a restarted database server
     let mut retried = false;
     loop {
-        let shapes = state.remote_database.collections.shapes.clone();
+        let shapes = shared_database.read().await.collections.shapes.clone();
+
         match tokio::time::timeout_at(
             tokio::time::Instant::now() + std::time::Duration::from_secs(2),
             Shape::all_async(&shapes),
@@ -54,7 +54,7 @@ pub async fn all_shapes(State(mut state): State<AppState>) -> Response {
                 if retried {
                     return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                 } else {
-                    state.remote_database.reconfigure().await;
+                    shared_database.write().await.reconfigure().await;
                     retried = true;
                     continue;
                 }
@@ -69,8 +69,11 @@ pub async fn all_shapes(State(mut state): State<AppState>) -> Response {
 }
 
 #[axum_macros::debug_handler]
-pub async fn new_shape(State(state): State<AppState>, Json(body): Json<Shape>) -> Response {
-    let shapes = state.remote_database.collections.shapes;
+pub async fn new_shape(
+    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Json(body): Json<Shape>,
+) -> Response {
+    let shapes = shared_database.read().await.collections.shapes.clone();
     body.push_into_async(&shapes).await.unwrap();
     StatusCode::OK.into_response()
 }
