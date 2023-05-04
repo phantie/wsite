@@ -204,14 +204,13 @@ pub fn load_certificate() -> fabruic::Certificate {
 
 use remote_database::shema::*;
 
-#[derive(Clone)]
 pub struct RemoteDatabase {
     client: bonsaidb::client::Client,
     name: String,
     client_params: RemoteClientParams,
     pub collections: RemoteCollections,
     pub id: u32,
-    // ping_handle: Arc<JoinHandle<()>>,
+    ping_handle: JoinHandle<()>,
 }
 
 #[derive(Clone)]
@@ -293,7 +292,7 @@ impl RemoteDatabase {
 
         // try to solve a problem of client hanging forever
         // when not accessed for some time (empirically found more than 10 minutes)
-        let _ping_handle = {
+        let ping_handle = {
             let client = client.clone();
             let ping_handle = tokio::task::spawn(async move {
                 loop {
@@ -305,7 +304,7 @@ impl RemoteDatabase {
                     tokio::time::sleep(std::time::Duration::from_secs(60 * 5)).await;
                 }
             });
-            Arc::new(ping_handle)
+            ping_handle
         };
 
         let shapes = client.create_database::<Shape>(name, true).await.unwrap();
@@ -318,21 +317,21 @@ impl RemoteDatabase {
             name: name.into(),
             collections: RemoteCollections { shapes },
             client_params: params,
-            // ping_handle,
+            ping_handle,
             id,
         }
     }
 
     pub async fn reconfigure(&mut self) {
         tracing::info!("Reconfiguring... remote database client");
-        // self.ping_handle.abort();
+        self.ping_handle.abort();
         let renewed = Self::configure(&self.name, self.client_params.clone()).await;
         tracing::info!("Reconfigured remote database client ID: {}", renewed.id);
 
         self.client = renewed.client;
         self.collections = renewed.collections;
         self.id = renewed.id;
-        // self.ping_handle = renewed.ping_handle;
+        self.ping_handle = renewed.ping_handle;
     }
 
     pub async fn request_database<DB: bonsaidb::core::schema::Schema>(
