@@ -2,6 +2,39 @@ use crate::routes::imports::*;
 use remote_database::shema::Shape;
 use std::{sync::Arc, time::Duration};
 
+// Timeouts for closures that don't need to change state when retrying
+pub enum TimeoutStrategy {
+    #[allow(dead_code)]
+    Once { timeout: Duration },
+}
+
+impl Default for TimeoutStrategy {
+    fn default() -> Self {
+        Self::Once {
+            timeout: Duration::from_secs(3),
+        }
+    }
+}
+
+impl TimeoutStrategy {
+    pub async fn execute<F, C, R>(self, closure: C) -> Result<R, ApiError>
+    where
+        C: Fn() -> F,
+        F: std::future::Future<Output = R>,
+    {
+        match self {
+            Self::Once { timeout } => {
+                match tokio::time::timeout_at(tokio::time::Instant::now() + timeout, closure())
+                    .await
+                {
+                    Ok(v) => Ok(v),
+                    Err(_) => Err(ApiError::FutureTimeout),
+                }
+            }
+        }
+    }
+}
+
 enum HangingStrategy {
     #[allow(dead_code)]
     LinearRetry { times: u32, sleep: Duration },
@@ -56,7 +89,18 @@ impl HangingStrategy {
                             {
                                 let mut shared_database = shared_database.write().await;
                                 if shared_database.id == id {
-                                    shared_database.reconfigure().await;
+                                    tracing::info!(
+                                        "Reconfiguring... remote database client ID: {}",
+                                        shared_database.id
+                                    );
+
+                                    if let Ok(()) = shared_database.reconfigure().await {
+                                        tracing::info!(
+                                            "Reconfigured remote database client ID: {}",
+                                            shared_database.id
+                                        );
+                                    }
+
                                     retried_times += 1;
                                 }
                             }
@@ -112,6 +156,9 @@ pub enum ApiError {
     #[error("Database hangs")]
     DatabaseHangs,
 
+    #[error("Future timeout")]
+    FutureTimeout,
+
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
@@ -132,6 +179,7 @@ impl IntoResponse for ApiError {
             Self::AuthError(_e) => StatusCode::UNAUTHORIZED,
             Self::UnexpectedError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseHangs => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::FutureTimeout => StatusCode::INTERNAL_SERVER_ERROR,
         }
         .into_response()
     }

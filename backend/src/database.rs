@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
 #[allow(unused_imports)]
 use tokio::task::JoinHandle;
 
@@ -204,6 +205,8 @@ pub fn load_certificate() -> fabruic::Certificate {
 
 use remote_database::shema::*;
 
+use crate::routes::TimeoutStrategy;
+
 pub struct RemoteDatabase {
     client: bonsaidb::client::Client,
     name: String,
@@ -222,7 +225,7 @@ pub struct RemoteClientParams {
 pub struct RemoteClient {}
 
 impl RemoteClient {
-    pub async fn create(params: RemoteClientParams) -> bonsaidb::client::Client {
+    pub async fn create(params: RemoteClientParams) -> anyhow::Result<bonsaidb::client::Client> {
         use bonsaidb::core::{
             admin::Role,
             connection::{Authentication, SensitiveString},
@@ -232,26 +235,28 @@ impl RemoteClient {
             bonsaidb::client::url::Url::parse(&params.url).unwrap(),
         )
         .with_certificate(load_certificate())
-        .finish()
-        .unwrap();
+        .finish()?;
 
         let admin_password = params.password;
 
-        let client = client
-            .authenticate(
+        let client = TimeoutStrategy::Once {
+            timeout: Duration::from_secs(5),
+        }
+        .execute(|| {
+            client.authenticate(
                 "admin",
-                Authentication::Password(SensitiveString(admin_password.into())),
+                Authentication::Password(SensitiveString(admin_password.clone().into())),
             )
-            .await
-            .expect("failed to authenticate admin");
+        })
+        .await??;
 
-        let client = Role::assume_identity_async("superuser", &client)
-            .await
-            .expect("failed to auth as superuser");
+        let client = TimeoutStrategy::default()
+            .execute(|| Role::assume_identity_async("superuser", &client))
+            .await??;
 
         tracing::info!("Authenticated client as superuser");
 
-        client
+        Ok(client)
     }
 }
 
@@ -275,7 +280,7 @@ pub trait Ping {
 
 #[async_trait::async_trait]
 impl Ping for Client {
-    async fn ping(&self) -> Result<(), anyhow::Error> {
+    async fn ping(&self) -> anyhow::Result<()> {
         match self.list_databases().await {
             Ok(_) => Ok(()),
             Err(e) => Err(e)?,
@@ -287,8 +292,8 @@ impl Ping for Client {
 static mut RemoteDatabaseID: AtomicU32 = AtomicU32::new(0);
 
 impl RemoteDatabase {
-    pub async fn configure(name: &str, params: RemoteClientParams) -> Self {
-        let client = RemoteClient::create(params.clone()).await;
+    pub async fn configure(name: &str, params: RemoteClientParams) -> anyhow::Result<Self> {
+        let client = RemoteClient::create(params.clone()).await?;
 
         // try to solve a problem of client hanging forever
         // when not accessed for some time (empirically found more than 10 minutes)
@@ -296,9 +301,14 @@ impl RemoteDatabase {
             let client = client.clone();
             let ping_handle = tokio::task::spawn(async move {
                 loop {
-                    match client.ping().await {
-                        Ok(()) => tracing::info!("Ping database"),
-                        Err(_) => unreachable!(),
+                    let ping = TimeoutStrategy::default().execute(|| client.ping()).await;
+
+                    match ping {
+                        Ok(o) => match o {
+                            Ok(()) => tracing::info!("Ping database"),
+                            Err(_e) => tracing::error!("Database error"),
+                        },
+                        Err(_) => tracing::error!("Database unreachable"),
                     }
                     // ping database every 5 minutes, to have connection alive
                     tokio::time::sleep(std::time::Duration::from_secs(60 * 5)).await;
@@ -307,31 +317,31 @@ impl RemoteDatabase {
             ping_handle
         };
 
-        let shapes = client.create_database::<Shape>(name, true).await.unwrap();
+        let shapes = client.create_database::<Shape>(name, true).await?;
 
         let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
         unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };
 
-        Self {
+        Ok(Self {
             client,
             name: name.into(),
             collections: RemoteCollections { shapes },
             client_params: params,
             ping_handle,
             id,
-        }
+        })
     }
 
-    pub async fn reconfigure(&mut self) {
-        tracing::info!("Reconfiguring... remote database client");
+    pub async fn reconfigure(&mut self) -> anyhow::Result<()> {
         self.ping_handle.abort();
-        let renewed = Self::configure(&self.name, self.client_params.clone()).await;
-        tracing::info!("Reconfigured remote database client ID: {}", renewed.id);
+        let renewed = Self::configure(&self.name, self.client_params.clone()).await?;
 
         self.client = renewed.client;
         self.collections = renewed.collections;
         self.id = renewed.id;
         self.ping_handle = renewed.ping_handle;
+
+        Ok(())
     }
 
     pub async fn request_database<DB: bonsaidb::core::schema::Schema>(

@@ -277,7 +277,8 @@ impl Application {
                 password: "1".into(),
             },
         )
-        .await;
+        .await
+        .expect("database must be available on deployment");
 
         let shared_state = Arc::new(RwLock::new(remote_database));
 
