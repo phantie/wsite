@@ -1,4 +1,3 @@
-use bonsaidb::client::Client;
 pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::document::CollectionDocument;
@@ -6,6 +5,8 @@ pub use bonsaidb::core::schema::SerializedCollection;
 pub use bonsaidb::local::config::Builder;
 pub use bonsaidb::local::AsyncStorage;
 
+use crate::timeout::TimeoutStrategy;
+use bonsaidb::client::Client;
 use bonsaidb::core::document::BorrowedDocument;
 use bonsaidb::core::document::Emit;
 use bonsaidb::core::schema::Collection;
@@ -21,7 +22,6 @@ use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
-#[allow(unused_imports)]
 use tokio::task::JoinHandle;
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
@@ -204,8 +204,6 @@ pub fn load_certificate() -> fabruic::Certificate {
 }
 
 use remote_database::shema::*;
-
-use crate::routes::TimeoutStrategy;
 
 pub struct RemoteDatabase {
     client: bonsaidb::client::Client,
