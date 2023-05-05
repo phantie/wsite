@@ -6,6 +6,7 @@ pub use crate::{
 };
 pub use static_routes::*;
 
+pub use crate::routes::shape::TimeoutStrategy;
 pub use anyhow::Context;
 pub use axum::{
     extract::{
