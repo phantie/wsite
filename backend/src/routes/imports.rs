@@ -2,11 +2,10 @@ pub use crate::static_routes::extend::*;
 pub use crate::{
     authentication::{reject_anonymous_users, validate_credentials, AuthError, Credentials},
     database::*,
+    error::ApiError,
     startup::{AppState, SharedRemoteDatabase},
+    timeout::{HangingStrategy, TimeoutStrategy},
 };
-pub use static_routes::*;
-
-pub use crate::routes::shape::TimeoutStrategy;
 pub use anyhow::Context;
 pub use axum::{
     extract::{
@@ -20,3 +19,4 @@ pub use axum::{
 pub use axum_sessions::extractors::{ReadableSession, WritableSession};
 pub use secrecy::{ExposeSecret, SecretString};
 pub use serde::{Deserialize, Serialize};
+pub use static_routes::*;
