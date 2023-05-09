@@ -1,4 +1,4 @@
-use crate::{database::*, startup::AppState, telemetry::spawn_blocking_with_tracing};
+use crate::{database::*, startup::SharedRemoteDatabase, telemetry::spawn_blocking_with_tracing};
 use anyhow::Context;
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
@@ -6,6 +6,7 @@ use argon2::{
 };
 use axum::headers::{authorization::Basic, Authorization};
 use axum_sessions::extractors::ReadableSession;
+use database_common::schema;
 use secrecy::{ExposeSecret, SecretString};
 
 pub struct Credentials {
@@ -24,13 +25,13 @@ impl From<Authorization<Basic>> for Credentials {
 
 #[tracing::instrument(
     name = "Validate credentials",
-    skip(credentials, state)
+    skip(credentials, shared_database)
     fields(
         success = tracing::field::Empty
     )
 )]
 pub async fn validate_credentials(
-    state: &AppState,
+    shared_database: SharedRemoteDatabase,
     credentials: &Credentials,
 ) -> Result<u64, AuthError> {
     let mut user_id: Option<u64> = None;
@@ -41,10 +42,10 @@ pub async fn validate_credentials(
             .to_string(),
     );
 
-    let users = &state.database.collections.users;
+    let users = &shared_database.read().await.collections.users;
 
     let mapped_users = users
-        .view::<UserByUsername>()
+        .view::<schema::UserByUsername>()
         .with_key(credentials.username.to_owned())
         .query_with_collection_docs()
         .await

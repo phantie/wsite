@@ -2,6 +2,7 @@ use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use clap::Parser;
+use database_common::schema;
 use rpassword::read_password;
 use std::io::Write;
 use std::sync::Arc;
@@ -26,7 +27,7 @@ async fn main() {
     let users = &database.collections.users;
 
     let user_count = users
-        .view::<UserByUsername>()
+        .view::<schema::UserByUsername>()
         .with_key(username.clone())
         .reduce()
         .await
@@ -51,7 +52,7 @@ async fn main() {
     .unwrap()
     .to_string();
 
-    User {
+    schema::User {
         username: username.clone(),
         password_hash: password_hash,
     }

@@ -12,7 +12,7 @@ pub async fn admin_dashboard(
     let id: u64 = reject_anonymous_users(&session).map_err(DashboardError::AuthError)?;
 
     tracing::Span::current().record("user_id", &tracing::field::display(&id));
-    let user = User::get_async(id, &state.database.collections.users)
+    let user = schema::User::get_async(id, &state.database.collections.users)
         .await
         .context("Failed to fetch user by id")
         .map_err(DashboardError::UnexpectedError)?

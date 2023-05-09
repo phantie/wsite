@@ -16,18 +16,25 @@ use bonsaidb::{
 use database_common::schema;
 
 pub async fn server() -> anyhow::Result<CustomServer> {
-    let server = Server::open(
-        ServerConfiguration::new("server-data.bonsaidb")
-            .default_permissions(Permissions::from(
-                Statement::for_any()
-                    .allowing(&BonsaiAction::Server(ServerAction::Connect))
-                    .allowing(&BonsaiAction::Server(ServerAction::Authenticate(
-                        AuthenticationMethod::PasswordHash,
-                    ))),
-            ))
-            .with_schema::<schema::Shape>()?,
-    )
-    .await?;
+    let configuration = ServerConfiguration::new("server-data.bonsaidb")
+        .default_permissions(Permissions::from(
+            Statement::for_any()
+                .allowing(&BonsaiAction::Server(ServerAction::Connect))
+                .allowing(&BonsaiAction::Server(ServerAction::Authenticate(
+                    AuthenticationMethod::PasswordHash,
+                ))),
+        ))
+        .with_schema::<schema::Shape>()?
+        .with_schema::<schema::User>()?;
+
+    let server = Server::open(configuration).await?;
+
+    let _shapes = server
+        .create_database::<schema::Shape>("shapes", true)
+        .await?;
+    let _users = server
+        .create_database::<schema::User>("users", true)
+        .await?;
 
     if server.certificate_chain().await.is_err() {
         server.install_self_signed_certificate(true).await?;

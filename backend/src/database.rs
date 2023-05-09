@@ -24,6 +24,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 
+use database_common::schema;
+
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
 #[collection(name = "subscriptions", views = [SubscriptionByStatus, SubscriptionByToken])]
 pub struct Subscription {
@@ -72,42 +74,6 @@ impl ViewSchema for SubscriptionByToken {
 }
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
-#[collection(name = "users",  views = [UserByUsername])]
-pub struct User {
-    pub username: String,
-    pub password_hash: String,
-}
-
-#[derive(Debug, Clone, View)]
-#[view(collection = User, key = String, value = u32, name = "by-username")]
-pub struct UserByUsername;
-
-impl ViewSchema for UserByUsername {
-    type View = Self;
-
-    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
-        let user = User::document_contents(document)?;
-        document.header.emit_key_and_value(user.username, 1)
-    }
-
-    fn version(&self) -> u64 {
-        2
-    }
-
-    fn unique(&self) -> bool {
-        true
-    }
-
-    fn reduce(
-        &self,
-        mappings: &[ViewMappedValue<Self::View>],
-        _rereduce: bool,
-    ) -> ReduceResult<Self::View> {
-        Ok(mappings.iter().map(|mapping| mapping.value).sum())
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
 #[collection(name = "articles", views = [ArticleByPublicID])]
 pub struct Article {
     pub title: String,
@@ -145,7 +111,7 @@ pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     let mut configuration = StorageConfiguration::new(dir);
     configuration.memory_only = memory_only;
     let configuration = configuration.with_schema::<Subscription>().unwrap();
-    let configuration = configuration.with_schema::<User>().unwrap();
+    let configuration = configuration.with_schema::<schema::User>().unwrap();
     let configuration = configuration.with_schema::<Article>().unwrap();
     let configuration = configuration.with_schema::<()>().unwrap();
 
@@ -174,7 +140,7 @@ impl Database {
                 .await
                 .unwrap(),
             users: storage
-                .create_database::<User>("users", true)
+                .create_database::<schema::User>("users", true)
                 .await
                 .unwrap(),
             articles: storage
@@ -203,8 +169,6 @@ pub fn load_certificate() -> fabruic::Certificate {
         .try_into()
         .unwrap()
 }
-
-use database_common::schema;
 
 pub struct RemoteDatabase {
     client: bonsaidb::client::Client,
@@ -262,6 +226,7 @@ impl RemoteClient {
 #[derive(Clone)]
 pub struct RemoteCollections {
     pub shapes: bonsaidb::client::RemoteDatabase,
+    pub users: bonsaidb::client::RemoteDatabase,
 }
 
 impl AsRef<bonsaidb::client::Client> for RemoteDatabase {
@@ -316,7 +281,8 @@ impl RemoteDatabase {
             ping_handle
         };
 
-        let shapes = client.create_database::<schema::Shape>(name, true).await?;
+        let shapes = client.database::<schema::Shape>("shapes").await?;
+        let users = client.database::<schema::User>("users").await?;
 
         let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
         unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };
@@ -324,7 +290,7 @@ impl RemoteDatabase {
         Ok(Self {
             client,
             name: name.into(),
-            collections: RemoteCollections { shapes },
+            collections: RemoteCollections { shapes, users },
             client_params: params,
             ping_handle,
             id,
