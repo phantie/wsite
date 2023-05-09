@@ -197,13 +197,14 @@ impl Database {
 }
 
 pub fn load_certificate() -> fabruic::Certificate {
-    include_bytes!("/Users/phantie/Desktop/ahh/pinned-certificate.der")
+    // include_bytes!("/Users/phantie/Desktop/ahh/pinned-certificate.der")
+    include_bytes!("../../database/http_server/server-data.bonsaidb/pinned-certificate.der")
         .to_vec()
         .try_into()
         .unwrap()
 }
 
-use remote_database::shema::*;
+use database_common::schema;
 
 pub struct RemoteDatabase {
     client: bonsaidb::client::Client,
@@ -315,7 +316,7 @@ impl RemoteDatabase {
             ping_handle
         };
 
-        let shapes = client.create_database::<Shape>(name, true).await?;
+        let shapes = client.create_database::<schema::Shape>(name, true).await?;
 
         let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
         unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };

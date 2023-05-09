@@ -1,17 +1,21 @@
-use bonsaidb::core::{
-    admin::{PermissionGroup, Role},
-    connection::{AsyncStorageConnection, SensitiveString},
-    permissions::{
-        bonsai::{AuthenticationMethod, BonsaiAction, ServerAction},
-        Permissions, Statement,
-    },
-    schema::{InsertError, SerializedCollection},
-};
 use bonsaidb::local::config::Builder;
 use bonsaidb::server::{Server, ServerConfiguration};
+use bonsaidb::{
+    core::{
+        admin::{PermissionGroup, Role},
+        connection::{AsyncStorageConnection, SensitiveString},
+        permissions::{
+            bonsai::{AuthenticationMethod, BonsaiAction, ServerAction},
+            Permissions, Statement,
+        },
+        schema::{InsertError, SerializedCollection},
+    },
+    server::CustomServer,
+};
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+use database_common::schema;
+
+pub async fn server() -> anyhow::Result<CustomServer> {
     let server = Server::open(
         ServerConfiguration::new("server-data.bonsaidb")
             .default_permissions(Permissions::from(
@@ -21,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
                         AuthenticationMethod::PasswordHash,
                     ))),
             ))
-            .with_schema::<database::shema::Shape>()?,
+            .with_schema::<schema::Shape>()?,
     )
     .await?;
 
@@ -110,9 +114,5 @@ async fn main() -> anyhow::Result<()> {
 
     println!("admin username: {}", admin_username);
 
-    let task_server = server.clone();
-    println!("server is listening...");
-    task_server.listen_on(5645).await?;
-
-    Ok(())
+    Ok(server)
 }
