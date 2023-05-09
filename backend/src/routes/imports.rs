@@ -17,6 +17,7 @@ pub use axum::{
     response::{Html, IntoResponse, Redirect, Response},
 };
 pub use axum_sessions::extractors::{ReadableSession, WritableSession};
+pub use database_common::schema;
 pub use secrecy::{ExposeSecret, SecretString};
 pub use serde::{Deserialize, Serialize};
 pub use static_routes::*;

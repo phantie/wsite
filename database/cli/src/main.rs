@@ -1,4 +1,6 @@
-// database status
+// database status +
+// create dashboard admin +
+// change dashboard admin password +
 // create admin
 // change admin password
 // start database
@@ -63,6 +65,25 @@ struct Server {
 }
 
 impl Server {
+    fn create_dashboard_admin(&self) {
+        let password = read_input("Enter new password:");
+        let r = self
+            .client
+            .post(format!("http://{}/users/", self.addr))
+            .timeout(Duration::from_secs(1))
+            .json(&interfacing::LoginForm {
+                username: "admin".into(),
+                password: secrecy::SecretString::from(password),
+            })
+            .send()
+            .unwrap();
+
+        match r.status() {
+            StatusCode::OK => println!("{}", r.text().unwrap()),
+            _ => println!("failed to create user"),
+        }
+    }
+
     fn status(&self) -> Status {
         let r = self
             .client
@@ -102,6 +123,7 @@ enum Status {
 enum ServerCommands {
     HTTPServerStatus,
     DatabaseInfo,
+    DashboardAdminReplace,
 }
 
 impl TryFrom<Vec<&str>> for ServerCommands {
@@ -111,6 +133,7 @@ impl TryFrom<Vec<&str>> for ServerCommands {
         match value[..] {
             ["http_server", "status"] => Ok(Cmd::HTTPServerStatus),
             ["db", "info"] => Ok(Cmd::DatabaseInfo),
+            ["dashboard", "admin", "replace"] => Ok(Cmd::DashboardAdminReplace),
             _ => Err("invalid command".into()),
         }
     }
@@ -127,6 +150,9 @@ impl Server {
             Cmd::DatabaseInfo => {
                 let info = self.database_info();
                 dbg!(info);
+            }
+            Cmd::DashboardAdminReplace => {
+                let _r = self.create_dashboard_admin();
             }
         }
     }

@@ -2,20 +2,20 @@ use crate::routes::imports::*;
 use interfacing::LoginForm;
 
 #[tracing::instrument(
-    skip(maybe_form, state, session),
+    skip(maybe_form, session, shared_database),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 #[axum_macros::debug_handler]
 pub async fn login(
-    State(state): State<AppState>,
     mut session: WritableSession,
+    Extension(shared_database): Extension<SharedRemoteDatabase>,
     maybe_form: Result<Json<LoginForm>, JsonRejection>,
 ) -> Result<impl IntoResponse, LoginError> {
     let Json(form) = maybe_form?;
     let credentials: Credentials = form.into();
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
 
-    let user_id = validate_credentials(&state, &credentials)
+    let user_id = validate_credentials(shared_database, &credentials)
         .await
         .map_err(|e| match e {
             AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
