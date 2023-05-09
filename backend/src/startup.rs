@@ -273,7 +273,8 @@ impl Application {
         let remote_database = RemoteDatabase::configure(
             "abada-dabada",
             RemoteClientParams {
-                url: "bonsaidb://localhost".into(),
+                // url: "bonsaidb://localhost".into(),
+                url: "bonsaidb://165.22.74.247".into(),
                 password: "1".into(),
             },
         )

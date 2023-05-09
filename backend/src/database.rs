@@ -197,7 +197,7 @@ impl Database {
 }
 
 pub fn load_certificate() -> fabruic::Certificate {
-    include_bytes!("../../database/server-data.bonsaidb/pinned-certificate.der")
+    include_bytes!("/Users/phantie/Desktop/ahh/pinned-certificate.der")
         .to_vec()
         .try_into()
         .unwrap()
