@@ -1,0 +1,20 @@
+[package]
+name = "http_server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = { version = "0.6.10", features = ["headers"] }
+tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
+hyper = "0.14.24"
+clap = "4.2.7"
+tower-http = { version = "0.4.0", features = ["add-extension"] }
+axum-macros = "0.3.6"
+
+serde.workspace = true
+database_common.workspace = true
+bonsaidb.workspace = true
+interfacing.workspace = true
+anyhow.workspace = true

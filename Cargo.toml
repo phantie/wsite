@@ -1,11 +1,19 @@
 [workspace]
-members = ["backend", "frontend", "database", "common"]
+members = [
+    "backend",
+    "frontend",
+    "common",
+    "database/http_server",
+    "database/cli"
+]
 default-members = ["backend"]
 
 [workspace.dependencies]
 static_routes = { path = "common/static_routes" }
 interfacing = { path = "common/interfacing" }
+database_common = { path = "common/database_common" }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.159", features = ["derive"] }
 serde_json = "1.0.94"
 bonsaidb = { version = "0.4.1", features = ["server-full", "client-full", "local", "local-async"] }
+anyhow = "1.0.71"

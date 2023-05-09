@@ -1,5 +1,5 @@
 use crate::routes::imports::*;
-use remote_database::shema::Shape;
+use database_common::schema::Shape;
 
 #[axum_macros::debug_handler]
 pub async fn all_shapes(
