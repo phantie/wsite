@@ -20,6 +20,7 @@ pub async fn admin_session(
                             )
                             .await
                             .unwrap()
+                            // TODO if session exists and user does not - this panic
                             .unwrap()
                         }
                         .await
