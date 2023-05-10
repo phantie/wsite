@@ -1,5 +1,5 @@
 use bonsaidb::local::config::Builder;
-use bonsaidb::server::{Server, ServerConfiguration};
+use bonsaidb::server::{Server, ServerConfiguration, ServerDatabase};
 use bonsaidb::{
     core::{
         admin::{PermissionGroup, Role},
@@ -15,31 +15,7 @@ use bonsaidb::{
 
 use database_common::schema;
 
-pub async fn server() -> anyhow::Result<CustomServer> {
-    let configuration = ServerConfiguration::new("server-data.bonsaidb")
-        .default_permissions(Permissions::from(
-            Statement::for_any()
-                .allowing(&BonsaiAction::Server(ServerAction::Connect))
-                .allowing(&BonsaiAction::Server(ServerAction::Authenticate(
-                    AuthenticationMethod::PasswordHash,
-                ))),
-        ))
-        .with_schema::<schema::Shape>()?
-        .with_schema::<schema::User>()?;
-
-    let server = Server::open(configuration).await?;
-
-    let _shapes = server
-        .create_database::<schema::Shape>("shapes", true)
-        .await?;
-    let _users = server
-        .create_database::<schema::User>("users", true)
-        .await?;
-
-    if server.certificate_chain().await.is_err() {
-        server.install_self_signed_certificate(true).await?;
-    }
-
+async fn setup_permissions(server: &CustomServer) -> anyhow::Result<()> {
     let admin_username = "admin";
 
     let user_id = match server.create_user(admin_username).await {
@@ -114,6 +90,44 @@ pub async fn server() -> anyhow::Result<CustomServer> {
         .await?;
 
     println!("admin username: {}", admin_username);
+
+    Ok(())
+}
+
+async fn setup_certificate(server: &CustomServer) -> anyhow::Result<()> {
+    if server.certificate_chain().await.is_err() {
+        server.install_self_signed_certificate(true).await?;
+    }
+    Ok(())
+}
+
+async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
+    let _: ServerDatabase = server
+        .create_database::<schema::Shape>("shapes", true)
+        .await?;
+    let _: ServerDatabase = server
+        .create_database::<schema::User>("users", true)
+        .await?;
+    Ok(())
+}
+
+pub async fn server() -> anyhow::Result<CustomServer> {
+    let configuration = ServerConfiguration::new("server-data.bonsaidb")
+        .default_permissions(Permissions::from(
+            Statement::for_any()
+                .allowing(&BonsaiAction::Server(ServerAction::Connect))
+                .allowing(&BonsaiAction::Server(ServerAction::Authenticate(
+                    AuthenticationMethod::PasswordHash,
+                ))),
+        ))
+        .with_schema::<schema::Shape>()?
+        .with_schema::<schema::User>()?;
+
+    let server = Server::open(configuration).await?;
+
+    setup_contents(&server).await?;
+    setup_certificate(&server).await?;
+    setup_permissions(&server).await?;
 
     Ok(server)
 }
