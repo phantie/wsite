@@ -10,11 +10,24 @@ pub async fn admin_session(
     let session = match session.get("user_id") {
         None => return StatusCode::UNAUTHORIZED.into_response(),
         Some(user_id) => {
-            let user =
-                schema::User::get_async(user_id, &shared_database.read().await.collections.users)
-                    .await
-                    .unwrap()
-                    .unwrap();
+            let user = HangingStrategy::default()
+                .execute(
+                    |shared_database| async {
+                        async move {
+                            schema::User::get_async(
+                                user_id,
+                                &shared_database.read().await.collections.users,
+                            )
+                            .await
+                            .unwrap()
+                            .unwrap()
+                        }
+                        .await
+                    },
+                    shared_database.clone(),
+                )
+                .await
+                .unwrap();
 
             let username = user.contents.username;
 

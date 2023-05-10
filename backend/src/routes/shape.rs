@@ -5,12 +5,14 @@ pub async fn all_shapes(
     Extension(shared_database): Extension<SharedRemoteDatabase>,
 ) -> Result<Json<Vec<schema::Shape>>, ApiError> {
     tracing::info!("Remote database ID: {}", shared_database.read().await.id);
-
     let docs = HangingStrategy::default()
         .execute(
-            |shared_database| async move {
-                let shapes = &shared_database.read().await.collections.shapes;
-                schema::Shape::all_async(shapes).await
+            |shared_database| async {
+                async move {
+                    let shapes = &shared_database.read().await.collections.shapes;
+                    schema::Shape::all_async(shapes).await
+                }
+                .await
             },
             shared_database.clone(),
         )

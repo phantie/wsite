@@ -15,12 +15,23 @@ pub async fn login(
     let credentials: Credentials = form.into();
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
 
-    let user_id = validate_credentials(shared_database, &credentials)
+    let user_id = HangingStrategy::default()
+        .execute(
+            |shared_database| async {
+                let credentials = credentials.clone();
+                validate_credentials(shared_database, &credentials)
+                    .await
+                    .map_err(|e| match e {
+                        AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
+                        AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
+                    })
+                    .unwrap()
+            },
+            shared_database.clone(),
+        )
         .await
-        .map_err(|e| match e {
-            AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
-            AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
-        })?;
+        .unwrap();
+
     tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
 
     session.regenerate();
