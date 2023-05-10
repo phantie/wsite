@@ -80,11 +80,14 @@ impl HangingStrategy {
                                         shared_database.id
                                     );
 
-                                    if let Ok(()) = shared_database.reconfigure().await {
-                                        tracing::info!(
+                                    match shared_database.reconfigure().await {
+                                        Ok(()) => tracing::info!(
                                             "Reconfigured remote database client ID: {}",
                                             shared_database.id
-                                        );
+                                        ),
+                                        Err(e) => {
+                                            tracing::info!("Failed to reconfigure database: {}", e)
+                                        }
                                     }
 
                                     retried_times += 1;

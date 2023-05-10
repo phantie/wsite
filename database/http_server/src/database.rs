@@ -3,7 +3,7 @@ use bonsaidb::server::{Server, ServerConfiguration};
 use bonsaidb::{
     core::{
         admin::{PermissionGroup, Role},
-        connection::{AsyncStorageConnection, SensitiveString},
+        connection::AsyncStorageConnection,
         permissions::{
             bonsai::{AuthenticationMethod, BonsaiAction, ServerAction},
             Permissions, Statement,
@@ -41,15 +41,9 @@ pub async fn server() -> anyhow::Result<CustomServer> {
     }
 
     let admin_username = "admin";
-    let admin_password = "1";
 
     let user_id = match server.create_user(admin_username).await {
-        Ok(user_id) => {
-            let _: () = server
-                .set_user_password(user_id, SensitiveString(admin_password.into()))
-                .await?;
-            user_id
-        }
+        Ok(user_id) => user_id,
         Err(bonsaidb::core::Error::UniqueKeyViolation {
             existing_document, ..
         }) => existing_document.id.deserialize()?,

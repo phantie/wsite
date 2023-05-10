@@ -163,11 +163,14 @@ impl Database {
 }
 
 pub fn load_certificate() -> fabruic::Certificate {
-    // include_bytes!("/Users/phantie/Desktop/ahh/pinned-certificate.der")
-    include_bytes!("../../database/http_server/server-data.bonsaidb/pinned-certificate.der")
-        .to_vec()
-        .try_into()
+    // include_bytes!("../../database/http_server/server-data.bonsaidb/pinned-certificate.der");
+
+    // TODO if database does not exists, it panics
+    let f = std::fs::read("../database/http_server/server-data.bonsaidb/pinned-certificate.der")
         .unwrap()
+        .try_into()
+        .unwrap();
+    f
 }
 
 pub struct RemoteDatabase {
