@@ -1,8 +1,8 @@
 // database status +
 // create dashboard admin +
 // change dashboard admin password +
-// create admin
-// change admin password
+// create database admin
+// change database admin password +
 // start database
 // stop database
 // restart database
@@ -15,16 +15,14 @@ use reqwest::StatusCode;
 use std::io::Write;
 use std::time::Duration;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let client = reqwest::blocking::Client::new();
     let addr = database_common::ADDR.to_string();
 
     let server = Server { client, addr };
 
     let cmd = derive_server_command();
-    dbg!(&cmd);
-
-    server.handle(cmd);
+    server.handle(cmd)
 }
 
 fn derive_server_command() -> ServerCommands {
@@ -65,7 +63,7 @@ struct Server {
 }
 
 impl Server {
-    fn create_dashboard_admin(&self) {
+    fn replace_dashboard_admin(&self) -> anyhow::Result<()> {
         let password = read_input("Enter new password:");
         let r = self
             .client
@@ -75,13 +73,33 @@ impl Server {
                 username: "admin".into(),
                 password: secrecy::SecretString::from(password),
             })
-            .send()
-            .unwrap();
+            .send()?;
 
         match r.status() {
-            StatusCode::OK => println!("{}", r.text().unwrap()),
+            StatusCode::OK => println!("{}", r.text()?),
             _ => println!("failed to create user"),
         }
+        Ok(())
+    }
+
+    fn update_database_admin_password(&self) -> anyhow::Result<()> {
+        let password = read_input("Enter new password:");
+        let r = self
+            .client
+            .post(format!("http://{}/database/users/", self.addr))
+            .timeout(Duration::from_secs(3))
+            .json(&interfacing::LoginForm {
+                username: "admin".into(),
+                password: secrecy::SecretString::from(password),
+            })
+            .send()?;
+
+        match r.status() {
+            StatusCode::OK => println!("{}", r.text()?),
+            _ => println!("failed to create user"),
+        }
+
+        Ok(())
     }
 
     fn status(&self) -> Status {
@@ -124,37 +142,40 @@ enum ServerCommands {
     HTTPServerStatus,
     DatabaseInfo,
     DashboardAdminReplace,
+    DatabaseAdminPassword,
 }
 
 impl TryFrom<Vec<&str>> for ServerCommands {
     type Error = String;
     fn try_from(value: Vec<&str>) -> Result<Self, Self::Error> {
         use ServerCommands as Cmd;
-        match value[..] {
-            ["http_server", "status"] => Ok(Cmd::HTTPServerStatus),
-            ["db", "info"] => Ok(Cmd::DatabaseInfo),
-            ["dashboard", "admin", "replace"] => Ok(Cmd::DashboardAdminReplace),
-            _ => Err("invalid command".into()),
-        }
+        let cmd = match value[..] {
+            ["http_server", "status"] => Cmd::HTTPServerStatus,
+            ["db", "info"] => Cmd::DatabaseInfo,
+            ["db", "admin", "password"] => Cmd::DatabaseAdminPassword,
+            ["dashboard", "admin", "replace"] => Cmd::DashboardAdminReplace,
+            _ => return Err("invalid command".into()),
+        };
+        Ok(cmd)
     }
 }
 
 impl Server {
-    fn handle(&self, cmd: ServerCommands) {
+    fn handle(&self, cmd: ServerCommands) -> anyhow::Result<()> {
         use ServerCommands as Cmd;
         match cmd {
             Cmd::HTTPServerStatus => {
                 let status = self.status();
-                dbg!(status);
+                println!("{:?}", status);
             }
             Cmd::DatabaseInfo => {
                 let info = self.database_info();
-                dbg!(info);
+                println!("{:?}", info);
             }
-            Cmd::DashboardAdminReplace => {
-                let _r = self.create_dashboard_admin();
-            }
+            Cmd::DashboardAdminReplace => self.replace_dashboard_admin()?,
+            Cmd::DatabaseAdminPassword => self.update_database_admin_password()?,
         }
+        Ok(())
     }
 }
 

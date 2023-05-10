@@ -1,11 +1,12 @@
 use axum::{
     http::StatusCode,
+    response::{IntoResponse, Response},
     routing::{get, post},
     Extension, Json, Router,
 };
 use bonsaidb::{
     core::{
-        connection::{AsyncConnection, AsyncStorageConnection},
+        connection::{AsyncConnection, AsyncStorageConnection, SensitiveString},
         schema::SerializedCollection,
     },
     server::CustomServer,
@@ -51,7 +52,8 @@ async fn main() -> hyper::Result<()> {
         .route("/", get(root))
         .route("/health", get(health_check))
         .route("/database/info", get(database_info))
-        .route("/users/", post(create_user))
+        .route("/database/users/", post(update_database_user_password))
+        .route("/users/", post(replace_dashboard_user))
         .layer(AddExtensionLayer::new(hosted_database));
 
     let addr = database_common::ADDR;
@@ -81,7 +83,7 @@ async fn database_info(
 }
 
 #[axum_macros::debug_handler]
-async fn create_user(
+async fn replace_dashboard_user(
     Extension(database_server): Extension<SharedHostedDatabase>,
     Json(form): Json<interfacing::LoginForm>,
 ) -> String {
@@ -122,7 +124,7 @@ async fn create_user(
             .push_into_async(&users)
             .await
             .unwrap();
-            "User has been created".into()
+            format!("user {username:?} has been created").into()
         }
         Some(user) => {
             let current_password_hash = user.document.contents.password_hash.as_str();
@@ -130,12 +132,12 @@ async fn create_user(
             // dbg!(&current_password_hash);
             if password_hash == current_password_hash {
                 // TODO copare hashes correctly
-                "User exists, password has NOT been updated".into()
+                format!("password of dashboard user {username:?} has NOT been updated").into()
             } else {
                 let mut user = user.document.to_owned();
                 user.contents.password_hash = password_hash;
                 user.update_async(&users).await.unwrap();
-                "User exists, password has been updated".into()
+                format!("password of dashboard user {username:?} has been updated").into()
             }
         }
     }
@@ -143,4 +145,37 @@ async fn create_user(
 
 pub async fn health_check() -> StatusCode {
     StatusCode::OK
+}
+
+#[axum_macros::debug_handler]
+async fn update_database_user_password(
+    Extension(database_server): Extension<SharedHostedDatabase>,
+    Json(form): Json<interfacing::LoginForm>,
+) -> Response {
+    if form.username != "admin" {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let server = database_server.server.clone();
+    let user_id = match server.create_user("admin").await {
+        Ok(user_id) => user_id,
+        Err(bonsaidb::core::Error::UniqueKeyViolation {
+            existing_document, ..
+        }) => existing_document.id.deserialize().unwrap(),
+        Err(_other) => todo!(),
+    };
+
+    let _: () = server
+        .set_user_password(
+            user_id,
+            SensitiveString(form.password.expose_secret().to_owned()),
+        )
+        .await
+        .unwrap();
+
+    format!(
+        "password of database user {:?} has been updated",
+        form.username
+    )
+    .into_response()
 }

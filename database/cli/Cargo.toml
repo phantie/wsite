@@ -14,3 +14,4 @@ fork = "0.1.21"
 secrecy.workspace = true
 database_common.workspace = true
 interfacing.workspace = true
+anyhow.workspace = true
