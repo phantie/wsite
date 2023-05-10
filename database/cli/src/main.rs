@@ -7,6 +7,7 @@
 // stop database
 // restart database
 // update database
+// plain backup database +
 #![allow(dead_code)]
 
 use clap::{arg, command, value_parser};
@@ -42,7 +43,7 @@ fn derive_server_command() -> ServerCommands {
         .map(|v| v.as_str())
         .collect::<Vec<&str>>();
 
-    ServerCommands::try_from(q).unwrap()
+    ServerCommands::from(q)
 }
 
 fn read_input(before: impl AsRef<str>) -> String {
@@ -102,6 +103,22 @@ impl Server {
         Ok(())
     }
 
+    fn backup_database(&self) {
+        let r = self
+            .client
+            .get(format!("http://{}/database/backup", self.addr))
+            .timeout(Duration::from_secs(3))
+            .send();
+
+        match r {
+            Ok(r) => match r.status() {
+                StatusCode::OK => println!("database has been backed up"),
+                _ => unimplemented!(),
+            },
+            Err(_e) => unimplemented!(),
+        }
+    }
+
     fn status(&self) -> Status {
         let r = self
             .client
@@ -143,20 +160,22 @@ enum ServerCommands {
     DatabaseInfo,
     DashboardAdminReplace,
     DatabaseAdminPassword,
+    DatabaseBackupCreate,
+    InvalidCommand,
 }
 
-impl TryFrom<Vec<&str>> for ServerCommands {
-    type Error = String;
-    fn try_from(value: Vec<&str>) -> Result<Self, Self::Error> {
+impl From<Vec<&str>> for ServerCommands {
+    fn from(value: Vec<&str>) -> Self {
         use ServerCommands as Cmd;
         let cmd = match value[..] {
             ["http_server", "status"] => Cmd::HTTPServerStatus,
             ["db", "info"] => Cmd::DatabaseInfo,
             ["db", "admin", "password"] => Cmd::DatabaseAdminPassword,
+            ["db", "backup", "create"] => Cmd::DatabaseBackupCreate,
             ["dashboard", "admin", "replace"] => Cmd::DashboardAdminReplace,
-            _ => return Err("invalid command".into()),
+            _ => Cmd::InvalidCommand,
         };
-        Ok(cmd)
+        cmd
     }
 }
 
@@ -164,6 +183,9 @@ impl Server {
     fn handle(&self, cmd: ServerCommands) -> anyhow::Result<()> {
         use ServerCommands as Cmd;
         match cmd {
+            Cmd::InvalidCommand => {
+                println!("invalid command");
+            }
             Cmd::HTTPServerStatus => {
                 let status = self.status();
                 println!("{:?}", status);
@@ -174,6 +196,7 @@ impl Server {
             }
             Cmd::DashboardAdminReplace => self.replace_dashboard_admin()?,
             Cmd::DatabaseAdminPassword => self.update_database_admin_password()?,
+            Cmd::DatabaseBackupCreate => self.backup_database(),
         }
         Ok(())
     }

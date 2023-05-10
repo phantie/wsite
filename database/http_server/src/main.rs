@@ -12,7 +12,7 @@ use bonsaidb::{
     server::CustomServer,
 };
 use secrecy::ExposeSecret;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tokio::task::JoinHandle;
 use tower_http::add_extension::AddExtensionLayer;
 mod database;
@@ -53,6 +53,7 @@ async fn main() -> hyper::Result<()> {
         .route("/health", get(health_check))
         .route("/database/info", get(database_info))
         .route("/database/users/", post(update_database_user_password))
+        .route("/database/backup", get(backup_database))
         .route("/users/", post(replace_dashboard_user))
         .layer(AddExtensionLayer::new(hosted_database));
 
@@ -178,4 +179,10 @@ async fn update_database_user_password(
         form.username
     )
     .into_response()
+}
+
+#[axum_macros::debug_handler]
+async fn backup_database(Extension(database_server): Extension<SharedHostedDatabase>) {
+    let server = database_server.server.clone();
+    server.backup(PathBuf::from("backup")).await.unwrap();
 }
