@@ -1,11 +1,11 @@
 // database status +
 // create dashboard admin +
 // change dashboard admin password +
-// create database admin
+// create database admin +-
 // change database admin password +
-// start database
-// stop database
-// restart database
+// start database +
+// stop database +
+// restart database +
 // update database
 // plain backup database +
 #![allow(dead_code)]
@@ -119,6 +119,55 @@ impl Server {
         }
     }
 
+    fn stop_database(&self) {
+        let r = self
+            .client
+            .get(format!("http://{}/database/stop", self.addr))
+            .timeout(Duration::from_secs(3))
+            .send();
+
+        match r {
+            Ok(r) => match r.status() {
+                StatusCode::OK => println!("database has been stopped"),
+                _ => unimplemented!(),
+            },
+            Err(_e) => unimplemented!(),
+        }
+    }
+
+    fn reset_database(&self) {
+        let r = self
+            .client
+            .get(format!("http://{}/database/reset", self.addr))
+            .timeout(Duration::from_secs(3))
+            .send();
+
+        match r {
+            Ok(r) => match r.status() {
+                StatusCode::OK => println!("database has been reset"),
+                _ => unimplemented!(),
+            },
+            Err(_e) => unimplemented!(),
+        }
+    }
+
+    fn restart_database(&self, backup: Option<String>) {
+        let r = self
+            .client
+            .post(format!("http://{}/database/restart", self.addr))
+            .json(&interfacing::DatabaseBackup { location: backup })
+            .timeout(Duration::from_secs(5))
+            .send();
+
+        match r {
+            Ok(r) => match r.status() {
+                StatusCode::OK => println!("database has been restarted"),
+                _ => unimplemented!(),
+            },
+            Err(_e) => unimplemented!(),
+        }
+    }
+
     fn status(&self) -> Status {
         let r = self
             .client
@@ -161,6 +210,9 @@ enum ServerCommands {
     DashboardAdminReplace,
     DatabaseAdminPassword,
     DatabaseBackupCreate,
+    DatabaseRestart(Option<String>),
+    DatabaseStop,
+    DatabaseReset,
     InvalidCommand,
 }
 
@@ -172,6 +224,10 @@ impl From<Vec<&str>> for ServerCommands {
             ["db", "info"] => Cmd::DatabaseInfo,
             ["db", "admin", "password"] => Cmd::DatabaseAdminPassword,
             ["db", "backup", "create"] => Cmd::DatabaseBackupCreate,
+            ["db", "restart", backup] => Cmd::DatabaseRestart(Some(backup.to_owned())),
+            ["db", "restart"] => Cmd::DatabaseRestart(None),
+            ["db", "stop"] => Cmd::DatabaseStop,
+            ["db", "reset"] => Cmd::DatabaseReset,
             ["dashboard", "admin", "replace"] => Cmd::DashboardAdminReplace,
             _ => Cmd::InvalidCommand,
         };
@@ -197,6 +253,9 @@ impl Server {
             Cmd::DashboardAdminReplace => self.replace_dashboard_admin()?,
             Cmd::DatabaseAdminPassword => self.update_database_admin_password()?,
             Cmd::DatabaseBackupCreate => self.backup_database(),
+            Cmd::DatabaseRestart(backup) => self.restart_database(backup),
+            Cmd::DatabaseStop => self.stop_database(),
+            Cmd::DatabaseReset => self.reset_database(),
         }
         Ok(())
     }
