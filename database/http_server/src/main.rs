@@ -12,41 +12,120 @@ use bonsaidb::{
     server::CustomServer,
 };
 use secrecy::ExposeSecret;
-use std::{path::PathBuf, sync::Arc};
-use tokio::task::JoinHandle;
+use std::{path::PathBuf, sync::Arc, time::Duration};
+use tokio::{sync::RwLock, task::JoinHandle};
 use tower_http::add_extension::AddExtensionLayer;
 mod database;
 use database_common::schema;
 
 struct HostedDatabase {
-    server: CustomServer,
-    handle: JoinHandle<Result<(), bonsaidb::server::Error>>,
+    inner: CurrentDatabase,
+    number: u32,
 }
 
-impl HostedDatabase {
+enum CurrentDatabase {
+    Setup {
+        server: CustomServer,
+        handle: JoinHandle<Result<(), bonsaidb::server::Error>>,
+    },
+    None,
+}
+
+impl CurrentDatabase {
+    // TODO fix this returning false on subsequent restarted servers after the first
     fn running(&self) -> bool {
-        !self.handle.is_finished()
+        match self {
+            Self::Setup { handle, .. } => !handle.is_finished(),
+            Self::None => false,
+        }
+    }
+
+    fn server(&self) -> Option<CustomServer> {
+        match self {
+            Self::Setup { server, .. } => Some(server.clone()),
+            Self::None => None,
+        }
     }
 }
 
-type SharedHostedDatabase = Arc<HostedDatabase>;
+type BackupLocation = Option<String>;
+
+impl HostedDatabase {
+    fn running(&self) -> bool {
+        self.inner.running()
+    }
+
+    fn server(&self) -> Option<CustomServer> {
+        self.inner.server()
+    }
+
+    // BUG when bare database is restarted with backup - it hangs
+    //  if it's restarted twice - it works. reset and then restored - works.
+    async fn restart(&mut self, backup: BackupLocation) {
+        self.stop().await.unwrap();
+
+        let server = database::server(backup).await.unwrap();
+
+        let handle = {
+            let server = server.clone();
+            let number = self.number;
+            tokio::spawn(async move {
+                println!("database server {} is listening on 5645", number);
+
+                // let _ping_handle = tokio::spawn(async move {
+                //     loop {
+                //         tokio::time::sleep(Duration::from_secs(3)).await;
+                //         println!("database server {} ping", number);
+                //     }
+                // });
+
+                server.listen_on(5645).await
+            })
+        };
+
+        // println!(
+        //     "new handle is_running: {}, id: {:?}",
+        //     !handle.is_finished(),
+        //     handle
+        // );
+
+        self.inner = CurrentDatabase::Setup { server, handle };
+        self.number += 1;
+    }
+
+    async fn stop(&mut self) -> anyhow::Result<()> {
+        if let CurrentDatabase::Setup { handle, server } = &self.inner {
+            handle.abort();
+            server.shutdown(Some(Duration::from_secs(1))).await?;
+            self.inner = CurrentDatabase::None;
+            println!("database has been stopped");
+        }
+        Ok(())
+    }
+
+    async fn reset(&mut self) -> anyhow::Result<()> {
+        self.stop().await?;
+        if std::path::Path::new(&database_common::storage_location()).exists() {
+            std::fs::remove_dir_all(&database_common::storage_location())?;
+        }
+        println!("database has been reset");
+        Ok(())
+    }
+}
+
+type SharedHostedDatabase = Arc<RwLock<HostedDatabase>>;
 
 #[tokio::main]
 async fn main() -> hyper::Result<()> {
-    let database_server = database::server().await.unwrap();
-
-    let handle = {
-        let database_server = database_server.clone();
-        tokio::spawn(async move {
-            println!("database server is listening on 5645");
-            database_server.listen_on(5645).await
-        })
+    #[allow(unused_mut)]
+    let mut hosted_database = HostedDatabase {
+        inner: CurrentDatabase::None,
+        number: 0,
     };
 
-    let hosted_database = Arc::new(HostedDatabase {
-        server: database_server,
-        handle,
-    });
+    // hosted_database.restart(None).await;
+
+    let hosted_database = SharedHostedDatabase::new(RwLock::new(hosted_database));
 
     let app = Router::new()
         .route("/", get(root))
@@ -54,6 +133,9 @@ async fn main() -> hyper::Result<()> {
         .route("/database/info", get(database_info))
         .route("/database/users/", post(update_database_user_password))
         .route("/database/backup", get(backup_database))
+        .route("/database/restart", post(restart_database))
+        .route("/database/stop", get(stop_database))
+        .route("/database/reset", get(reset_database))
         .route("/users/", post(replace_dashboard_user))
         .layer(AddExtensionLayer::new(hosted_database));
 
@@ -79,7 +161,7 @@ async fn database_info(
     Extension(database_server): Extension<SharedHostedDatabase>,
 ) -> Json<interfacing::DatabaseInfo> {
     Json::from(interfacing::DatabaseInfo {
-        is_running: database_server.running(),
+        is_running: database_server.read().await.running(),
     })
 }
 
@@ -90,7 +172,10 @@ async fn replace_dashboard_user(
 ) -> String {
     use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
     let users = database_server
-        .server
+        .read()
+        .await
+        .server()
+        .unwrap()
         .database::<schema::User>("users")
         .await
         .unwrap();
@@ -157,7 +242,7 @@ async fn update_database_user_password(
         return StatusCode::BAD_REQUEST.into_response();
     }
 
-    let server = database_server.server.clone();
+    let server = database_server.read().await.server().unwrap().clone();
     let user_id = match server.create_user("admin").await {
         Ok(user_id) => user_id,
         Err(bonsaidb::core::Error::UniqueKeyViolation {
@@ -183,6 +268,30 @@ async fn update_database_user_password(
 
 #[axum_macros::debug_handler]
 async fn backup_database(Extension(database_server): Extension<SharedHostedDatabase>) {
-    let server = database_server.server.clone();
-    server.backup(PathBuf::from("backup")).await.unwrap();
+    let server = database_server.read().await.server().unwrap().clone();
+    let backup_path = PathBuf::from("backup");
+    server.backup(backup_path.clone()).await.unwrap();
+    std::fs::copy(
+        database_common::storage_location().join(database_common::public_certificate_name()),
+        backup_path.join(database_common::public_certificate_name()),
+    )
+    .unwrap();
+}
+
+#[axum_macros::debug_handler]
+async fn restart_database(
+    Extension(database_server): Extension<SharedHostedDatabase>,
+    Json(form): Json<interfacing::DatabaseBackup>,
+) {
+    database_server.write().await.restart(form.location).await;
+}
+
+#[axum_macros::debug_handler]
+async fn stop_database(Extension(database_server): Extension<SharedHostedDatabase>) {
+    database_server.write().await.stop().await.unwrap();
+}
+
+#[axum_macros::debug_handler]
+async fn reset_database(Extension(database_server): Extension<SharedHostedDatabase>) {
+    database_server.write().await.reset().await.unwrap();
 }
