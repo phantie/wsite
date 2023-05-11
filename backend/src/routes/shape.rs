@@ -16,8 +16,7 @@ pub async fn all_shapes(
             },
             shared_database.clone(),
         )
-        .await?
-        .expect("failed to fetch valid data");
+        .await??;
 
     let contents = docs.into_iter().map(|doc| doc.contents).collect::<Vec<_>>();
 
@@ -28,8 +27,21 @@ pub async fn all_shapes(
 pub async fn new_shape(
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<schema::Shape>,
-) -> Response {
-    let shapes = shared_database.read().await.collections.shapes.clone();
-    body.push_into_async(&shapes).await.unwrap();
-    StatusCode::OK.into_response()
+) -> Result<(), ApiError> {
+    let _: () = HangingStrategy::default()
+        .execute(
+            |shared_database| async {
+                let body = body.clone();
+                async move {
+                    let shapes = shared_database.read().await.collections.shapes.clone();
+                    body.push_into_async(&shapes).await.map_err(|e| e.error)?;
+                    Result::<_, ApiError>::Ok(())
+                }
+                .await
+            },
+            shared_database.clone(),
+        )
+        .await??;
+
+    Ok(())
 }

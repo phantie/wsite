@@ -1,4 +1,7 @@
-use crate::{database::*, startup::SharedRemoteDatabase, telemetry::spawn_blocking_with_tracing};
+use crate::{
+    database::*, error::ApiError, startup::SharedRemoteDatabase,
+    telemetry::spawn_blocking_with_tracing,
+};
 use anyhow::Context;
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
@@ -34,7 +37,7 @@ impl From<Authorization<Basic>> for Credentials {
 pub async fn validate_credentials(
     shared_database: SharedRemoteDatabase,
     credentials: &Credentials,
-) -> Result<u64, AuthError> {
+) -> Result<u64, ApiError> {
     let mut user_id: Option<u64> = None;
     let mut expected_password_hash = SecretString::new(
         "$argon2id$v=19$m=15000,t=1,p=1$\
@@ -66,7 +69,7 @@ pub async fn validate_credentials(
     })
     .await
     .context("Failed to spawn blocking task.")
-    .map_err(AuthError::UnexpectedError)??;
+    .map_err(ApiError::UnexpectedError)??;
 
     tracing::Span::current().record("success", &tracing::field::display(true));
 
@@ -81,10 +84,9 @@ pub async fn validate_credentials(
 fn verify_password_hash(
     expected_password_hash: SecretString,
     password_candidate: SecretString,
-) -> Result<(), AuthError> {
+) -> Result<(), ApiError> {
     let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
-        .context("Failed to parse hash in PHC string format.")
-        .map_err(AuthError::UnexpectedError)?;
+        .context("Failed to parse hash in PHC string format.")?;
 
     Argon2::default()
         .verify_password(
@@ -92,15 +94,7 @@ fn verify_password_hash(
             &expected_password_hash,
         )
         .context("Invalid password")
-        .map_err(AuthError::InvalidCredentials)
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum AuthError {
-    #[error("Invalid credentials.")]
-    InvalidCredentials(#[source] anyhow::Error),
-    #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error),
+        .map_err(ApiError::AuthError)
 }
 
 pub fn compute_password_hash(password: SecretString) -> Result<SecretString, anyhow::Error> {

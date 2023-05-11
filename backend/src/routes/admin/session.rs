@@ -5,30 +5,30 @@ use interfacing::AdminSession;
 pub async fn admin_session(
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     session: ReadableSession,
-) -> Response {
-    std::thread::sleep(std::time::Duration::from_millis(600));
+) -> Result<Json<AdminSession>, ApiError> {
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
     let session = match session.get("user_id") {
-        None => return StatusCode::UNAUTHORIZED.into_response(),
+        None => return None.context("Session missing")?,
         Some(user_id) => {
             let user = HangingStrategy::default()
                 .execute(
                     |shared_database| async {
                         async move {
-                            schema::User::get_async(
+                            let user = schema::User::get_async(
                                 user_id,
                                 &shared_database.read().await.collections.users,
                             )
-                            .await
-                            .unwrap()
-                            // TODO if session exists and user does not - this panic
-                            .unwrap()
+                            .await?
+                            .context("dangling user_id in session")?;
+
+                            Result::<_, ApiError>::Ok(user)
                         }
                         .await
                     },
                     shared_database.clone(),
                 )
-                .await
-                .unwrap();
+                .await??;
 
             let username = user.contents.username;
 
@@ -36,5 +36,5 @@ pub async fn admin_session(
         }
     };
 
-    Json::from(session).into_response()
+    Ok(Json::from(session))
 }

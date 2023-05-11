@@ -41,6 +41,13 @@ impl Default for HangingStrategy {
 }
 
 impl HangingStrategy {
+    pub fn long_linear() -> Self {
+        Self::LinearRetry {
+            times: 1,
+            sleep: Duration::from_secs(7),
+        }
+    }
+
     // Attempt to renew connection with the database server if it hangs
     // because there's no timeouts on external API calls to it
     pub async fn execute<F, C, R>(
