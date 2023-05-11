@@ -9,8 +9,17 @@ pub enum ApiError {
     #[error("Database hangs")]
     DatabaseHangs,
 
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] bonsaidb::core::Error),
+
+    // #[error("Database insert error: {0}")]
+    // DatabaseInsertError(#[source] anyhow::Error),
+    //
     #[error("Future timeout")]
     FutureTimeout,
+
+    #[error("Auth header rejected")]
+    AuthHeaderRejection(#[source] TypedHeaderRejection),
 
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
@@ -30,8 +39,11 @@ impl IntoResponse for ApiError {
         match &self {
             Self::JsonRejection(_e) => StatusCode::BAD_REQUEST,
             Self::AuthError(_e) => StatusCode::UNAUTHORIZED,
+            Self::AuthHeaderRejection(_e) => StatusCode::UNAUTHORIZED,
             Self::UnexpectedError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseHangs => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::DatabaseError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
+            // Self::DatabaseInsertError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::FutureTimeout => StatusCode::INTERNAL_SERVER_ERROR,
         }
         .into_response()
@@ -39,7 +51,7 @@ impl IntoResponse for ApiError {
 }
 
 use axum::{
-    extract::rejection::JsonRejection,
+    extract::rejection::{JsonRejection, TypedHeaderRejection},
     response::{IntoResponse, Response},
 };
 use hyper::StatusCode;

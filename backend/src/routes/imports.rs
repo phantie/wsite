@@ -1,6 +1,6 @@
 pub use crate::static_routes::extend::*;
 pub use crate::{
-    authentication::{reject_anonymous_users, validate_credentials, AuthError, Credentials},
+    authentication::{reject_anonymous_users, validate_credentials, Credentials},
     database::*,
     error::ApiError,
     startup::{AppState, SharedRemoteDatabase},

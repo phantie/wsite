@@ -6,16 +6,11 @@ pub async fn publish_newsletter(
     maybe_basic_auth: Result<TypedHeader<Authorization<Basic>>, TypedHeaderRejection>,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<BodyData>,
-) -> Result<impl IntoResponse, PublishError> {
-    let TypedHeader(basic_auth) = maybe_basic_auth?;
+) -> Result<(), ApiError> {
+    let TypedHeader(basic_auth) = maybe_basic_auth.map_err(ApiError::AuthHeaderRejection)?;
 
     let credentials: Credentials = basic_auth.into();
-    let _user_id = validate_credentials(shared_database.clone(), &credentials)
-        .await
-        .map_err(|e| match e {
-            AuthError::InvalidCredentials(_) => PublishError::AuthError(e.into()),
-            AuthError::UnexpectedError(_) => PublishError::UnexpectedError(e.into()),
-        })?;
+    let _user_id = validate_credentials(shared_database.clone(), &credentials).await?;
 
     let subscriptions = &state.database.collections.subscriptions;
 
@@ -23,9 +18,7 @@ pub async fn publish_newsletter(
         .view::<SubscriptionByStatus>()
         .with_key("confirmed".to_owned())
         .query_with_collection_docs()
-        .await
-        .context("Failed to fetch confirmed subscriptions")
-        .map_err(PublishError::UnexpectedError)?;
+        .await?;
 
     for subscriber in &confirmed_subscriptions {
         state
@@ -37,11 +30,10 @@ pub async fn publish_newsletter(
                 &body.content.text,
             )
             .await
-            .context("Failed to send email to a confirmed subscriber")
-            .map_err(PublishError::UnexpectedError)?;
+            .context("Failed to send email to a confirmed subscriber")?;
     }
 
-    Ok(StatusCode::OK)
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -54,37 +46,4 @@ pub struct BodyData {
 pub struct Content {
     html: String,
     text: String,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum PublishError {
-    #[error("Auth header rejected.")]
-    AuthHeaderRejection(#[from] TypedHeaderRejection),
-
-    #[error("Authentication failed.")]
-    AuthError(#[source] anyhow::Error),
-
-    #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error),
-}
-
-impl IntoResponse for PublishError {
-    fn into_response(self) -> Response {
-        let headers = [(header::WWW_AUTHENTICATE, r#"Basic realm="publish""#)];
-
-        let message = self.to_string();
-        let (trace_message, response) = match self {
-            Self::AuthHeaderRejection(_rejection) => {
-                (message, (StatusCode::UNAUTHORIZED, headers).into_response())
-            }
-            Self::AuthError(_e) => (message, (StatusCode::UNAUTHORIZED, headers).into_response()),
-            Self::UnexpectedError(e) => (
-                format!("{}: {}", &message, e.source().unwrap()),
-                StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-            ),
-        };
-
-        tracing::error!("{}", trace_message);
-        response
-    }
 }
