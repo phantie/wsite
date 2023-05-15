@@ -167,7 +167,9 @@ pub async fn load_certificate() -> fabruic::Certificate {
     // include_bytes!("../../database/http_server/server-data.bonsaidb/pinned-certificate.der");
 
     // TODO if database does not exists, it panics
-    let r = reqwest::get("http://localhost:3000/cert").await.unwrap();
+    let r = reqwest::get("http://209.38.192.88:3000/cert")
+        .await
+        .unwrap();
 
     match r.status() {
         StatusCode::OK => {
