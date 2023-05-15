@@ -3,6 +3,8 @@
 
 # local bonsaidb storages
 **/*.bonsaidb/
+# tmp
+**/http_server/backup/
 
 # VS Code override for workspace
 .vscode/
