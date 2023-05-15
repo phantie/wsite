@@ -69,7 +69,7 @@ impl Server {
         let r = self
             .client
             .post(format!("http://{}/users/", self.addr))
-            .timeout(Duration::from_secs(1))
+            .timeout(Duration::from_secs(7))
             .json(&interfacing::LoginForm {
                 username: "admin".into(),
                 password: secrecy::SecretString::from(password),
@@ -88,7 +88,7 @@ impl Server {
         let r = self
             .client
             .post(format!("http://{}/database/users/", self.addr))
-            .timeout(Duration::from_secs(3))
+            .timeout(Duration::from_secs(7))
             .json(&interfacing::LoginForm {
                 username: "admin".into(),
                 password: secrecy::SecretString::from(password),

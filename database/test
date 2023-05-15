@@ -1,0 +1,2 @@
+curl -d '{"sides":7}' -H "Content-Type: application/json" -X POST http://localhost:8000/api/shapes
+curl -d '{"sides":42}' -H "Content-Type: application/json" -X POST http://localhost:8000/api/shapes
