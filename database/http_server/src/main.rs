@@ -130,6 +130,7 @@ async fn main() -> hyper::Result<()> {
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
+        .route("/cert", get(certificate))
         .route("/database/info", get(database_info))
         .route("/database/users/", post(update_database_user_password))
         .route("/database/backup", get(backup_database))
@@ -294,4 +295,13 @@ async fn stop_database(Extension(database_server): Extension<SharedHostedDatabas
 #[axum_macros::debug_handler]
 async fn reset_database(Extension(database_server): Extension<SharedHostedDatabase>) {
     database_server.write().await.reset().await.unwrap();
+}
+
+#[axum_macros::debug_handler]
+async fn certificate() -> Result<Vec<u8>, StatusCode> {
+    // let q = "server-data.bonsaidb";
+    match std::fs::read("server-data.bonsaidb/pinned-certificate.der") {
+        Err(_e) => Err(StatusCode::NOT_FOUND),
+        Ok(data) => Ok(data),
+    }
 }
