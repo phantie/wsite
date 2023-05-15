@@ -17,6 +17,7 @@ use bonsaidb::core::schema::ViewMappedValue;
 use bonsaidb::core::schema::ViewSchema;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::AsyncDatabase;
+use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -162,15 +163,26 @@ impl Database {
     }
 }
 
-pub fn load_certificate() -> fabruic::Certificate {
+pub async fn load_certificate() -> fabruic::Certificate {
     // include_bytes!("../../database/http_server/server-data.bonsaidb/pinned-certificate.der");
 
     // TODO if database does not exists, it panics
-    let f = std::fs::read("../database/http_server/server-data.bonsaidb/pinned-certificate.der")
-        .unwrap()
-        .try_into()
-        .unwrap();
-    f
+    let r = reqwest::get("http://localhost:3000/cert").await.unwrap();
+
+    match r.status() {
+        StatusCode::OK => {
+            let c: fabruic::Certificate = r.bytes().await.unwrap().to_vec().try_into().unwrap();
+            c
+        }
+        StatusCode::NOT_FOUND => panic!("database has no volumes"),
+        _ => unimplemented!(),
+    }
+
+    // let f = std::fs::read("../database/http_server/server-data.bonsaidb/pinned-certificate.der")
+    //     .unwrap()
+    //     .try_into()
+    //     .unwrap();
+    // f
 }
 
 pub struct RemoteDatabase {
@@ -200,7 +212,7 @@ impl RemoteClient {
         let client = bonsaidb::client::Client::build(
             bonsaidb::client::url::Url::parse(&params.url).unwrap(),
         )
-        .with_certificate(load_certificate())
+        .with_certificate(load_certificate().await)
         .finish()?;
 
         let admin_password = params.password;
