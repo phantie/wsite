@@ -1,4 +1,8 @@
-use crate::{configuration::Settings, database::*, email_client::EmailClient};
+use crate::{
+    configuration::{get_configuration, Settings},
+    database::*,
+    email_client::EmailClient,
+};
 use static_routes::*;
 
 use axum::{
@@ -270,12 +274,15 @@ impl Application {
                 .serve(app.into_make_service())
         }
 
+        let conf = get_configuration();
+
         let remote_database = RemoteDatabase::configure(
             "abada-dabada",
             RemoteClientParams {
-                url: "bonsaidb://209.38.192.88".into(),
+                // url: "bonsaidb://209.38.192.88".into(),
+                url: format!("bonsaidb://{}", conf.database.host),
                 // url: "bonsaidb://165.22.74.247".into(),
-                password: "1".into(),
+                password: conf.database.password,
             },
         )
         .await
