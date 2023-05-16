@@ -6,13 +6,14 @@ pub async fn change_password(
     session: ReadableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(form): Json<PasswordChangeForm>,
-) -> Result<(), ApiError> {
+) -> Result<impl IntoResponse, ApiError> {
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
-        None.context("You entered two different new passwords - the field values must match.")
-            .map_err(ApiError::AuthError)?
+        Err(ApiError::AuthError(anyhow::anyhow!(
+            "You entered two different new passwords - the field values must match"
+        )))?
     }
 
-    let user_id: u64 = reject_anonymous_users(&session).map_err(ApiError::AuthError)?;
+    let user_id: u64 = reject_anonymous_users(&session)?;
 
     let _: Result<_, ApiError> = HangingStrategy::long_linear()
         .execute(

@@ -7,7 +7,7 @@ use crate::{
 #[axum_macros::debug_handler]
 #[tracing::instrument(
     name = "Adding a new subscriber",
-    skip(maybe_form, state),
+    skip_all,
     fields(
         subscriber_email = tracing::field::Empty,
         subscriber_name = tracing::field::Empty
@@ -58,10 +58,7 @@ impl TryFrom<FormData> for NewSubscriber {
     }
 }
 
-#[tracing::instrument(
-    name = "Send a confirmation email to a new subscriber",
-    skip(email_client, new_subscriber)
-)]
+#[tracing::instrument(name = "Send a confirmation email to a new subscriber", skip_all)]
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: &NewSubscriber,

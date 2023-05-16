@@ -5,7 +5,7 @@ pub struct Parameters {
     pub subscription_token: String,
 }
 
-#[tracing::instrument(name = "Confirm a pending subscriber", skip(state, parameters))]
+#[tracing::instrument(name = "Confirm a pending subscriber", skip_all)]
 pub async fn sub_confirm(
     State(state): State<AppState>,
     Query(parameters): Query<Parameters>,

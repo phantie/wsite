@@ -29,7 +29,7 @@ impl From<Authorization<Basic>> for Credentials {
 
 #[tracing::instrument(
     name = "Validate credentials",
-    skip(credentials, shared_database)
+    skip_all,
     fields(
         success = tracing::field::Empty
     )
@@ -76,10 +76,7 @@ pub async fn validate_credentials(
     Ok(user_id.unwrap())
 }
 
-#[tracing::instrument(
-    name = "Verify password hash",
-    skip(expected_password_hash, password_candidate)
-)]
+#[tracing::instrument(name = "Verify password hash", skip_all)]
 /// It's a slow operation, 10ms kind of slow.
 fn verify_password_hash(
     expected_password_hash: SecretString,
@@ -109,11 +106,11 @@ pub fn compute_password_hash(password: SecretString) -> Result<SecretString, any
     Ok(SecretString::new(password_hash))
 }
 
-pub fn reject_anonymous_users(session: &ReadableSession) -> Result<u64, anyhow::Error> {
+pub fn reject_anonymous_users(session: &ReadableSession) -> Result<u64, ApiError> {
     let user_id: Option<u64> = session.get("user_id");
 
     match user_id {
-        None => Err(anyhow::anyhow!("User not logged in")),
+        None => Err(ApiError::AuthError(anyhow::anyhow!("User not logged in"))),
         Some(id) => Ok(id),
     }
 }

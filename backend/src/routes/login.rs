@@ -2,7 +2,7 @@ use crate::routes::imports::*;
 use interfacing::LoginForm;
 
 #[tracing::instrument(
-    skip(maybe_form, session, shared_database),
+    skip_all,
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 #[axum_macros::debug_handler]

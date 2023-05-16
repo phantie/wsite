@@ -1,11 +1,9 @@
 mod articles;
-mod dashboard;
 mod logout;
 mod password;
 mod session;
 mod subs;
 pub use articles::*;
-pub use dashboard::*;
 pub use logout::*;
 pub use password::*;
 pub use session::*;

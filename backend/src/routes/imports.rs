@@ -14,7 +14,7 @@ pub use axum::{
     },
     headers::{authorization::Basic, Authorization},
     http::{header, StatusCode},
-    response::{Html, IntoResponse, Redirect, Response},
+    response::{IntoResponse, Response},
 };
 pub use axum_sessions::extractors::{ReadableSession, WritableSession};
 pub use database_common::schema;
