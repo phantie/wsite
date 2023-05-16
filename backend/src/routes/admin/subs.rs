@@ -1,11 +1,11 @@
 use crate::routes::imports::*;
 
-#[tracing::instrument(name = "Getting all the subscribers", skip(state, session))]
+#[tracing::instrument(name = "Getting all the subscribers", skip_all)]
 pub async fn all_subs(
     State(state): State<AppState>,
     session: ReadableSession,
-) -> Json<Vec<Subscription>> {
-    let _user_id: u64 = reject_anonymous_users(&session).unwrap();
+) -> Result<Json<Vec<Subscription>>, ApiError> {
+    reject_anonymous_users(&session)?;
 
     let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)
         .await
@@ -16,5 +16,5 @@ pub async fn all_subs(
         .map(|doc| doc.contents)
         .collect::<Vec<_>>();
 
-    Json(subscriptions_contents)
+    Ok(Json(subscriptions_contents))
 }

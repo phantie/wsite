@@ -17,13 +17,11 @@ pub async fn new_article(
     State(state): State<AppState>,
     session: ReadableSession,
     Json(body): Json<interfacing::Article>,
-) -> Response {
-    if let Err(_) = reject_anonymous_users(&session) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    reject_anonymous_users(&session)?;
 
     if !valid_article(&body) {
-        return StatusCode::BAD_REQUEST.into_response();
+        return Ok(StatusCode::BAD_REQUEST);
     }
 
     let articles = &state.database.collections.articles;
@@ -37,7 +35,7 @@ pub async fn new_article(
     .await
     .unwrap();
 
-    StatusCode::OK.into_response()
+    Ok(StatusCode::OK)
 }
 
 #[axum_macros::debug_handler]
@@ -45,13 +43,11 @@ pub async fn update_article(
     State(state): State<AppState>,
     session: ReadableSession,
     Json(body): Json<interfacing::Article>,
-) -> Response {
-    if let Err(_) = reject_anonymous_users(&session) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    reject_anonymous_users(&session)?;
 
     if !valid_article(&body) {
-        return StatusCode::BAD_REQUEST.into_response();
+        return Ok(StatusCode::BAD_REQUEST);
     }
 
     let articles = &state.database.collections.articles;
@@ -64,14 +60,14 @@ pub async fn update_article(
         .unwrap();
 
     match mapped_articles.into_iter().next() {
-        None => StatusCode::NOT_FOUND.into_response(),
+        None => Ok(StatusCode::NOT_FOUND),
         Some(mapped_doc) => {
             let mut doc = mapped_doc.document.clone();
             doc.contents.title = body.title;
             doc.contents.markdown = body.markdown;
             doc.contents.draft = body.draft;
             doc.update_async(articles).await.unwrap();
-            StatusCode::OK.into_response()
+            Ok(StatusCode::OK)
         }
     }
 }
@@ -81,10 +77,8 @@ pub async fn delete_article(
     State(state): State<AppState>,
     session: ReadableSession,
     Path(public_id): Path<String>,
-) -> Response {
-    if let Err(_) = reject_anonymous_users(&session) {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
+) -> Result<impl IntoResponse, ApiError> {
+    reject_anonymous_users(&session)?;
 
     let articles = &state.database.collections.articles;
 
@@ -96,10 +90,10 @@ pub async fn delete_article(
         .unwrap();
 
     match mapped_articles.into_iter().next() {
-        None => StatusCode::NOT_FOUND.into_response(),
+        None => Ok(StatusCode::NOT_FOUND),
         Some(mapped_doc) => {
             mapped_doc.document.delete_async(articles).await.unwrap();
-            StatusCode::OK.into_response()
+            Ok(StatusCode::OK)
         }
     }
 }

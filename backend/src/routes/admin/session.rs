@@ -9,7 +9,7 @@ pub async fn admin_session(
     std::thread::sleep(std::time::Duration::from_millis(100));
 
     let session = match session.get("user_id") {
-        None => return None.context("Session missing")?,
+        None => Err(ApiError::AuthError(anyhow::anyhow!("Session missing")))?,
         Some(user_id) => {
             let user = HangingStrategy::default()
                 .execute(
