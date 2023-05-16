@@ -8,3 +8,7 @@ application:
 
 email_client:
     authorization_token: "preciously-secret"
+
+database:
+    host: "localhost"
+    password: "1"

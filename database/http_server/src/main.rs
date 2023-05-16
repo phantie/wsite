@@ -17,6 +17,7 @@ use tokio::{sync::RwLock, task::JoinHandle};
 use tower_http::add_extension::AddExtensionLayer;
 mod database;
 use database_common::schema;
+mod external_server;
 
 struct HostedDatabase {
     inner: CurrentDatabase,
@@ -27,6 +28,7 @@ enum CurrentDatabase {
     Setup {
         server: CustomServer,
         handle: JoinHandle<Result<(), bonsaidb::server::Error>>,
+        external_server_handle: JoinHandle<hyper::Result<()>>,
     },
     None,
 }
@@ -83,19 +85,31 @@ impl HostedDatabase {
             })
         };
 
+        let external_server_handle = tokio::spawn(external_server::serve());
+
         // println!(
         //     "new handle is_running: {}, id: {:?}",
         //     !handle.is_finished(),
         //     handle
         // );
 
-        self.inner = CurrentDatabase::Setup { server, handle };
+        self.inner = CurrentDatabase::Setup {
+            server,
+            handle,
+            external_server_handle,
+        };
         self.number += 1;
     }
 
     async fn stop(&mut self) -> anyhow::Result<()> {
-        if let CurrentDatabase::Setup { handle, server } = &self.inner {
+        if let CurrentDatabase::Setup {
+            handle,
+            server,
+            external_server_handle,
+        } = &self.inner
+        {
             handle.abort();
+            external_server_handle.abort();
             server.shutdown(Some(Duration::from_secs(1))).await?;
             self.inner = CurrentDatabase::None;
             println!("database has been stopped");
@@ -130,7 +144,6 @@ async fn main() -> hyper::Result<()> {
     let app = Router::new()
         .route("/", get(root))
         .route("/health", get(health_check))
-        .route("/cert", get(certificate))
         .route("/database/info", get(database_info))
         .route("/database/users/", post(update_database_user_password))
         .route("/database/backup", get(backup_database))
@@ -295,13 +308,4 @@ async fn stop_database(Extension(database_server): Extension<SharedHostedDatabas
 #[axum_macros::debug_handler]
 async fn reset_database(Extension(database_server): Extension<SharedHostedDatabase>) {
     database_server.write().await.reset().await.unwrap();
-}
-
-#[axum_macros::debug_handler]
-async fn certificate() -> Result<Vec<u8>, StatusCode> {
-    // let q = "server-data.bonsaidb";
-    match std::fs::read("server-data.bonsaidb/pinned-certificate.der") {
-        Err(_e) => Err(StatusCode::NOT_FOUND),
-        Ok(data) => Ok(data),
-    }
 }

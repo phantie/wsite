@@ -5,6 +5,7 @@ pub use bonsaidb::core::schema::SerializedCollection;
 pub use bonsaidb::local::config::Builder;
 pub use bonsaidb::local::AsyncStorage;
 
+use crate::configuration::get_configuration;
 use crate::timeout::TimeoutStrategy;
 use bonsaidb::client::Client;
 use bonsaidb::core::document::BorrowedDocument;
@@ -167,7 +168,9 @@ pub async fn load_certificate() -> fabruic::Certificate {
     // include_bytes!("../../database/http_server/server-data.bonsaidb/pinned-certificate.der");
 
     // TODO if database does not exists, it panics
-    let r = reqwest::get("http://209.38.192.88:3000/cert")
+    let conf = get_configuration();
+
+    let r = reqwest::get(format!("http://{}:4000/cert", conf.database.host))
         .await
         .unwrap();
 
@@ -176,7 +179,7 @@ pub async fn load_certificate() -> fabruic::Certificate {
             let c: fabruic::Certificate = r.bytes().await.unwrap().to_vec().try_into().unwrap();
             c
         }
-        StatusCode::NOT_FOUND => panic!("database has no volumes"),
+        StatusCode::NOT_FOUND => panic!("database has no volumes, or else"),
         _ => unimplemented!(),
     }
 

@@ -14,6 +14,8 @@ testing:
     database:
         dir: "target/tmp/test/basic.bonsaidb"
         memory_only: true
+        host: "NULL:FIX"
+        password: "NULL:FIX"
 
     application:
         port: 0

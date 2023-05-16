@@ -2,6 +2,8 @@
 # REQUIRES:
 # APP__APPLICATION__BASE_URL
 # APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN
+# APP__DATABASE__HOST
+# APP__DATABASE__PASSWORD
 
 application:
     host: 0.0.0.0
@@ -9,3 +11,7 @@ application:
 email_client:
     base_url: "https://api.postmarkapp.com"
     sender_email: "phantie@phantie.com"
+
+
+database:
+    host: "localhost"

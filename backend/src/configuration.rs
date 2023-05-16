@@ -24,12 +24,22 @@ pub struct ApplicationSettings {
 pub struct DatabaseSettings {
     pub dir: String,
     pub memory_only: bool,
+
+    pub host: String,
+    pub password: String,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct Testing {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
+}
+
+pub fn get_env() -> Environment {
+    std::env::var("APP_ENVIRONMENT")
+        .unwrap_or_else(|_| "local".into())
+        .try_into()
+        .expect("Failed to parse APP_ENVIRONMENT.")
 }
 
 pub fn get_configuration() -> Settings {
@@ -53,18 +63,14 @@ pub fn get_configuration() -> Settings {
     };
 
     let configuration_directory = base_path.join("configuration");
-    let environment: Environment = std::env::var("APP_ENVIRONMENT")
-        .unwrap_or_else(|_| "local".into())
-        .try_into()
-        .expect("Failed to parse APP_ENVIRONMENT.");
-    tracing::info!("APP_ENVIRONMENT={}", environment.as_str());
+    let env = get_env();
 
     let config_builder = config::Config::builder()
         .add_source(
             config::File::with_name(&conf_path(&configuration_directory, "base")).required(true),
         )
         .add_source(
-            config::File::with_name(&conf_path(&configuration_directory, environment.as_str()))
+            config::File::with_name(&conf_path(&configuration_directory, env.as_str()))
                 .required(true),
         )
         .add_source(config::Environment::with_prefix("app").separator("__"))
