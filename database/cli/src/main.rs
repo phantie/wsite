@@ -103,10 +103,11 @@ impl Server {
         Ok(())
     }
 
-    fn backup_database(&self) {
+    fn backup_database(&self, backup_location: String) {
         let r = self
             .client
-            .get(format!("http://{}/database/backup", self.addr))
+            .post(format!("http://{}/database/backup/create", self.addr))
+            .json(&interfacing::DatabaseCreateBackup { backup_location })
             .timeout(Duration::from_secs(3))
             .send();
 
@@ -151,11 +152,11 @@ impl Server {
         }
     }
 
-    fn restart_database(&self, backup: Option<String>) {
+    fn restart_database(&self, backup_location: Option<String>) {
         let r = self
             .client
             .post(format!("http://{}/database/restart", self.addr))
-            .json(&interfacing::DatabaseBackup { location: backup })
+            .json(&interfacing::DatabaseRestart { backup_location })
             .timeout(Duration::from_secs(5))
             .send();
 
@@ -209,7 +210,7 @@ enum ServerCommands {
     DatabaseInfo,
     DashboardAdminReplace,
     DatabaseAdminPassword,
-    DatabaseBackupCreate,
+    DatabaseBackupCreate { location: String },
     DatabaseRestart(Option<String>),
     DatabaseStop,
     DatabaseReset,
@@ -223,7 +224,9 @@ impl From<Vec<&str>> for ServerCommands {
             ["http_server", "status"] => Cmd::HTTPServerStatus,
             ["db", "info"] => Cmd::DatabaseInfo,
             ["db", "admin", "password"] => Cmd::DatabaseAdminPassword,
-            ["db", "backup", "create"] => Cmd::DatabaseBackupCreate,
+            ["db", "backup", "create", location] => Cmd::DatabaseBackupCreate {
+                location: location.into(),
+            },
             ["db", "restart", backup] => Cmd::DatabaseRestart(Some(backup.to_owned())),
             ["db", "restart"] => Cmd::DatabaseRestart(None),
             ["db", "stop"] => Cmd::DatabaseStop,
@@ -252,7 +255,7 @@ impl Server {
             }
             Cmd::DashboardAdminReplace => self.replace_dashboard_admin()?,
             Cmd::DatabaseAdminPassword => self.update_database_admin_password()?,
-            Cmd::DatabaseBackupCreate => self.backup_database(),
+            Cmd::DatabaseBackupCreate { location } => self.backup_database(location),
             Cmd::DatabaseRestart(backup) => self.restart_database(backup),
             Cmd::DatabaseStop => self.stop_database(),
             Cmd::DatabaseReset => self.reset_database(),
