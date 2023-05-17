@@ -1,8 +1,8 @@
 use bonsaidb::core::{
     document::{BorrowedDocument, Emit},
     schema::{
-        Collection, ReduceResult, SerializedCollection, View, ViewMapResult, ViewMappedValue,
-        ViewSchema,
+        view::ViewUpdatePolicy, Collection, MapReduce, ReduceResult, SerializedCollection, View,
+        ViewMapResult, ViewMappedValue, ViewSchema,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -26,18 +26,17 @@ pub struct UserByUsername;
 
 impl ViewSchema for UserByUsername {
     type View = Self;
+    type MappedKey<'doc> = <Self::View as View>::Key;
 
+    fn update_policy(&self) -> ViewUpdatePolicy {
+        ViewUpdatePolicy::Unique
+    }
+}
+
+impl MapReduce for UserByUsername {
     fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
         let user = User::document_contents(document)?;
         document.header.emit_key_and_value(user.username, 1)
-    }
-
-    fn version(&self) -> u64 {
-        2
-    }
-
-    fn unique(&self) -> bool {
-        true
     }
 
     fn reduce(
@@ -64,14 +63,17 @@ pub struct ArticleByPublicID;
 
 impl ViewSchema for ArticleByPublicID {
     type View = Self;
+    type MappedKey<'doc> = <Self::View as View>::Key;
 
+    fn update_policy(&self) -> ViewUpdatePolicy {
+        ViewUpdatePolicy::Unique
+    }
+}
+
+impl MapReduce for ArticleByPublicID {
     fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
         let user = Article::document_contents(document)?;
         document.header.emit_key_and_value(user.public_id, 1)
-    }
-
-    fn unique(&self) -> bool {
-        true
     }
 
     fn reduce(

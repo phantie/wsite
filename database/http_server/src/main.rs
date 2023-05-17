@@ -199,7 +199,7 @@ async fn replace_dashboard_user(
 
     let user = users
         .view::<schema::UserByUsername>()
-        .with_key(username.clone())
+        .with_key(&username)
         .query_with_collection_docs()
         .await
         .unwrap();

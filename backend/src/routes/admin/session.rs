@@ -8,7 +8,7 @@ pub async fn admin_session(
 ) -> Result<Json<AdminSession>, ApiError> {
     std::thread::sleep(std::time::Duration::from_millis(100));
 
-    let session = match session.get("user_id") {
+    let session = match session.get::<u64>("user_id") {
         None => Err(ApiError::AuthError(anyhow::anyhow!("Session missing")))?,
         Some(user_id) => {
             let user = HangingStrategy::default()
@@ -16,7 +16,7 @@ pub async fn admin_session(
                     |shared_database| async {
                         async move {
                             let user = schema::User::get_async(
-                                user_id,
+                                &user_id,
                                 &shared_database.read().await.collections.users,
                             )
                             .await?

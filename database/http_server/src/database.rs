@@ -6,9 +6,9 @@ use bonsaidb::server::{Server, ServerConfiguration, ServerDatabase};
 use bonsaidb::{
     core::{
         admin::{PermissionGroup, Role},
-        connection::AsyncStorageConnection,
+        connection::{AsyncStorageConnection, AuthenticationMethod},
         permissions::{
-            bonsai::{AuthenticationMethod, BonsaiAction, ServerAction},
+            bonsai::{BonsaiAction, ServerAction},
             Permissions, Statement,
         },
         schema::{InsertError, SerializedCollection},

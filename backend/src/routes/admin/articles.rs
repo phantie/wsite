@@ -54,7 +54,7 @@ pub async fn update_article(
 
     let mapped_articles = articles
         .view::<schema::ArticleByPublicID>()
-        .with_key(body.public_id)
+        .with_key(&body.public_id)
         .query_with_collection_docs()
         .await
         .unwrap();
@@ -84,7 +84,7 @@ pub async fn delete_article(
 
     let mapped_articles = articles
         .view::<schema::ArticleByPublicID>()
-        .with_key(public_id)
+        .with_key(&public_id)
         .query_with_collection_docs()
         .await
         .unwrap();
@@ -132,7 +132,7 @@ pub async fn article_by_public_id(
 
     let mapped_articles = articles
         .view::<schema::ArticleByPublicID>()
-        .with_key(public_id)
+        .with_key(&public_id)
         .query_with_collection_docs()
         .await
         .unwrap();

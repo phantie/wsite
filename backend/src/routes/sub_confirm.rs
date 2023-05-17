@@ -16,7 +16,7 @@ pub async fn sub_confirm(
 
     let mapped_docs = subscriptions
         .view::<SubscriptionByToken>()
-        .with_key(parameters.subscription_token.to_owned())
+        .with_key(&parameters.subscription_token)
         .query_with_collection_docs()
         .await
         .unwrap();
