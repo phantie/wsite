@@ -24,7 +24,7 @@ pub async fn new_article(
         return Ok(StatusCode::BAD_REQUEST);
     }
 
-    let articles = &shared_database.read().await.collections.articles;
+    let articles = &shared_database.read().await.articles().await?;
     schema::Article {
         title: body.title,
         public_id: body.public_id,
@@ -50,7 +50,7 @@ pub async fn update_article(
         return Ok(StatusCode::BAD_REQUEST);
     }
 
-    let articles = &shared_database.read().await.collections.articles;
+    let articles = &shared_database.read().await.articles().await?;
 
     let mapped_articles = articles
         .view::<schema::ArticleByPublicID>()
@@ -80,7 +80,7 @@ pub async fn delete_article(
 ) -> Result<impl IntoResponse, ApiError> {
     reject_anonymous_users(&session)?;
 
-    let articles = &shared_database.read().await.collections.articles;
+    let articles = &shared_database.read().await.articles().await?;
 
     let mapped_articles = articles
         .view::<schema::ArticleByPublicID>()
@@ -101,8 +101,8 @@ pub async fn delete_article(
 pub async fn article_list(
     session: ReadableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Json<Vec<schema::Article>> {
-    let articles = &shared_database.read().await.collections.articles;
+) -> Result<Json<Vec<schema::Article>>, ApiError> {
+    let articles = &shared_database.read().await.articles().await?;
 
     let docs = schema::Article::all_async(articles).await.unwrap();
 
@@ -121,14 +121,14 @@ pub async fn article_list(
         Err(_) => contents.into_iter().filter(|a| !a.draft).collect(),
     };
 
-    Json(contents)
+    Ok(Json(contents))
 }
 
 pub async fn article_by_public_id(
     Path(public_id): Path<String>,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Response {
-    let articles = &shared_database.read().await.collections.articles;
+) -> Result<Response, ApiError> {
+    let articles = &shared_database.read().await.articles().await?;
 
     let mapped_articles = articles
         .view::<schema::ArticleByPublicID>()
@@ -138,7 +138,7 @@ pub async fn article_by_public_id(
         .unwrap();
 
     match mapped_articles.into_iter().next() {
-        None => StatusCode::NOT_FOUND.into_response(),
-        Some(article) => Json(&article.document.contents).into_response(),
+        None => Ok(StatusCode::NOT_FOUND.into_response()),
+        Some(article) => Ok(Json(&article.document.contents).into_response()),
     }
 }

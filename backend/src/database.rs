@@ -1,9 +1,13 @@
 pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::connection::AsyncStorageConnection;
+use bonsaidb::core::connection::HasSession;
+use bonsaidb::core::connection::SensitiveString;
+use bonsaidb::core::connection::SessionAuthentication;
 pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
 pub use bonsaidb::local::config::Builder;
 pub use bonsaidb::local::AsyncStorage;
+use tokio::sync::RwLock;
 
 use crate::configuration::get_configuration;
 use crate::timeout::TimeoutStrategy;
@@ -24,6 +28,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
+use std::unreachable;
 use tokio::task::JoinHandle;
 
 use database_common::schema;
@@ -148,10 +153,9 @@ pub async fn load_certificate() -> fabruic::Certificate {
 }
 
 pub struct RemoteDatabase {
-    client: AsyncClient,
+    pub bare_client: RwLock<RemoteClient>,
     name: String,
     client_params: RemoteClientParams,
-    pub collections: RemoteCollections,
     pub id: u32,
     ping_handle: JoinHandle<()>,
 }
@@ -159,27 +163,105 @@ pub struct RemoteDatabase {
 #[derive(Clone)]
 pub struct RemoteClientParams {
     pub url: String,
-    pub password: String,
+    pub password: SensitiveString,
 }
 
-pub struct RemoteClient {}
+#[derive(Clone)]
+pub struct RemoteClient {
+    inner: bonsaidb::client::AsyncClient,
+    password: SensitiveString,
+}
 
 impl RemoteClient {
-    pub async fn create(
-        params: RemoteClientParams,
-    ) -> anyhow::Result<bonsaidb::client::AsyncClient> {
-        use bonsaidb::core::{
-            admin::Role,
-            connection::{Authentication, SensitiveString},
-        };
-
+    pub async fn create(params: RemoteClientParams) -> anyhow::Result<Self> {
         let client = bonsaidb::client::AsyncClient::build(
             bonsaidb::client::url::Url::parse(&params.url).unwrap(),
         )
         .with_certificate(load_certificate().await)
+        .with_connect_timeout(Duration::from_secs(5))
+        .with_request_timeout(Duration::from_secs(3))
         .build()?;
 
-        let admin_password = params.password;
+        Ok(Self {
+            inner: client,
+            password: params.password,
+        })
+    }
+}
+
+// impl AsRef<AsyncClient> for RemoteDatabase {
+//     fn as_ref(&self) -> &AsyncClient {
+//         &self.bare_client.read().await.inner
+//     }
+// }
+
+pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;
+
+#[async_trait::async_trait]
+pub trait Ping {
+    async fn ping(&self) -> anyhow::Result<()>;
+}
+
+#[async_trait::async_trait]
+impl Ping for AsyncClient {
+    async fn ping(&self) -> anyhow::Result<()> {
+        // match self.list_databases().await {
+        //     Ok(_) => Ok(()),
+        //     Err(e) => Err(e)?,
+        // }
+        Ok(())
+    }
+}
+
+#[allow(non_upper_case_globals)]
+static mut RemoteDatabaseID: AtomicU32 = AtomicU32::new(0);
+
+impl RemoteDatabase {
+    pub async fn shapes(&self) -> anyhow::Result<bonsaidb::client::AsyncRemoteDatabase> {
+        Ok(self
+            .client()
+            .await?
+            .database::<schema::Shape>("shapes")
+            .await?)
+    }
+
+    pub async fn users(&self) -> anyhow::Result<bonsaidb::client::AsyncRemoteDatabase> {
+        Ok(self
+            .client()
+            .await?
+            .database::<schema::User>("users")
+            .await?)
+    }
+
+    pub async fn articles(&self) -> anyhow::Result<bonsaidb::client::AsyncRemoteDatabase> {
+        Ok(self
+            .client()
+            .await?
+            .database::<schema::Article>("articles")
+            .await?)
+    }
+
+    pub async fn client(&self) -> anyhow::Result<bonsaidb::client::AsyncClient> {
+        use bonsaidb::core::{admin::Role, connection::Authentication};
+
+        let client = self.bare_client.read().await.inner.clone();
+
+        // if let Some(_session) = client.session() {
+        //     dbg!(_session);
+        //     return Ok(client);
+        // }
+
+        match client.session() {
+            None => {}
+            Some(bonsaidb::core::connection::Session { authentication, .. }) => {
+                match authentication {
+                    SessionAuthentication::None => {}
+                    _ => return Ok(client),
+                }
+            }
+        }
+
+        let admin_password = self.bare_client.read().await.password.clone();
 
         let client = TimeoutStrategy::Once {
             timeout: Duration::from_secs(5),
@@ -187,7 +269,7 @@ impl RemoteClient {
         .execute(|| {
             client.authenticate(Authentication::Password {
                 user: "admin".into(),
-                password: SensitiveString(admin_password.clone().into()),
+                password: admin_password.clone(),
             })
         })
         .await??;
@@ -196,46 +278,12 @@ impl RemoteClient {
             .execute(|| Role::assume_identity_async("superuser", &client))
             .await??;
 
-        tracing::info!("Authenticated client as superuser");
+        self.bare_client.write().await.inner = client.clone();
 
+        tracing::info!("Authenticated client as superuser");
         Ok(client)
     }
-}
 
-// SCHEMA TWEAK
-pub struct RemoteCollections {
-    pub shapes: bonsaidb::client::AsyncRemoteDatabase,
-    pub users: bonsaidb::client::AsyncRemoteDatabase,
-    pub articles: bonsaidb::client::AsyncRemoteDatabase,
-}
-
-impl AsRef<AsyncClient> for RemoteDatabase {
-    fn as_ref(&self) -> &AsyncClient {
-        &self.client
-    }
-}
-
-pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;
-
-#[async_trait::async_trait]
-pub trait Ping {
-    async fn ping(&self) -> Result<(), anyhow::Error>;
-}
-
-#[async_trait::async_trait]
-impl Ping for AsyncClient {
-    async fn ping(&self) -> anyhow::Result<()> {
-        match self.list_databases().await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e)?,
-        }
-    }
-}
-
-#[allow(non_upper_case_globals)]
-static mut RemoteDatabaseID: AtomicU32 = AtomicU32::new(0);
-
-impl RemoteDatabase {
     pub async fn configure(name: &str, params: RemoteClientParams) -> anyhow::Result<Self> {
         let client = RemoteClient::create(params.clone()).await?;
 
@@ -245,7 +293,9 @@ impl RemoteDatabase {
             let client = client.clone();
             let ping_handle = tokio::task::spawn(async move {
                 loop {
-                    let ping = TimeoutStrategy::default().execute(|| client.ping()).await;
+                    let ping = TimeoutStrategy::default()
+                        .execute(|| client.inner.ping())
+                        .await;
 
                     match ping {
                         Ok(o) => match o {
@@ -262,21 +312,13 @@ impl RemoteDatabase {
         };
 
         // SCHEMA TWEAK
-        let shapes = client.database::<schema::Shape>("shapes").await?;
-        let users = client.database::<schema::User>("users").await?;
-        let articles = client.database::<schema::Article>("articles").await?;
 
         let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
         unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };
 
         Ok(Self {
-            client,
+            bare_client: RwLock::new(client),
             name: name.into(),
-            collections: RemoteCollections {
-                shapes,
-                users,
-                articles,
-            },
             client_params: params,
             ping_handle,
             id,
@@ -287,26 +329,10 @@ impl RemoteDatabase {
         self.ping_handle.abort();
         let renewed = Self::configure(&self.name, self.client_params.clone()).await?;
 
-        self.client = renewed.client;
-        self.collections = renewed.collections;
+        self.bare_client = renewed.bare_client;
         self.id = renewed.id;
         self.ping_handle = renewed.ping_handle;
 
         Ok(())
-    }
-
-    pub async fn request_database<DB: bonsaidb::core::schema::Schema>(
-        &self,
-    ) -> ClientResult<bonsaidb::client::AsyncRemoteDatabase> {
-        self.client.database::<DB>(&self.name).await
-    }
-
-    pub async fn request_create_collection<DB: bonsaidb::core::schema::Schema>(
-        &self,
-        only_if_needed: bool,
-    ) -> ClientResult<bonsaidb::client::AsyncRemoteDatabase> {
-        self.client
-            .create_database::<DB>(&self.name, only_if_needed)
-            .await
     }
 }

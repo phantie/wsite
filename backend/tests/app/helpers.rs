@@ -1,7 +1,6 @@
 use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use api_aga_in::startup::Application;
-use api_aga_in::telemetry;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use database_common::schema::*;
 use hyper::StatusCode;

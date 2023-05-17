@@ -23,9 +23,6 @@ tokio = { version = "1.26.0", features = ["rt", "macros"] }
 tower = "0.4.13"
 tower-http = { version = "0.4.0", features = ["trace", "request-id", "add-extension", "util"] }
 tracing = { version = "0.1.37", features = ["log"] }
-tracing-bunyan-formatter = "0.3.6"
-tracing-log = "0.1.3"
-tracing-subscriber = { version = "0.3.16", features = ["registry", "env-filter"] }
 serde-aux = "4.1.2"
 unicode-segmentation = "1.10.1"
 validator = "0.16.0"
@@ -46,6 +43,7 @@ async-trait = "0.1.68"
 database_common.workspace = true
 static_routes.workspace = true
 interfacing.workspace = true
+telemetry.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true

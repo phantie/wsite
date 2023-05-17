@@ -9,3 +9,4 @@ edition = "2021"
 static_routes = { path = "static_routes" }
 interfacing = { path = "interfacing" }
 database_common = { path = "database_common" }
+telemetry = { path = "telemetry" }

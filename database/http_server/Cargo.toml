@@ -14,6 +14,7 @@ tower-http = { version = "0.4.0", features = ["add-extension"] }
 axum-macros = "0.3.6"
 argon2 = { version = "0.5.0", features = ["std"] }
 rand = { version = "0.8.5", features = ["std_rng"] }
+tempdir = "0.3.7"
 
 serde.workspace = true
 secrecy.workspace = true
@@ -21,4 +22,4 @@ database_common.workspace = true
 bonsaidb.workspace = true
 interfacing.workspace = true
 anyhow.workspace = true
-tempdir = "0.3.7"
+telemetry.workspace = true

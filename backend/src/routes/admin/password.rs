@@ -20,7 +20,7 @@ pub async fn change_password(
             |shared_database| async {
                 let form = form.clone();
                 async move {
-                    let users = &shared_database.read().await.collections.users;
+                    let users = &shared_database.read().await.users().await?;
                     let mut user = schema::User::get_async(&user_id, users)
                         .await?
                         .context("dangling user in session")?;
@@ -33,8 +33,7 @@ pub async fn change_password(
 
                     let password_hash = compute_password_hash(form.new_password)?;
                     user.contents.password_hash = password_hash.expose_secret().to_owned();
-                    user.update_async(&shared_database.read().await.collections.users)
-                        .await?;
+                    user.update_async(users).await?;
                     Ok(())
                 }
                 .await

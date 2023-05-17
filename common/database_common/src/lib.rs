@@ -10,4 +10,10 @@ pub fn public_certificate_name() -> PathBuf {
     PathBuf::from("pinned-certificate.der")
 }
 
+mod pointer;
 pub mod schema;
+use pointer::DatabasePointer;
+
+pub fn users_pointer() -> DatabasePointer<schema::User> {
+    DatabasePointer::new("users".into())
+}

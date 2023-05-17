@@ -13,7 +13,7 @@ use axum_sessions::{
     async_session::{async_trait, Session, SessionStore},
     SessionLayer,
 };
-use bonsaidb::core::keyvalue::AsyncKeyValue;
+use bonsaidb::core::{connection::SensitiveString, keyvalue::AsyncKeyValue};
 use secrecy::ExposeSecret;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -279,10 +279,8 @@ impl Application {
         let remote_database = RemoteDatabase::configure(
             "abada-dabada",
             RemoteClientParams {
-                // url: "bonsaidb://209.38.192.88".into(),
                 url: format!("bonsaidb://{}", conf.database.host),
-                // url: "bonsaidb://165.22.74.247".into(),
-                password: conf.database.password,
+                password: SensitiveString::from(conf.database.password),
             },
         )
         .await

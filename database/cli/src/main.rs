@@ -124,7 +124,7 @@ impl Server {
         let r = self
             .client
             .get(format!("http://{}/database/stop", self.addr))
-            .timeout(Duration::from_secs(3))
+            .timeout(Duration::from_secs(10))
             .send();
 
         match r {
@@ -132,7 +132,10 @@ impl Server {
                 StatusCode::OK => println!("database has been stopped"),
                 _ => unimplemented!(),
             },
-            Err(_e) => unimplemented!(),
+            Err(_e) => {
+                dbg!(_e);
+                ()
+            }
         }
     }
 

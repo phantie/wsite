@@ -17,7 +17,7 @@ pub async fn admin_session(
                         async move {
                             let user = schema::User::get_async(
                                 &user_id,
-                                &shared_database.read().await.collections.users,
+                                &shared_database.read().await.users().await?,
                             )
                             .await?
                             .context("dangling user_id in session")?;

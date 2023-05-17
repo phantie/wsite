@@ -108,9 +108,9 @@ impl HostedDatabase {
             external_server_handle,
         } = &self.inner
         {
+            server.shutdown(Some(Duration::from_secs(5))).await?;
             handle.abort();
             external_server_handle.abort();
-            server.shutdown(Some(Duration::from_secs(1))).await?;
             self.inner = CurrentDatabase::None;
             println!("database has been stopped");
         }
@@ -131,13 +131,16 @@ type SharedHostedDatabase = Arc<RwLock<HostedDatabase>>;
 
 #[tokio::main]
 async fn main() -> hyper::Result<()> {
+    let subscriber = telemetry::TracingSubscriber::new("db_server").build(std::io::stdout);
+    telemetry::init_global_default(subscriber);
+
     #[allow(unused_mut)]
     let mut hosted_database = HostedDatabase {
         inner: CurrentDatabase::None,
         number: 0,
     };
 
-    // hosted_database.restart(None).await;
+    hosted_database.restart(None).await;
 
     let hosted_database = SharedHostedDatabase::new(RwLock::new(hosted_database));
 

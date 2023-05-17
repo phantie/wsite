@@ -216,14 +216,12 @@ dependencies = [
  "serde_json",
  "serial_test",
  "static_routes",
+ "telemetry",
  "thiserror",
  "tokio",
  "tower",
  "tower-http 0.4.0",
  "tracing",
- "tracing-bunyan-formatter",
- "tracing-log",
- "tracing-subscriber",
  "unicode-segmentation",
  "uuid",
  "validator",
@@ -798,6 +796,7 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.23.4",
  "tokio-tungstenite",
+ "tracing",
 ]
 
 [[package]]
@@ -1000,6 +999,7 @@ dependencies = [
  "database_common",
  "interfacing",
  "static_routes",
+ "telemetry",
 ]
 
 [[package]]
@@ -2297,6 +2297,7 @@ dependencies = [
  "rand 0.8.5",
  "secrecy",
  "serde",
+ "telemetry",
  "tempdir",
  "tokio",
  "tower-http 0.4.0",
@@ -4371,6 +4372,16 @@ dependencies = [
  "ntapi",
  "once_cell",
  "winapi",
+]
+
+[[package]]
+name = "telemetry"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "tracing-bunyan-formatter",
+ "tracing-log",
+ "tracing-subscriber",
 ]
 
 [[package]]

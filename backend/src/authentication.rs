@@ -2,6 +2,7 @@ use crate::{
     database::*, error::ApiError, startup::SharedRemoteDatabase,
     telemetry::spawn_blocking_with_tracing,
 };
+
 use anyhow::Context;
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, Params, PasswordHash, PasswordHasher,
@@ -46,7 +47,7 @@ pub async fn validate_credentials(
             .to_string(),
     );
 
-    let users = &shared_database.read().await.collections.users;
+    let users = &shared_database.read().await.users().await?;
 
     let mapped_users = users
         .view::<schema::UserByUsername>()

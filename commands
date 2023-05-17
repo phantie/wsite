@@ -21,3 +21,7 @@ doctl apps update $APP_ID --spec spec.yaml
 doctl apps spec get $APP_ID
 # Redeploy
 doctl apps create-deployment $APP_ID
+# List snapshots
+doctl compute snapshot list -o json
+# Delete snapshot 
+doctl compute snapshot delete $ID
