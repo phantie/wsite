@@ -14,8 +14,8 @@ fn valid_article(article: &interfacing::Article) -> bool {
 
 #[axum_macros::debug_handler]
 pub async fn new_article(
-    State(state): State<AppState>,
     session: ReadableSession,
+    Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<interfacing::Article>,
 ) -> Result<impl IntoResponse, ApiError> {
     reject_anonymous_users(&session)?;
@@ -24,8 +24,8 @@ pub async fn new_article(
         return Ok(StatusCode::BAD_REQUEST);
     }
 
-    let articles = &state.database.collections.articles;
-    Article {
+    let articles = &shared_database.read().await.collections.articles;
+    schema::Article {
         title: body.title,
         public_id: body.public_id,
         markdown: body.markdown,
@@ -40,8 +40,8 @@ pub async fn new_article(
 
 #[axum_macros::debug_handler]
 pub async fn update_article(
-    State(state): State<AppState>,
     session: ReadableSession,
+    Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<interfacing::Article>,
 ) -> Result<impl IntoResponse, ApiError> {
     reject_anonymous_users(&session)?;
@@ -50,10 +50,10 @@ pub async fn update_article(
         return Ok(StatusCode::BAD_REQUEST);
     }
 
-    let articles = &state.database.collections.articles;
+    let articles = &shared_database.read().await.collections.articles;
 
     let mapped_articles = articles
-        .view::<ArticleByPublicID>()
+        .view::<schema::ArticleByPublicID>()
         .with_key(body.public_id)
         .query_with_collection_docs()
         .await
@@ -74,16 +74,16 @@ pub async fn update_article(
 
 #[axum_macros::debug_handler]
 pub async fn delete_article(
-    State(state): State<AppState>,
     session: ReadableSession,
     Path(public_id): Path<String>,
+    Extension(shared_database): Extension<SharedRemoteDatabase>,
 ) -> Result<impl IntoResponse, ApiError> {
     reject_anonymous_users(&session)?;
 
-    let articles = &state.database.collections.articles;
+    let articles = &shared_database.read().await.collections.articles;
 
     let mapped_articles = articles
-        .view::<ArticleByPublicID>()
+        .view::<schema::ArticleByPublicID>()
         .with_key(public_id)
         .query_with_collection_docs()
         .await
@@ -99,12 +99,12 @@ pub async fn delete_article(
 }
 
 pub async fn article_list(
-    State(state): State<AppState>,
     session: ReadableSession,
-) -> Json<Vec<Article>> {
-    let docs = Article::all_async(&state.database.collections.articles)
-        .await
-        .unwrap();
+    Extension(shared_database): Extension<SharedRemoteDatabase>,
+) -> Json<Vec<schema::Article>> {
+    let articles = &shared_database.read().await.collections.articles;
+
+    let docs = schema::Article::all_async(articles).await.unwrap();
 
     // for doc in docs {
     //     let _r = doc
@@ -125,13 +125,13 @@ pub async fn article_list(
 }
 
 pub async fn article_by_public_id(
-    State(state): State<AppState>,
     Path(public_id): Path<String>,
+    Extension(shared_database): Extension<SharedRemoteDatabase>,
 ) -> Response {
-    let articles = &state.database.collections.articles;
+    let articles = &shared_database.read().await.collections.articles;
 
     let mapped_articles = articles
-        .view::<ArticleByPublicID>()
+        .view::<schema::ArticleByPublicID>()
         .with_key(public_id)
         .query_with_collection_docs()
         .await
