@@ -105,34 +105,34 @@ async fn setup_certificate(server: &CustomServer) -> anyhow::Result<()> {
 }
 
 async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
-    // server.restore(PathBuf::from("backup")).await?;
-
+    // SCHEMA TWEAK
     let _: ServerDatabase = server
         .create_database::<schema::Shape>("shapes", true)
         .await?;
     let _: ServerDatabase = server
         .create_database::<schema::User>("users", true)
         .await?;
+    let _: ServerDatabase = server
+        .create_database::<schema::Article>("articles", true)
+        .await?;
     Ok(())
 }
 
 pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
     let storage_location = database_common::storage_location();
+
     match &backup {
         None => {}
         Some(backup_location) => {
             let tmp_dir = tempdir::TempDir::new("restored-server-data")?;
-            let configuration = ServerConfiguration::new(tmp_dir.path())
-                .with_schema::<schema::Shape>()?
-                .with_schema::<schema::User>()?;
+            let configuration = ServerConfiguration::new(tmp_dir.path());
+            let configuration = register_schemas(configuration)?;
 
-            let s = Server::open(configuration).await?;
+            let server = Server::open(configuration).await?;
 
-            println!("1");
             let backup_location = PathBuf::from(backup_location);
-            s.restore(backup_location.clone()).await?;
+            server.restore(backup_location.clone()).await?;
 
-            println!("2");
             std::fs::copy(
                 backup_location.join(database_common::public_certificate_name()),
                 tmp_dir
@@ -140,42 +140,41 @@ pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
                     .join(database_common::public_certificate_name()),
             )?;
 
-            println!("3");
-            s.shutdown(Some(Duration::from_secs(1))).await?;
+            server.shutdown(Some(Duration::from_secs(1))).await?;
 
-            println!("4");
             if std::path::Path::new(&storage_location).exists() {
                 std::fs::remove_dir_all(&storage_location)?;
             }
 
-            println!("5");
             std::fs::rename(tmp_dir, &storage_location)?;
-
-            println!("6");
         }
     };
 
-    let configuration = ServerConfiguration::new(storage_location)
-        .default_permissions(Permissions::from(
+    let configuration =
+        ServerConfiguration::new(storage_location).default_permissions(Permissions::from(
             Statement::for_any()
                 .allowing(&BonsaiAction::Server(ServerAction::Connect))
                 .allowing(&BonsaiAction::Server(ServerAction::Authenticate(
                     AuthenticationMethod::PasswordHash,
                 ))),
-        ))
-        .with_schema::<schema::Shape>()?
-        .with_schema::<schema::User>()?;
+        ));
+    let configuration = register_schemas(configuration)?;
 
     let server = Server::open(configuration).await?;
 
     setup_contents(&server).await?;
 
-    // if let None = backup {
-    //     setup_certificate(&server).await?;
-    // }
     setup_certificate(&server).await?;
 
     setup_permissions(&server).await?;
+
+    fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfiguration> {
+        // SCHEMA TWEAK
+        Ok(conf
+            .with_schema::<schema::Shape>()?
+            .with_schema::<schema::User>()?
+            .with_schema::<schema::Article>()?)
+    }
 
     Ok(server)
 }

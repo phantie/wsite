@@ -11,10 +11,8 @@ use bonsaidb::client::Client;
 use bonsaidb::core::document::BorrowedDocument;
 use bonsaidb::core::document::Emit;
 use bonsaidb::core::schema::Collection;
-use bonsaidb::core::schema::ReduceResult;
 use bonsaidb::core::schema::View;
 use bonsaidb::core::schema::ViewMapResult;
-use bonsaidb::core::schema::ViewMappedValue;
 use bonsaidb::core::schema::ViewSchema;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::AsyncDatabase;
@@ -75,46 +73,11 @@ impl ViewSchema for SubscriptionByToken {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
-#[collection(name = "articles", views = [ArticleByPublicID])]
-pub struct Article {
-    pub title: String,
-    pub public_id: String,
-    pub markdown: String,
-    pub draft: bool,
-}
-
-#[derive(Debug, Clone, View)]
-#[view(collection = Article, key = String, value = u32, name = "by-public-id")]
-pub struct ArticleByPublicID;
-
-impl ViewSchema for ArticleByPublicID {
-    type View = Self;
-
-    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
-        let user = Article::document_contents(document)?;
-        document.header.emit_key_and_value(user.public_id, 1)
-    }
-
-    fn unique(&self) -> bool {
-        true
-    }
-
-    fn reduce(
-        &self,
-        mappings: &[ViewMappedValue<Self::View>],
-        _rereduce: bool,
-    ) -> ReduceResult<Self::View> {
-        Ok(mappings.iter().map(|mapping| mapping.value).sum())
-    }
-}
-
 pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     let mut configuration = StorageConfiguration::new(dir);
     configuration.memory_only = memory_only;
     let configuration = configuration.with_schema::<Subscription>().unwrap();
     let configuration = configuration.with_schema::<schema::User>().unwrap();
-    let configuration = configuration.with_schema::<Article>().unwrap();
     let configuration = configuration.with_schema::<()>().unwrap();
 
     AsyncStorage::open(configuration).await.unwrap()
@@ -131,7 +94,6 @@ pub struct Database {
 pub struct Collections {
     pub subscriptions: AsyncDatabase,
     pub users: AsyncDatabase,
-    pub articles: AsyncDatabase,
 }
 
 impl Database {
@@ -143,10 +105,6 @@ impl Database {
                 .unwrap(),
             users: storage
                 .create_database::<schema::User>("users", true)
-                .await
-                .unwrap(),
-            articles: storage
-                .create_database::<Article>("articles", true)
                 .await
                 .unwrap(),
         };
@@ -165,11 +123,9 @@ impl Database {
 }
 
 pub async fn load_certificate() -> fabruic::Certificate {
-    // include_bytes!("../../database/http_server/server-data.bonsaidb/pinned-certificate.der");
-
-    // TODO if database does not exists, it panics
     let conf = get_configuration();
 
+    // TODO if database does not exists, it panics
     let r = reqwest::get(format!("http://{}:4000/cert", conf.database.host))
         .await
         .unwrap();
@@ -243,10 +199,11 @@ impl RemoteClient {
     }
 }
 
-#[derive(Clone)]
+// SCHEMA TWEAK
 pub struct RemoteCollections {
     pub shapes: bonsaidb::client::RemoteDatabase,
     pub users: bonsaidb::client::RemoteDatabase,
+    pub articles: bonsaidb::client::RemoteDatabase,
 }
 
 impl AsRef<bonsaidb::client::Client> for RemoteDatabase {
@@ -301,8 +258,10 @@ impl RemoteDatabase {
             ping_handle
         };
 
+        // SCHEMA TWEAK
         let shapes = client.database::<schema::Shape>("shapes").await?;
         let users = client.database::<schema::User>("users").await?;
+        let articles = client.database::<schema::Article>("articles").await?;
 
         let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
         unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };
@@ -310,7 +269,11 @@ impl RemoteDatabase {
         Ok(Self {
             client,
             name: name.into(),
-            collections: RemoteCollections { shapes, users },
+            collections: RemoteCollections {
+                shapes,
+                users,
+                articles,
+            },
             client_params: params,
             ping_handle,
             id,
