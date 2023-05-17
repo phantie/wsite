@@ -28,7 +28,7 @@ async fn main() {
 
     let user_count = users
         .view::<schema::UserByUsername>()
-        .with_key(username.clone())
+        .with_key(&username)
         .reduce()
         .await
         .unwrap();

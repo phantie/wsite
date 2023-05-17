@@ -16,7 +16,7 @@ pub async fn publish_newsletter(
 
     let confirmed_subscriptions = subscriptions
         .view::<SubscriptionByStatus>()
-        .with_key("confirmed".to_owned())
+        .with_key("confirmed")
         .query_with_collection_docs()
         .await?;
 

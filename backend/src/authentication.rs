@@ -50,7 +50,7 @@ pub async fn validate_credentials(
 
     let mapped_users = users
         .view::<schema::UserByUsername>()
-        .with_key(credentials.username.to_owned())
+        .with_key(&credentials.username)
         .query_with_collection_docs()
         .await
         .unwrap();

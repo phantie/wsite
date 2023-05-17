@@ -21,7 +21,7 @@ pub async fn change_password(
                 let form = form.clone();
                 async move {
                     let users = &shared_database.read().await.collections.users;
-                    let mut user = schema::User::get_async(user_id, users)
+                    let mut user = schema::User::get_async(&user_id, users)
                         .await?
                         .context("dangling user in session")?;
                     let credentials = Credentials {
