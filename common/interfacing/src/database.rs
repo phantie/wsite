@@ -6,6 +6,11 @@ pub struct DatabaseInfo {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct DatabaseBackup {
-    pub location: Option<String>,
+pub struct DatabaseRestart {
+    pub backup_location: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct DatabaseCreateBackup {
+    pub backup_location: String,
 }

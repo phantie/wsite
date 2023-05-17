@@ -146,7 +146,7 @@ async fn main() -> hyper::Result<()> {
         .route("/health", get(health_check))
         .route("/database/info", get(database_info))
         .route("/database/users/", post(update_database_user_password))
-        .route("/database/backup", get(backup_database))
+        .route("/database/backup/create", post(create_database_backup))
         .route("/database/restart", post(restart_database))
         .route("/database/stop", get(stop_database))
         .route("/database/reset", get(reset_database))
@@ -281,9 +281,12 @@ async fn update_database_user_password(
 }
 
 #[axum_macros::debug_handler]
-async fn backup_database(Extension(database_server): Extension<SharedHostedDatabase>) {
+async fn create_database_backup(
+    Extension(database_server): Extension<SharedHostedDatabase>,
+    Json(form): Json<interfacing::DatabaseCreateBackup>,
+) {
     let server = database_server.read().await.server().unwrap().clone();
-    let backup_path = PathBuf::from("backup");
+    let backup_path = PathBuf::from(form.backup_location);
     server.backup(backup_path.clone()).await.unwrap();
     std::fs::copy(
         database_common::storage_location().join(database_common::public_certificate_name()),
@@ -295,9 +298,13 @@ async fn backup_database(Extension(database_server): Extension<SharedHostedDatab
 #[axum_macros::debug_handler]
 async fn restart_database(
     Extension(database_server): Extension<SharedHostedDatabase>,
-    Json(form): Json<interfacing::DatabaseBackup>,
+    Json(form): Json<interfacing::DatabaseRestart>,
 ) {
-    database_server.write().await.restart(form.location).await;
+    database_server
+        .write()
+        .await
+        .restart(form.backup_location)
+        .await;
 }
 
 #[axum_macros::debug_handler]
