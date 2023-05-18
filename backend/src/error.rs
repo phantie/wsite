@@ -9,6 +9,12 @@ pub enum ApiError {
     #[error("Database hangs")]
     DatabaseHangs,
 
+    #[error("Entry not found")]
+    EntryNotFound,
+
+    #[error("Bad request")]
+    BadRequest,
+
     #[error("Database error: {0}")]
     DatabaseError(#[from] bonsaidb::core::Error),
 
@@ -41,6 +47,8 @@ impl IntoResponse for ApiError {
             Self::AuthError(_e) => StatusCode::UNAUTHORIZED,
             Self::AuthHeaderRejection(_e) => StatusCode::UNAUTHORIZED,
             Self::UnexpectedError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::EntryNotFound => StatusCode::NOT_FOUND,
+            Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::DatabaseHangs => StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             // Self::DatabaseInsertError(_e) => StatusCode::INTERNAL_SERVER_ERROR,

@@ -9,28 +9,21 @@ pub struct Parameters {
 pub async fn sub_confirm(
     State(state): State<AppState>,
     Query(parameters): Query<Parameters>,
-) -> StatusCode {
+) -> Result<(), ApiError> {
     // TODO implement error handling like in subscriptions.rs
 
     let subscriptions = &state.database.collections.subscriptions;
 
-    let mapped_docs = subscriptions
+    let docs = subscriptions
         .view::<SubscriptionByToken>()
         .with_key(&parameters.subscription_token)
         .query_with_collection_docs()
-        .await
-        .unwrap();
+        .await?;
 
-    let subscription = mapped_docs.into_iter().next();
+    let doc = docs.into_iter().next().ok_or(ApiError::EntryNotFound)?;
 
-    match subscription {
-        Some(mapped_doc) => {
-            let mut doc = mapped_doc.document.clone();
-            doc.contents.status = "confirmed".to_owned();
-            doc.update_async(subscriptions).await.unwrap();
-            StatusCode::OK
-        }
-        // non-existing token and therefore subscriber
-        None => StatusCode::UNAUTHORIZED,
-    }
+    let mut doc = doc.document.clone();
+    doc.contents.status = "confirmed".to_owned();
+    doc.update_async(subscriptions).await?;
+    Ok(())
 }
