@@ -115,6 +115,7 @@ async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
     let _: ServerDatabase = server
         .create_database::<schema::Article>("articles", true)
         .await?;
+    let _: ServerDatabase = server.create_database::<()>("sessions", true).await?;
     Ok(())
 }
 
@@ -173,7 +174,8 @@ pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
         Ok(conf
             .with_schema::<schema::Shape>()?
             .with_schema::<schema::User>()?
-            .with_schema::<schema::Article>()?)
+            .with_schema::<schema::Article>()?
+            .with_schema::<()>()?)
     }
 
     Ok(server)
