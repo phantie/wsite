@@ -2,6 +2,8 @@ use crate::{
     configuration::{get_configuration, Settings},
     database::*,
     email_client::EmailClient,
+    error::ApiError,
+    timeout::HangingStrategy,
 };
 use static_routes::*;
 
@@ -75,7 +77,7 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(sessions: Arc<Database>, shared_state: SharedRemoteDatabase) -> Router<AppState> {
+pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -130,11 +132,11 @@ pub fn router(sessions: Arc<Database>, shared_state: SharedRemoteDatabase) -> Ro
     Router::new()
         .nest("/api", api_router)
         .fallback(fallback)
-        .layer(AddExtensionLayer::new(shared_state))
+        .layer(AddExtensionLayer::new(shared_database.clone()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
-            let store = BonsaiDBSessionStore { database: sessions };
+            let store = BonsaiDBSessionStore { shared_database };
             // FIXIT make it persistent and secret
             let secret = [0_u8; 128];
 
@@ -142,13 +144,13 @@ pub fn router(sessions: Arc<Database>, shared_state: SharedRemoteDatabase) -> Ro
             // let mut secret = [0_u8; 128];
             // rand::thread_rng().fill(&mut secret);
 
-            SessionLayer::new(store, &secret).with_secure(false)
+            SessionLayer::new(store, &secret).with_secure(true)
         })
 }
 
 #[derive(Clone, Debug)]
 struct BonsaiDBSessionStore {
-    database: Arc<Database>,
+    shared_database: SharedRemoteDatabase,
 }
 
 #[async_trait]
@@ -159,7 +161,26 @@ impl SessionStore for BonsaiDBSessionStore {
     ) -> axum_sessions::async_session::Result<Option<Session>> {
         let id = Session::id_from_cookie_value(&cookie_value)?;
 
-        let session: Option<Session> = self.database.sessions.get_key(id).into().await?;
+        let session = HangingStrategy::default()
+            .execute(
+                |shared_database| async {
+                    let id = id.clone();
+                    async move {
+                        let session: Option<Session> = shared_database
+                            .read()
+                            .await
+                            .sessions
+                            .get_key(id)
+                            .into()
+                            .await?;
+
+                        Result::<_, ApiError>::Ok(session)
+                    }
+                    .await
+                },
+                self.shared_database.clone(),
+            )
+            .await??;
 
         Ok(session.and_then(Session::validate))
     }
@@ -168,27 +189,57 @@ impl SessionStore for BonsaiDBSessionStore {
         &self,
         session: Session,
     ) -> axum_sessions::async_session::Result<Option<String>> {
-        self.database
-            .sessions
-            .set_key(session.id().to_string(), &session)
-            .await?;
+        let _: () = HangingStrategy::default()
+            .execute(
+                |shared_database| async {
+                    let session = session.clone();
+                    async move {
+                        shared_database
+                            .read()
+                            .await
+                            .sessions
+                            .set_key(session.id().to_string(), &session)
+                            .await?;
+
+                        Result::<_, ApiError>::Ok(())
+                    }
+                    .await
+                },
+                self.shared_database.clone(),
+            )
+            .await??;
+
         session.reset_data_changed();
         Ok(session.into_cookie_value())
     }
 
     async fn destroy_session(&self, session: Session) -> axum_sessions::async_session::Result {
-        self.database
-            .sessions
-            .delete_key(session.id().to_string())
-            .await?;
+        let _: () = HangingStrategy::default()
+            .execute(
+                |shared_database| async {
+                    let session = session.clone();
+                    async move {
+                        shared_database
+                            .read()
+                            .await
+                            .sessions
+                            .delete_key(session.id().to_string())
+                            .await?;
+
+                        Result::<_, ApiError>::Ok(())
+                    }
+                    .await
+                },
+                self.shared_database.clone(),
+            )
+            .await??;
+
         Ok(())
     }
 
     async fn clear_store(&self) -> axum_sessions::async_session::Result {
-        tracing::info!("DELETE ALL SESSIONS");
-        todo!("find out how to delete all keys from the storage")
-        // self.database.sessions.
-        // Ok(())
+        tracing::info!("clear session store");
+        unimplemented!("find out how to clear session storage")
     }
 }
 
@@ -259,7 +310,7 @@ impl Application {
             database: Arc<Database>,
             email_client: Arc<EmailClient>,
             base_url: String,
-            shared_state: SharedRemoteDatabase,
+            shared_database: SharedRemoteDatabase,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
             let app_state = AppState {
                 database,
@@ -267,7 +318,7 @@ impl Application {
                 base_url,
             };
 
-            let app = router(app_state.database.clone(), shared_state).with_state(app_state);
+            let app = router(shared_database).with_state(app_state);
 
             axum::Server::from_tcp(listener)
                 .unwrap()
@@ -276,7 +327,7 @@ impl Application {
 
         let conf = get_configuration();
 
-        let remote_database = RemoteDatabase::configure(
+        let shared_database = RemoteDatabase::configure(
             "abada-dabada",
             RemoteClientParams {
                 // url: "bonsaidb://209.38.192.88".into(),
@@ -288,7 +339,7 @@ impl Application {
         .await
         .expect("database must be available on deployment");
 
-        let shared_state = Arc::new(RwLock::new(remote_database));
+        let shared_state = Arc::new(RwLock::new(shared_database));
 
         let server = Box::pin(run(
             listener,

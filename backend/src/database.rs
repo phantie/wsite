@@ -78,7 +78,6 @@ pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     configuration.memory_only = memory_only;
     let configuration = configuration.with_schema::<Subscription>().unwrap();
     let configuration = configuration.with_schema::<schema::User>().unwrap();
-    let configuration = configuration.with_schema::<()>().unwrap();
 
     AsyncStorage::open(configuration).await.unwrap()
 }
@@ -87,7 +86,6 @@ pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
 pub struct Database {
     pub storage: Arc<AsyncStorage>,
     pub collections: Collections,
-    pub sessions: AsyncDatabase,
 }
 
 #[derive(Clone, Debug)]
@@ -110,15 +108,9 @@ impl Database {
                 .unwrap(),
         };
 
-        let sessions = storage
-            .create_database::<()>("sessions", true)
-            .await
-            .unwrap();
-
         Self {
             storage,
             collections,
-            sessions,
         }
     }
 }
@@ -147,13 +139,21 @@ pub async fn load_certificate() -> fabruic::Certificate {
     // f
 }
 
+// SCHEMA TWEAK
 pub struct RemoteDatabase {
     client: AsyncClient,
     name: String,
     client_params: RemoteClientParams,
+    pub sessions: bonsaidb::client::AsyncRemoteDatabase,
     pub collections: RemoteCollections,
     pub id: u32,
     ping_handle: JoinHandle<()>,
+}
+
+impl std::fmt::Debug for RemoteDatabase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("RemoteDatabase {} ID {}", self.name, self.id))
+    }
 }
 
 #[derive(Clone)]
@@ -202,17 +202,10 @@ impl RemoteClient {
     }
 }
 
-// SCHEMA TWEAK
 pub struct RemoteCollections {
     pub shapes: bonsaidb::client::AsyncRemoteDatabase,
     pub users: bonsaidb::client::AsyncRemoteDatabase,
     pub articles: bonsaidb::client::AsyncRemoteDatabase,
-}
-
-impl AsRef<AsyncClient> for RemoteDatabase {
-    fn as_ref(&self) -> &AsyncClient {
-        &self.client
-    }
 }
 
 pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;
@@ -254,7 +247,7 @@ impl RemoteDatabase {
                         },
                         Err(_) => tracing::error!("Database unreachable"),
                     }
-                    // ping database every 5 minutes, to have connection alive
+                    // ping database every 5 minutes, to keep connection alive
                     tokio::time::sleep(std::time::Duration::from_secs(60 * 5)).await;
                 }
             });
@@ -265,6 +258,7 @@ impl RemoteDatabase {
         let shapes = client.database::<schema::Shape>("shapes").await?;
         let users = client.database::<schema::User>("users").await?;
         let articles = client.database::<schema::Article>("articles").await?;
+        let sessions = client.database::<()>("sessions").await?;
 
         let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
         unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };
@@ -277,6 +271,7 @@ impl RemoteDatabase {
                 users,
                 articles,
             },
+            sessions,
             client_params: params,
             ping_handle,
             id,
