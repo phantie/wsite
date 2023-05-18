@@ -21,3 +21,10 @@ pub use database_common::schema;
 pub use secrecy::{ExposeSecret, SecretString};
 pub use serde::{Deserialize, Serialize};
 pub use static_routes::*;
+
+pub fn collect_contents<S>(docs: Vec<CollectionDocument<S>>) -> Vec<S::Contents>
+where
+    S: SerializedCollection,
+{
+    docs.into_iter().map(|doc| doc.contents).collect::<Vec<_>>()
+}

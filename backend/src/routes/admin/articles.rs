@@ -12,6 +12,14 @@ fn valid_article(article: &interfacing::Article) -> bool {
     valid_public_id && valid_title
 }
 
+fn reject_invalid_article(article: &interfacing::Article) -> Result<(), ApiError> {
+    if valid_article(article) {
+        Ok(())
+    } else {
+        Err(ApiError::BadRequest)
+    }
+}
+
 #[axum_macros::debug_handler]
 pub async fn new_article(
     session: ReadableSession,
@@ -19,23 +27,30 @@ pub async fn new_article(
     Json(body): Json<interfacing::Article>,
 ) -> Result<impl IntoResponse, ApiError> {
     reject_anonymous_users(&session)?;
+    reject_invalid_article(&body)?;
 
-    if !valid_article(&body) {
-        return Ok(StatusCode::BAD_REQUEST);
-    }
-
-    let articles = &shared_database.read().await.collections.articles;
-    schema::Article {
-        title: body.title,
-        public_id: body.public_id,
-        markdown: body.markdown,
-        draft: body.draft,
-    }
-    .push_into_async(articles)
-    .await
-    .unwrap();
-
-    Ok(StatusCode::OK)
+    HangingStrategy::default()
+        .execute(
+            |shared_database| async {
+                let body = body.clone();
+                async move {
+                    let articles = &shared_database.read().await.collections.articles;
+                    schema::Article {
+                        title: body.title,
+                        public_id: body.public_id,
+                        markdown: body.markdown,
+                        draft: body.draft,
+                    }
+                    .push_into_async(articles)
+                    .await
+                    .map_err(|e| e.error)?;
+                    Ok(())
+                }
+                .await
+            },
+            shared_database.clone(),
+        )
+        .await?
 }
 
 #[axum_macros::debug_handler]
@@ -45,31 +60,34 @@ pub async fn update_article(
     Json(body): Json<interfacing::Article>,
 ) -> Result<impl IntoResponse, ApiError> {
     reject_anonymous_users(&session)?;
+    reject_invalid_article(&body)?;
 
-    if !valid_article(&body) {
-        return Ok(StatusCode::BAD_REQUEST);
-    }
+    HangingStrategy::default()
+        .execute(
+            |shared_database| async {
+                let body = body.clone();
+                async move {
+                    let articles = &shared_database.read().await.collections.articles;
+                    let docs = articles
+                        .view::<schema::ArticleByPublicID>()
+                        .with_key(&body.public_id)
+                        .query_with_collection_docs()
+                        .await?;
 
-    let articles = &shared_database.read().await.collections.articles;
+                    let doc = docs.into_iter().next().ok_or(ApiError::EntryNotFound)?;
 
-    let mapped_articles = articles
-        .view::<schema::ArticleByPublicID>()
-        .with_key(&body.public_id)
-        .query_with_collection_docs()
-        .await
-        .unwrap();
-
-    match mapped_articles.into_iter().next() {
-        None => Ok(StatusCode::NOT_FOUND),
-        Some(mapped_doc) => {
-            let mut doc = mapped_doc.document.clone();
-            doc.contents.title = body.title;
-            doc.contents.markdown = body.markdown;
-            doc.contents.draft = body.draft;
-            doc.update_async(articles).await.unwrap();
-            Ok(StatusCode::OK)
-        }
-    }
+                    let mut doc = doc.document.clone();
+                    doc.contents.title = body.title;
+                    doc.contents.markdown = body.markdown;
+                    doc.contents.draft = body.draft;
+                    doc.update_async(articles).await?;
+                    Ok(())
+                }
+                .await
+            },
+            shared_database.clone(),
+        )
+        .await?
 }
 
 #[axum_macros::debug_handler]
@@ -80,65 +98,98 @@ pub async fn delete_article(
 ) -> Result<impl IntoResponse, ApiError> {
     reject_anonymous_users(&session)?;
 
-    let articles = &shared_database.read().await.collections.articles;
+    HangingStrategy::default()
+        .execute(
+            |shared_database| async {
+                let public_id = public_id.clone();
+                async move {
+                    let articles = &shared_database.read().await.collections.articles;
+                    let docs = articles
+                        .view::<schema::ArticleByPublicID>()
+                        .with_key(&public_id)
+                        .query_with_collection_docs()
+                        .await?;
 
-    let mapped_articles = articles
-        .view::<schema::ArticleByPublicID>()
-        .with_key(&public_id)
-        .query_with_collection_docs()
-        .await
-        .unwrap();
+                    let doc = docs.into_iter().next().ok_or(ApiError::EntryNotFound)?;
 
-    match mapped_articles.into_iter().next() {
-        None => Ok(StatusCode::NOT_FOUND),
-        Some(mapped_doc) => {
-            mapped_doc.document.delete_async(articles).await.unwrap();
-            Ok(StatusCode::OK)
-        }
-    }
+                    doc.document.delete_async(articles).await?;
+                    Ok(())
+                }
+                .await
+            },
+            shared_database.clone(),
+        )
+        .await?
 }
 
 pub async fn article_list(
     session: ReadableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Json<Vec<schema::Article>> {
-    let articles = &shared_database.read().await.collections.articles;
+) -> Result<Json<Vec<schema::Article>>, ApiError> {
+    let docs = HangingStrategy::default()
+        .execute(
+            |shared_database| async {
+                async move {
+                    let articles = &shared_database.read().await.collections.articles;
+                    let docs = schema::Article::all_async(articles).await?;
 
-    let docs = schema::Article::all_async(articles).await.unwrap();
+                    Result::<_, ApiError>::Ok(docs)
+                }
+                .await
+            },
+            shared_database.clone(),
+        )
+        .await??;
 
-    // for doc in docs {
-    //     let _r = doc
-    //         .delete_async(&state.database.collections.articles)
-    //         .await
-    //         .unwrap();
-    // }
-    // let contents = vec![];
-
-    let contents = docs.into_iter().map(|doc| doc.contents).collect::<Vec<_>>();
+    let contents = collect_contents(docs);
 
     let contents = match reject_anonymous_users(&session) {
         Ok(_) => contents,
         Err(_) => contents.into_iter().filter(|a| !a.draft).collect(),
     };
 
-    Json(contents)
+    Ok(Json(contents))
 }
 
 pub async fn article_by_public_id(
     Path(public_id): Path<String>,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Response {
-    let articles = &shared_database.read().await.collections.articles;
+) -> Result<impl IntoResponse, ApiError> {
+    HangingStrategy::default()
+        .execute(
+            |shared_database| async {
+                let public_id = public_id.clone();
+                async move {
+                    let articles = &shared_database.read().await.collections.articles;
 
-    let mapped_articles = articles
-        .view::<schema::ArticleByPublicID>()
-        .with_key(&public_id)
-        .query_with_collection_docs()
-        .await
-        .unwrap();
+                    let docs = articles
+                        .view::<schema::ArticleByPublicID>()
+                        .with_key(&public_id)
+                        .query_with_collection_docs()
+                        .await?;
 
-    match mapped_articles.into_iter().next() {
-        None => StatusCode::NOT_FOUND.into_response(),
-        Some(article) => Json(&article.document.contents).into_response(),
-    }
+                    let doc = docs.into_iter().next().ok_or(ApiError::EntryNotFound)?;
+                    Ok(Json(&doc.document.contents).into_response())
+                }
+                .await
+            },
+            shared_database.clone(),
+        )
+        .await?
 }
+
+// pub fn one_doc<S, T, I>(docs: I) -> Result<T, ApiError>
+// where
+//     I: IntoIterator<Item = T>,
+// {
+//     let mut docs = docs.into_iter();
+//     let doc = docs.next().ok_or(ApiError::EntryNotFound)?;
+
+//     if let Some(_) = docs.next() {
+//         Err(ApiError::UnexpectedError(anyhow::anyhow!(
+//             "maximum one document must be returned"
+//         )))?
+//     }
+
+//     Ok(doc)
+// }
