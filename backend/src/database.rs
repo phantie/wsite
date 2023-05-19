@@ -115,21 +115,18 @@ impl Database {
     }
 }
 
-pub async fn load_certificate() -> fabruic::Certificate {
+pub async fn load_certificate() -> anyhow::Result<fabruic::Certificate> {
     let conf = get_configuration();
 
-    // TODO if database does not exists, it panics
-    let r = reqwest::get(format!("http://{}:4000/cert", conf.database.host))
-        .await
-        .unwrap();
+    let r = reqwest::get(format!("http://{}:4000/cert", conf.database.host)).await?;
 
     match r.status() {
         StatusCode::OK => {
-            let c: fabruic::Certificate = r.bytes().await.unwrap().to_vec().try_into().unwrap();
-            c
+            let c: fabruic::Certificate = r.bytes().await?.to_vec().try_into()?;
+            Ok(c)
         }
-        StatusCode::NOT_FOUND => panic!("database has no volumes, or else"),
-        _ => unimplemented!(),
+        StatusCode::NOT_FOUND => Err(anyhow::anyhow!("database has no volumes, or else"))?,
+        status_code => Err(anyhow::anyhow!("unexpected status code {status_code}"))?,
     }
 
     // let f = std::fs::read("../database/http_server/server-data.bonsaidb/pinned-certificate.der")
@@ -176,7 +173,7 @@ impl RemoteClient {
         let client = bonsaidb::client::AsyncClient::build(
             bonsaidb::client::url::Url::parse(&params.url).unwrap(),
         )
-        .with_certificate(load_certificate().await)
+        .with_certificate(load_certificate().await?)
         .build()?;
 
         let admin_password = params.password;
