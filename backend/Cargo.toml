@@ -42,6 +42,7 @@ mime_guess = "2.0.4"
 include_dir = "0.7.3"
 fabruic = "0.0.1-dev.6"
 async-trait = "0.1.68"
+hex = "0.4.3"
 
 database_common.workspace = true
 static_routes.workspace = true
