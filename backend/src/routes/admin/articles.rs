@@ -12,7 +12,7 @@ fn valid_article(article: &interfacing::Article) -> bool {
     valid_public_id && valid_title
 }
 
-fn reject_invalid_article(article: &interfacing::Article) -> Result<(), ApiError> {
+fn reject_invalid_article(article: &interfacing::Article) -> ApiResult<()> {
     if valid_article(article) {
         Ok(())
     } else {
@@ -25,7 +25,7 @@ pub async fn new_article(
     session: ReadableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<interfacing::Article>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
     reject_invalid_article(&body)?;
 
@@ -58,7 +58,7 @@ pub async fn update_article(
     session: ReadableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<interfacing::Article>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
     reject_invalid_article(&body)?;
 
@@ -95,7 +95,7 @@ pub async fn delete_article(
     session: ReadableSession,
     Path(public_id): Path<String>,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
 
     HangingStrategy::default()
@@ -125,7 +125,7 @@ pub async fn delete_article(
 pub async fn article_list(
     session: ReadableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Result<Json<Vec<schema::Article>>, ApiError> {
+) -> ApiResult<Json<Vec<schema::Article>>> {
     let docs = HangingStrategy::default()
         .execute(
             |shared_database| async {
@@ -133,7 +133,7 @@ pub async fn article_list(
                     let articles = &shared_database.read().await.collections.articles;
                     let docs = schema::Article::all_async(articles).await?;
 
-                    Result::<_, ApiError>::Ok(docs)
+                    ApiResult::<_>::Ok(docs)
                 }
                 .await
             },
@@ -154,7 +154,7 @@ pub async fn article_list(
 pub async fn article_by_public_id(
     Path(public_id): Path<String>,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> ApiResult<impl IntoResponse> {
     HangingStrategy::default()
         .execute(
             |shared_database| async {
@@ -178,7 +178,7 @@ pub async fn article_by_public_id(
         .await?
 }
 
-// pub fn one_doc<S, T, I>(docs: I) -> Result<T, ApiError>
+// pub fn one_doc<S, T, I>(docs: I) -> ApiResult<T>
 // where
 //     I: IntoIterator<Item = T>,
 // {

@@ -3,7 +3,7 @@ use crate::routes::imports::*;
 #[axum_macros::debug_handler]
 pub async fn all_shapes(
     Extension(shared_database): Extension<SharedRemoteDatabase>,
-) -> Result<Json<Vec<schema::Shape>>, ApiError> {
+) -> ApiResult<Json<Vec<schema::Shape>>> {
     tracing::info!("Remote database ID: {}", shared_database.read().await.id);
     HangingStrategy::default()
         .execute(
@@ -24,7 +24,7 @@ pub async fn all_shapes(
 pub async fn new_shape(
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<schema::Shape>,
-) -> Result<(), ApiError> {
+) -> ApiResult<()> {
     HangingStrategy::default()
         .execute(
             |shared_database| async {

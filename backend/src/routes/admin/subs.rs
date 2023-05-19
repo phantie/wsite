@@ -4,7 +4,7 @@ use crate::routes::imports::*;
 pub async fn all_subs(
     State(state): State<AppState>,
     session: ReadableSession,
-) -> Result<Json<Vec<Subscription>>, ApiError> {
+) -> ApiResult<Json<Vec<Subscription>>> {
     reject_anonymous_users(&session)?;
 
     let subscriptions_docs = Subscription::all_async(&state.database.collections.subscriptions)

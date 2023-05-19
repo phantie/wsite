@@ -58,6 +58,8 @@ impl IntoResponse for ApiError {
     }
 }
 
+pub type ApiResult<T> = Result<T, ApiError>;
+
 use axum::{
     extract::rejection::{JsonRejection, TypedHeaderRejection},
     response::{IntoResponse, Response},

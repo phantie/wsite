@@ -12,7 +12,7 @@ impl Default for TimeoutStrategy {
 }
 
 impl TimeoutStrategy {
-    pub async fn execute<F, C, R>(self, closure: C) -> Result<R, ApiError>
+    pub async fn execute<F, C, R>(self, closure: C) -> ApiResult<R>
     where
         C: Fn() -> F,
         F: Future<Output = R>,
@@ -54,7 +54,7 @@ impl HangingStrategy {
         self,
         closure: C,
         shared_database: SharedRemoteDatabase,
-    ) -> Result<R, ApiError>
+    ) -> ApiResult<R>
     where
         C: Fn(SharedRemoteDatabase) -> F,
         F: Future<Output = R>,
@@ -108,7 +108,10 @@ impl HangingStrategy {
     }
 }
 
-use crate::{error::ApiError, startup::SharedRemoteDatabase};
+use crate::{
+    error::{ApiError, ApiResult},
+    startup::SharedRemoteDatabase,
+};
 use std::future::Future;
 use std::{sync::Arc, time::Duration};
 use tokio::time::timeout as timeout_in;

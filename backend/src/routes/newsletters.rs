@@ -6,7 +6,7 @@ pub async fn publish_newsletter(
     maybe_basic_auth: Result<TypedHeader<Authorization<Basic>>, TypedHeaderRejection>,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(body): Json<BodyData>,
-) -> Result<(), ApiError> {
+) -> ApiResult<()> {
     let TypedHeader(basic_auth) = maybe_basic_auth.map_err(ApiError::AuthHeaderRejection)?;
 
     let credentials: Credentials = basic_auth.into();

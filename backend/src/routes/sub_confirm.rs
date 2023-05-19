@@ -9,7 +9,7 @@ pub struct Parameters {
 pub async fn sub_confirm(
     State(state): State<AppState>,
     Query(parameters): Query<Parameters>,
-) -> Result<(), ApiError> {
+) -> ApiResult<()> {
     // TODO implement error handling like in subscriptions.rs
 
     let subscriptions = &state.database.collections.subscriptions;

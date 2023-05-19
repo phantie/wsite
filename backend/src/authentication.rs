@@ -1,5 +1,7 @@
 use crate::{
-    database::*, error::ApiError, startup::SharedRemoteDatabase,
+    database::*,
+    error::{ApiError, ApiResult},
+    startup::SharedRemoteDatabase,
     telemetry::spawn_blocking_with_tracing,
 };
 use anyhow::Context;
@@ -37,7 +39,7 @@ impl From<Authorization<Basic>> for Credentials {
 pub async fn validate_credentials(
     shared_database: SharedRemoteDatabase,
     credentials: &Credentials,
-) -> Result<u64, ApiError> {
+) -> ApiResult<u64> {
     let mut user_id: Option<u64> = None;
     let mut expected_password_hash = SecretString::new(
         "$argon2id$v=19$m=15000,t=1,p=1$\
@@ -81,7 +83,7 @@ pub async fn validate_credentials(
 fn verify_password_hash(
     expected_password_hash: SecretString,
     password_candidate: SecretString,
-) -> Result<(), ApiError> {
+) -> ApiResult<()> {
     let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
         .context("Failed to parse hash in PHC string format.")?;
 
@@ -106,7 +108,7 @@ pub fn compute_password_hash(password: SecretString) -> Result<SecretString, any
     Ok(SecretString::new(password_hash))
 }
 
-pub fn reject_anonymous_users(session: &ReadableSession) -> Result<u64, ApiError> {
+pub fn reject_anonymous_users(session: &ReadableSession) -> ApiResult<u64> {
     let user_id: Option<u64> = session.get("user_id");
 
     match user_id {
