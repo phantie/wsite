@@ -137,14 +137,16 @@ pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
             let store = BonsaiDBSessionStore { shared_database };
-            // FIXIT make it persistent and secret
-            let secret = [0_u8; 128];
+
+            let decoded = hex::decode(get_configuration().application.session_secret)
+                .expect("HEX Decoding of session secret failed");
 
             // use rand::Rng;
             // let mut secret = [0_u8; 128];
             // rand::thread_rng().fill(&mut secret);
+            // dbg!(hex::encode(secret));
 
-            SessionLayer::new(store, &secret).with_secure(true)
+            SessionLayer::new(store, decoded.as_slice()).with_secure(true)
         })
 }
 

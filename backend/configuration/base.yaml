@@ -21,3 +21,4 @@ testing:
         port: 0
         host: 127.0.0.1
         base_url: "http://127.0.0.1"
+        session_secret: "abd644d3b6cf0cce4ccca4fcc921ea98554694dc3fed72d00d07d50291ce0dc6fc57d91087876491b22366bd6d02e9daf0da679aa63ef48c458c4a3eccec1f6db9ce328b614fe3b0ddb4baff6b41e9c53e1e27503de6a2e999b30b10791733ea28c2252c51a3ad2a4a1afd937bce1a2b61d0e09b1a88963e16be0535eef8a4e5"
