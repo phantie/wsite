@@ -10,7 +10,7 @@ pub async fn login(
     mut session: WritableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     maybe_form: Result<Json<LoginForm>, JsonRejection>,
-) -> Result<(), ApiError> {
+) -> ApiResult<()> {
     let Json(form) = maybe_form?;
     let credentials: Credentials = form.into();
     tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
@@ -20,7 +20,7 @@ pub async fn login(
             |shared_database| async {
                 let credentials = credentials.clone();
                 let user_id = validate_credentials(shared_database, &credentials).await?;
-                Result::<_, ApiError>::Ok(user_id)
+                ApiResult::<_>::Ok(user_id)
             },
             shared_database.clone(),
         )

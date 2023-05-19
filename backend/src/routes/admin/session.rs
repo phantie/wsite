@@ -5,7 +5,7 @@ use interfacing::AdminSession;
 pub async fn admin_session(
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     session: ReadableSession,
-) -> Result<Json<AdminSession>, ApiError> {
+) -> ApiResult<Json<AdminSession>> {
     std::thread::sleep(std::time::Duration::from_millis(100));
 
     let session = match session.get::<u64>("user_id") {
@@ -22,7 +22,7 @@ pub async fn admin_session(
                             .await?
                             .context("dangling user_id in session")?;
 
-                            Result::<_, ApiError>::Ok(user)
+                            ApiResult::<_>::Ok(user)
                         }
                         .await
                     },

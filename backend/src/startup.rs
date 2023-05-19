@@ -2,7 +2,7 @@ use crate::{
     configuration::{get_configuration, Settings},
     database::*,
     email_client::EmailClient,
-    error::ApiError,
+    error::ApiResult,
     timeout::HangingStrategy,
 };
 use static_routes::*;
@@ -176,7 +176,7 @@ impl SessionStore for BonsaiDBSessionStore {
                             .into()
                             .await?;
 
-                        Result::<_, ApiError>::Ok(session)
+                        ApiResult::<_>::Ok(session)
                     }
                     .await
                 },
@@ -203,7 +203,7 @@ impl SessionStore for BonsaiDBSessionStore {
                             .set_key(session.id().to_string(), &session)
                             .await?;
 
-                        Result::<_, ApiError>::Ok(())
+                        ApiResult::<_>::Ok(())
                     }
                     .await
                 },
@@ -228,7 +228,7 @@ impl SessionStore for BonsaiDBSessionStore {
                             .delete_key(session.id().to_string())
                             .await?;
 
-                        Result::<_, ApiError>::Ok(())
+                        ApiResult::<_>::Ok(())
                     }
                     .await
                 },

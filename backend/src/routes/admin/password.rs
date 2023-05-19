@@ -6,7 +6,7 @@ pub async fn change_password(
     session: ReadableSession,
     Extension(shared_database): Extension<SharedRemoteDatabase>,
     Json(form): Json<PasswordChangeForm>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> ApiResult<impl IntoResponse> {
     let user_id = reject_anonymous_users(&session)?;
 
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
