@@ -67,7 +67,7 @@ impl HangingStrategy {
                 let mut retried_times = 0;
 
                 loop {
-                    let id = shared_database.read().await.id;
+                    let reconfiguration_id = shared_database.read().await.reconfiguration_id();
                     match timeout_in(sleep, closure(Arc::clone(&shared_database))).await {
                         Ok(r) => return Ok(r),
                         Err(_elapsed) => {
@@ -77,23 +77,21 @@ impl HangingStrategy {
 
                             // When several requests hang - reconfigure the client once, let others wait
                             // Before deciding whether to reconfigure client -
-                            // check the id of the client the request was tried with
+                            // check the reconfiguration_id of the client the request was tried with
                             // if ID does not match - client has changed, so retry the request
                             {
                                 let mut shared_database = shared_database.write().await;
-                                if shared_database.id == id {
-                                    tracing::info!(
-                                        "Reconfiguring... remote database client ID: {}",
-                                        shared_database.id
-                                    );
+                                if shared_database.reconfiguration_id() == reconfiguration_id {
+                                    tracing::info!("Reconfiguring... {shared_database:?}");
 
                                     match shared_database.reconfigure().await {
-                                        Ok(()) => tracing::info!(
-                                            "Reconfigured remote database client ID: {}",
-                                            shared_database.id
-                                        ),
+                                        Ok(()) => {
+                                            tracing::info!("Reconfigured {shared_database:?}")
+                                        }
                                         Err(e) => {
-                                            tracing::info!("Failed to reconfigure database: {}", e)
+                                            tracing::info!(
+                                                "Failed to reconfigure {shared_database:?}: {e}",
+                                            )
                                         }
                                     }
 

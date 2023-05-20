@@ -1,13 +1,11 @@
 pub use bonsaidb::core::connection::AsyncConnection;
-pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
-pub use bonsaidb::local::config::Builder;
-pub use bonsaidb::local::AsyncStorage;
 
 use crate::configuration::get_configuration;
 use crate::timeout::TimeoutStrategy;
 use bonsaidb::client::AsyncClient;
+use bonsaidb::core::connection::AsyncStorageConnection;
 use bonsaidb::core::document::BorrowedDocument;
 use bonsaidb::core::document::Emit;
 use bonsaidb::core::schema::view::ViewUpdatePolicy;
@@ -16,8 +14,11 @@ use bonsaidb::core::schema::MapReduce;
 use bonsaidb::core::schema::View;
 use bonsaidb::core::schema::ViewMapResult;
 use bonsaidb::core::schema::ViewSchema;
+use bonsaidb::local::config::Builder;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::AsyncDatabase;
+use bonsaidb::local::AsyncStorage;
+use database_common::schema;
 use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicU32;
@@ -25,8 +26,6 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
-
-use database_common::schema;
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
 #[collection(name = "subscriptions", views = [SubscriptionByStatus, SubscriptionByToken])]
@@ -138,18 +137,21 @@ pub async fn load_certificate() -> anyhow::Result<fabruic::Certificate> {
 
 // SCHEMA TWEAK
 pub struct RemoteDatabase {
-    client: AsyncClient,
-    name: String,
-    client_params: RemoteClientParams,
     pub sessions: bonsaidb::client::AsyncRemoteDatabase,
     pub collections: RemoteCollections,
-    pub id: u32,
+
+    client: AsyncClient,
+    client_params: RemoteClientParams,
+    reconfiguration_id: u32,
     ping_handle: JoinHandle<()>,
 }
 
 impl std::fmt::Debug for RemoteDatabase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("RemoteDatabase {} ID {}", self.name, self.id))
+        f.write_fmt(format_args!(
+            "DB [Reconfiguration ID {}]",
+            self.reconfiguration_id()
+        ))
     }
 }
 
@@ -223,10 +225,10 @@ impl Ping for AsyncClient {
 }
 
 #[allow(non_upper_case_globals)]
-static mut RemoteDatabaseID: AtomicU32 = AtomicU32::new(0);
+static mut ReconfigurationID: AtomicU32 = AtomicU32::new(0);
 
 impl RemoteDatabase {
-    pub async fn configure(name: &str, params: RemoteClientParams) -> anyhow::Result<Self> {
+    pub async fn configure(params: RemoteClientParams) -> anyhow::Result<Self> {
         let client = RemoteClient::create(params.clone()).await?;
 
         // try to solve a problem of client hanging forever
@@ -257,12 +259,11 @@ impl RemoteDatabase {
         let articles = client.database::<schema::Article>("articles").await?;
         let sessions = client.database::<()>("sessions").await?;
 
-        let id = unsafe { RemoteDatabaseID.load(Ordering::SeqCst) };
-        unsafe { RemoteDatabaseID.fetch_add(1, Ordering::SeqCst) };
+        let reconfiguration_id = unsafe { ReconfigurationID.load(Ordering::SeqCst) };
+        unsafe { ReconfigurationID.fetch_add(1, Ordering::SeqCst) };
 
         Ok(Self {
             client,
-            name: name.into(),
             collections: RemoteCollections {
                 shapes,
                 users,
@@ -271,34 +272,24 @@ impl RemoteDatabase {
             sessions,
             client_params: params,
             ping_handle,
-            id,
+            reconfiguration_id,
         })
     }
 
     pub async fn reconfigure(&mut self) -> anyhow::Result<()> {
         self.ping_handle.abort();
-        let renewed = Self::configure(&self.name, self.client_params.clone()).await?;
+        let renewed = Self::configure(self.client_params.clone()).await?;
 
         self.client = renewed.client;
         self.collections = renewed.collections;
-        self.id = renewed.id;
+        self.reconfiguration_id = renewed.reconfiguration_id;
         self.ping_handle = renewed.ping_handle;
+        self.sessions = renewed.sessions;
 
         Ok(())
     }
 
-    pub async fn request_database<DB: bonsaidb::core::schema::Schema>(
-        &self,
-    ) -> ClientResult<bonsaidb::client::AsyncRemoteDatabase> {
-        self.client.database::<DB>(&self.name).await
-    }
-
-    pub async fn request_create_collection<DB: bonsaidb::core::schema::Schema>(
-        &self,
-        only_if_needed: bool,
-    ) -> ClientResult<bonsaidb::client::AsyncRemoteDatabase> {
-        self.client
-            .create_database::<DB>(&self.name, only_if_needed)
-            .await
+    pub fn reconfiguration_id(&self) -> u32 {
+        self.reconfiguration_id
     }
 }
