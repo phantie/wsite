@@ -71,6 +71,10 @@ impl Component for Markdown {
                 .markdown-body a {
                     color: ${link_color};
                 }
+
+                .markdown-body img {
+                    background-color: transparent;
+                }
             ",
             code_bg_color = code_bg_color,
             link_color = link_color
