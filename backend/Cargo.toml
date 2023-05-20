@@ -39,7 +39,7 @@ axum-sessions = "0.4.1"
 clap = { version = "4.1.11", features = ["derive"] }
 rpassword = "7.2.0"
 mime_guess = "2.0.4"
-include_dir = "0.7.3"
+include_dir = { version = "0.7.3", features = ["metadata"]  }
 fabruic = "0.0.1-dev.6"
 async-trait = "0.1.68"
 hex = "0.4.3"
@@ -53,6 +53,7 @@ serde_json.workspace = true
 bonsaidb.workspace = true
 anyhow.workspace = true
 bytes = "1.4.0"
+httpdate = "1.0.2"
 
 [features]
 

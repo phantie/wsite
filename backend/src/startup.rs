@@ -17,7 +17,7 @@ use axum_sessions::{
 };
 use bonsaidb::core::keyvalue::AsyncKeyValue;
 use secrecy::ExposeSecret;
-use std::sync::Arc;
+use std::{sync::Arc, time::SystemTime};
 use tokio::sync::RwLock;
 use tower_http::{
     add_extension::AddExtensionLayer,
@@ -39,7 +39,9 @@ async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
     fn file_response(
         contents: impl Into<Full<bytes::Bytes>>,
         path: &str,
+        modified: SystemTime,
     ) -> axum::response::Response {
+        let last_modified = httpdate::fmt_http_date(modified);
         let mime_type = mime_guess::from_path(path).first_or_text_plain();
         axum::http::Response::builder()
             .status(StatusCode::OK)
@@ -47,6 +49,7 @@ async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
                 header::CONTENT_TYPE,
                 HeaderValue::from_str(mime_type.as_ref()).unwrap(),
             )
+            .header(header::LAST_MODIFIED, last_modified)
             .body(body::boxed(contents.into()))
             .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
     }
@@ -58,14 +61,18 @@ async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
         match std::fs::read(path) {
             Err(_e) => return StatusCode::NOT_FOUND.into_response(),
             Ok(file) => {
-                return file_response(file, path);
+                let modified = std::fs::metadata(path).unwrap().modified().unwrap();
+                return file_response(file, path, modified);
             }
         }
     }
 
     match FRONTEND_DIR.get_file(path) {
         None => Html(INDEX_HTML).into_response(),
-        Some(file) => file_response(file.contents(), path),
+        Some(file) => {
+            let modified = file.metadata().unwrap().modified();
+            file_response(file.contents(), path, modified)
+        }
     }
 }
 
