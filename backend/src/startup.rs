@@ -36,23 +36,36 @@ async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
     use axum::response::Html;
     use axum::response::IntoResponse;
 
+    fn file_response(
+        contents: impl Into<Full<bytes::Bytes>>,
+        path: &str,
+    ) -> axum::response::Response {
+        let mime_type = mime_guess::from_path(path).first_or_text_plain();
+        axum::http::Response::builder()
+            .status(StatusCode::OK)
+            .header(
+                header::CONTENT_TYPE,
+                HeaderValue::from_str(mime_type.as_ref()).unwrap(),
+            )
+            .body(body::boxed(contents.into()))
+            .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
+    }
+
     let path = uri.to_string();
     let path = path.trim_start_matches('/');
 
+    if path.starts_with("static/") {
+        match std::fs::read(path) {
+            Err(_e) => return StatusCode::NOT_FOUND.into_response(),
+            Ok(file) => {
+                return file_response(file, path);
+            }
+        }
+    }
+
     match FRONTEND_DIR.get_file(path) {
         None => Html(INDEX_HTML).into_response(),
-        Some(file) => {
-            let mime_type = mime_guess::from_path(path).first_or_text_plain();
-
-            axum::http::Response::builder()
-                .status(StatusCode::OK)
-                .header(
-                    header::CONTENT_TYPE,
-                    HeaderValue::from_str(mime_type.as_ref()).unwrap(),
-                )
-                .body(body::boxed(Full::from(file.contents())))
-                .unwrap()
-        }
+        Some(file) => file_response(file.contents(), path),
     }
 }
 
