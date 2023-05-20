@@ -200,6 +200,7 @@ dependencies = [
  "fabruic",
  "fake",
  "hex",
+ "httpdate",
  "hyper",
  "include_dir",
  "interfacing",
