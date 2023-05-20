@@ -129,15 +129,29 @@ impl HostedDatabase {
 
 type SharedHostedDatabase = Arc<RwLock<HostedDatabase>>;
 
+/// Db manager
+#[derive(clap::Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Start DB server
+    #[arg(long, default_value_t = false)]
+    start: bool,
+}
+
 #[tokio::main]
 async fn main() -> hyper::Result<()> {
+    use clap::Parser;
+    let args = Args::parse();
+
     #[allow(unused_mut)]
     let mut hosted_database = HostedDatabase {
         inner: CurrentDatabase::None,
         number: 0,
     };
 
-    // hosted_database.restart(None).await;
+    if args.start {
+        hosted_database.restart(None).await;
+    }
 
     let hosted_database = SharedHostedDatabase::new(RwLock::new(hosted_database));
 
