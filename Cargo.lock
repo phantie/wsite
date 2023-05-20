@@ -192,6 +192,7 @@ dependencies = [
  "axum-macros",
  "axum-sessions",
  "bonsaidb",
+ "bytes",
  "claims",
  "clap",
  "config",
