@@ -341,15 +341,10 @@ impl Application {
 
         let conf = get_configuration();
 
-        let shared_database = RemoteDatabase::configure(
-            "abada-dabada",
-            RemoteClientParams {
-                // url: "bonsaidb://209.38.192.88".into(),
-                url: format!("bonsaidb://{}", conf.database.host),
-                // url: "bonsaidb://165.22.74.247".into(),
-                password: conf.database.password,
-            },
-        )
+        let shared_database = RemoteDatabase::configure(RemoteClientParams {
+            url: format!("bonsaidb://{}", conf.database.host),
+            password: conf.database.password,
+        })
         .await
         .expect("database must be available on deployment");
 

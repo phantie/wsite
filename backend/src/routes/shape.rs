@@ -4,7 +4,7 @@ use crate::routes::imports::*;
 pub async fn all_shapes(
     Extension(shared_database): Extension<SharedRemoteDatabase>,
 ) -> ApiResult<Json<Vec<schema::Shape>>> {
-    tracing::info!("Remote database ID: {}", shared_database.read().await.id);
+    tracing::info!("{:?}", shared_database.read().await);
     HangingStrategy::default()
         .execute(
             |shared_database| async {
