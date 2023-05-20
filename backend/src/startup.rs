@@ -77,7 +77,7 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
+pub fn router(db_client: SharedDbClient) -> Router<AppState> {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -144,11 +144,11 @@ pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
     Router::new()
         .nest("/api", api_router)
         .fallback(fallback)
-        .layer(AddExtensionLayer::new(shared_database.clone()))
+        .layer(AddExtensionLayer::new(db_client.clone()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
-            let store = BonsaiDBSessionStore { shared_database };
+            let store = BonsaiDBSessionStore { db_client };
 
             let decoded = hex::decode(get_configuration().session_secret)
                 .expect("HEX Decoding of session secret failed");
@@ -164,7 +164,7 @@ pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
 
 #[derive(Clone, Debug)]
 struct BonsaiDBSessionStore {
-    shared_database: SharedRemoteDatabase,
+    db_client: SharedDbClient,
 }
 
 #[async_trait]
@@ -177,22 +177,17 @@ impl SessionStore for BonsaiDBSessionStore {
 
         let session = HangingStrategy::default()
             .execute(
-                |shared_database| async {
+                |db_client| async {
                     let id = id.clone();
                     async move {
-                        let session: Option<Session> = shared_database
-                            .read()
-                            .await
-                            .sessions
-                            .get_key(id)
-                            .into()
-                            .await?;
+                        let session: Option<Session> =
+                            db_client.read().await.sessions().get_key(id).into().await?;
 
                         ApiResult::<_>::Ok(session)
                     }
                     .await
                 },
-                self.shared_database.clone(),
+                self.db_client.clone(),
             )
             .await??;
 
@@ -205,13 +200,13 @@ impl SessionStore for BonsaiDBSessionStore {
     ) -> axum_sessions::async_session::Result<Option<String>> {
         let _: () = HangingStrategy::default()
             .execute(
-                |shared_database| async {
+                |db_client| async {
                     let session = session.clone();
                     async move {
-                        shared_database
+                        db_client
                             .read()
                             .await
-                            .sessions
+                            .sessions()
                             .set_key(session.id().to_string(), &session)
                             .await?;
 
@@ -219,7 +214,7 @@ impl SessionStore for BonsaiDBSessionStore {
                     }
                     .await
                 },
-                self.shared_database.clone(),
+                self.db_client.clone(),
             )
             .await??;
 
@@ -230,13 +225,13 @@ impl SessionStore for BonsaiDBSessionStore {
     async fn destroy_session(&self, session: Session) -> axum_sessions::async_session::Result {
         let _: () = HangingStrategy::default()
             .execute(
-                |shared_database| async {
+                |db_client| async {
                     let session = session.clone();
                     async move {
-                        shared_database
+                        db_client
                             .read()
                             .await
-                            .sessions
+                            .sessions()
                             .delete_key(session.id().to_string())
                             .await?;
 
@@ -244,7 +239,7 @@ impl SessionStore for BonsaiDBSessionStore {
                     }
                     .await
                 },
-                self.shared_database.clone(),
+                self.db_client.clone(),
             )
             .await??;
 
@@ -264,7 +259,7 @@ pub struct AppState {
     pub base_url: String,
 }
 
-pub type SharedRemoteDatabase = Arc<RwLock<RemoteDatabase>>;
+pub type SharedDbClient = Arc<RwLock<DbClient>>;
 
 pub struct Application {
     port: u16,
@@ -272,7 +267,7 @@ pub struct Application {
     database: Arc<Database>,
     host: String,
     #[allow(dead_code)]
-    shared_state: SharedRemoteDatabase,
+    db_client: SharedDbClient,
 }
 
 impl Application {
@@ -324,7 +319,7 @@ impl Application {
             database: Arc<Database>,
             email_client: Arc<EmailClient>,
             base_url: String,
-            shared_database: SharedRemoteDatabase,
+            db_client: SharedDbClient,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
             let app_state = AppState {
                 database,
@@ -332,7 +327,7 @@ impl Application {
                 base_url,
             };
 
-            let app = router(shared_database).with_state(app_state);
+            let app = router(db_client).with_state(app_state);
 
             axum::Server::from_tcp(listener)
                 .unwrap()
@@ -341,29 +336,29 @@ impl Application {
 
         let conf = get_configuration();
 
-        let shared_database = RemoteDatabase::configure(RemoteClientParams {
-            url: format!("bonsaidb://{}", conf.database.host),
-            password: conf.database.password,
-        })
-        .await
-        .expect("database must be available on deployment");
-
-        let shared_state = Arc::new(RwLock::new(shared_database));
+        let db_client = SharedDbClient::new(RwLock::new(
+            DbClient::configure(DbClientConf {
+                url: format!("bonsaidb://{}", conf.database.host),
+                password: conf.database.password,
+            })
+            .await
+            .expect("database must be available on deployment"),
+        ));
 
         let server = Box::pin(run(
             listener,
             database.clone(),
             email_client,
             configuration.application.base_url.clone(),
-            shared_state.clone(),
+            db_client.clone(),
         ));
 
         Self {
             server,
-            database: database.clone(),
+            database,
             port,
             host,
-            shared_state,
+            db_client,
         }
     }
 

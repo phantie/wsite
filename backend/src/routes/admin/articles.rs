@@ -23,7 +23,7 @@ fn reject_invalid_article(article: &interfacing::Article) -> ApiResult<()> {
 #[axum_macros::debug_handler]
 pub async fn new_article(
     session: ReadableSession,
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
     Json(body): Json<interfacing::Article>,
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
@@ -31,10 +31,10 @@ pub async fn new_article(
 
     HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 let body = body.clone();
                 async move {
-                    let articles = &shared_database.read().await.collections.articles;
+                    let articles = &db_client.read().await.collections().articles;
                     schema::Article {
                         title: body.title,
                         public_id: body.public_id,
@@ -48,7 +48,7 @@ pub async fn new_article(
                 }
                 .await
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await?
 }
@@ -56,7 +56,7 @@ pub async fn new_article(
 #[axum_macros::debug_handler]
 pub async fn update_article(
     session: ReadableSession,
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
     Json(body): Json<interfacing::Article>,
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
@@ -64,10 +64,10 @@ pub async fn update_article(
 
     HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 let body = body.clone();
                 async move {
-                    let articles = &shared_database.read().await.collections.articles;
+                    let articles = &db_client.read().await.collections().articles;
                     let docs = articles
                         .view::<schema::ArticleByPublicID>()
                         .with_key(&body.public_id)
@@ -85,7 +85,7 @@ pub async fn update_article(
                 }
                 .await
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await?
 }
@@ -94,16 +94,16 @@ pub async fn update_article(
 pub async fn delete_article(
     session: ReadableSession,
     Path(public_id): Path<String>,
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
 
     HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 let public_id = public_id.clone();
                 async move {
-                    let articles = &shared_database.read().await.collections.articles;
+                    let articles = &db_client.read().await.collections().articles;
                     let docs = articles
                         .view::<schema::ArticleByPublicID>()
                         .with_key(&public_id)
@@ -117,27 +117,27 @@ pub async fn delete_article(
                 }
                 .await
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await?
 }
 
 pub async fn article_list(
     session: ReadableSession,
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
 ) -> ApiResult<Json<Vec<schema::Article>>> {
     let docs = HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 async move {
-                    let articles = &shared_database.read().await.collections.articles;
+                    let articles = &db_client.read().await.collections().articles;
                     let docs = schema::Article::all_async(articles).await?;
 
                     ApiResult::<_>::Ok(docs)
                 }
                 .await
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await??;
 
@@ -153,14 +153,14 @@ pub async fn article_list(
 
 pub async fn article_by_public_id(
     Path(public_id): Path<String>,
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
 ) -> ApiResult<impl IntoResponse> {
     HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 let public_id = public_id.clone();
                 async move {
-                    let articles = &shared_database.read().await.collections.articles;
+                    let articles = &db_client.read().await.collections().articles;
 
                     let docs = articles
                         .view::<schema::ArticleByPublicID>()
@@ -173,7 +173,7 @@ pub async fn article_by_public_id(
                 }
                 .await
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await?
 }

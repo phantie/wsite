@@ -2,41 +2,41 @@ use crate::routes::imports::*;
 
 #[axum_macros::debug_handler]
 pub async fn all_shapes(
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
 ) -> ApiResult<Json<Vec<schema::Shape>>> {
-    tracing::info!("{:?}", shared_database.read().await);
+    tracing::info!("{:?}", db_client.read().await);
     HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 async move {
-                    let shapes = &shared_database.read().await.collections.shapes;
+                    let shapes = &db_client.read().await.collections().shapes;
                     let docs = schema::Shape::all_async(shapes).await?;
                     Ok(Json(collect_contents(docs)))
                 }
                 .await
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await?
 }
 
 #[axum_macros::debug_handler]
 pub async fn new_shape(
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
     Json(body): Json<schema::Shape>,
 ) -> ApiResult<()> {
     HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 let body = body.clone();
                 async move {
-                    let shapes = shared_database.read().await.collections.shapes.clone();
-                    body.push_into_async(&shapes).await.map_err(|e| e.error)?;
+                    let shapes = &db_client.read().await.collections().shapes;
+                    body.push_into_async(shapes).await.map_err(|e| e.error)?;
                     Ok(())
                 }
                 .await
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await?
 }

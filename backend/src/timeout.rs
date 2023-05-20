@@ -50,13 +50,9 @@ impl HangingStrategy {
 
     // Attempt to renew connection with the database server if it hangs
     // because there's no timeouts on external API calls to it
-    pub async fn execute<F, C, R>(
-        self,
-        closure: C,
-        shared_database: SharedRemoteDatabase,
-    ) -> ApiResult<R>
+    pub async fn execute<F, C, R>(self, closure: C, db_client: SharedDbClient) -> ApiResult<R>
     where
-        C: Fn(SharedRemoteDatabase) -> F,
+        C: Fn(SharedDbClient) -> F,
         F: Future<Output = R>,
     {
         match self {
@@ -67,8 +63,8 @@ impl HangingStrategy {
                 let mut retried_times = 0;
 
                 loop {
-                    let reconfiguration_id = shared_database.read().await.reconfiguration_id();
-                    match timeout_in(sleep, closure(Arc::clone(&shared_database))).await {
+                    let reconfiguration_id = db_client.read().await.reconfiguration_id();
+                    match timeout_in(sleep, closure(Arc::clone(&db_client))).await {
                         Ok(r) => return Ok(r),
                         Err(_elapsed) => {
                             if retried_times >= max_times {
@@ -80,17 +76,17 @@ impl HangingStrategy {
                             // check the reconfiguration_id of the client the request was tried with
                             // if ID does not match - client has changed, so retry the request
                             {
-                                let mut shared_database = shared_database.write().await;
-                                if shared_database.reconfiguration_id() == reconfiguration_id {
-                                    tracing::info!("Reconfiguring... {shared_database:?}");
+                                let mut db_client = db_client.write().await;
+                                if db_client.reconfiguration_id() == reconfiguration_id {
+                                    tracing::info!("Reconfiguring... {db_client:?}");
 
-                                    match shared_database.reconfigure().await {
+                                    match db_client.reconfigure().await {
                                         Ok(()) => {
-                                            tracing::info!("Reconfigured {shared_database:?}")
+                                            tracing::info!("Reconfigured {db_client:?}")
                                         }
                                         Err(e) => {
                                             tracing::info!(
-                                                "Failed to reconfigure {shared_database:?}: {e}",
+                                                "Failed to reconfigure {db_client:?}: {e}",
                                             )
                                         }
                                     }
@@ -108,7 +104,7 @@ impl HangingStrategy {
 
 use crate::{
     error::{ApiError, ApiResult},
-    startup::SharedRemoteDatabase,
+    startup::SharedDbClient,
 };
 use std::future::Future;
 use std::{sync::Arc, time::Duration};

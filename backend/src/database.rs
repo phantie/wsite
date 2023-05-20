@@ -135,28 +135,34 @@ pub async fn load_certificate() -> anyhow::Result<fabruic::Certificate> {
     // f
 }
 
-// SCHEMA TWEAK
-pub struct RemoteDatabase {
-    pub sessions: bonsaidb::client::AsyncRemoteDatabase,
-    pub collections: RemoteCollections,
+pub type SharedDbClient = Arc<tokio::sync::RwLock<DbClient>>;
 
-    client: AsyncClient,
-    client_params: RemoteClientParams,
-    reconfiguration_id: u32,
-    ping_handle: JoinHandle<()>,
+// SCHEMA TWEAK
+pub struct DbClient {
+    conf: DbClientConf,
+    liquid_state: DbClientLiquidState,
 }
 
-impl std::fmt::Debug for RemoteDatabase {
+// Fields that change on reconfiguration moved here,
+// because forgetting to also tweak fn reconfigure
+// might result with buggy consequent reconfigurations
+pub struct DbClientLiquidState {
+    collections: DbCollections,
+    sessions: bonsaidb::client::AsyncRemoteDatabase,
+    reconfiguration_id: u32,
+    ping_handle: JoinHandle<()>,
+    #[allow(dead_code)]
+    client: AsyncClient,
+}
+
+impl std::fmt::Debug for DbClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!(
-            "DB [Reconfiguration ID {}]",
-            self.reconfiguration_id()
-        ))
+        f.write_fmt(format_args!("DbClient [id {}]", self.reconfiguration_id()))
     }
 }
 
 #[derive(Clone)]
-pub struct RemoteClientParams {
+pub struct DbClientConf {
     pub url: String,
     pub password: String,
 }
@@ -164,9 +170,7 @@ pub struct RemoteClientParams {
 pub struct RemoteClient {}
 
 impl RemoteClient {
-    pub async fn create(
-        params: RemoteClientParams,
-    ) -> anyhow::Result<bonsaidb::client::AsyncClient> {
+    pub async fn create(params: DbClientConf) -> anyhow::Result<bonsaidb::client::AsyncClient> {
         use bonsaidb::core::{
             admin::Role,
             connection::{Authentication, SensitiveString},
@@ -201,7 +205,8 @@ impl RemoteClient {
     }
 }
 
-pub struct RemoteCollections {
+#[derive(Clone)]
+pub struct DbCollections {
     pub shapes: bonsaidb::client::AsyncRemoteDatabase,
     pub users: bonsaidb::client::AsyncRemoteDatabase,
     pub articles: bonsaidb::client::AsyncRemoteDatabase,
@@ -227,9 +232,9 @@ impl Ping for AsyncClient {
 #[allow(non_upper_case_globals)]
 static mut ReconfigurationID: AtomicU32 = AtomicU32::new(0);
 
-impl RemoteDatabase {
-    pub async fn configure(params: RemoteClientParams) -> anyhow::Result<Self> {
-        let client = RemoteClient::create(params.clone()).await?;
+impl DbClient {
+    pub async fn configure(conf: DbClientConf) -> anyhow::Result<Self> {
+        let client = RemoteClient::create(conf.clone()).await?;
 
         // try to solve a problem of client hanging forever
         // when not accessed for some time (empirically found more than 10 minutes)
@@ -263,33 +268,39 @@ impl RemoteDatabase {
         unsafe { ReconfigurationID.fetch_add(1, Ordering::SeqCst) };
 
         Ok(Self {
-            client,
-            collections: RemoteCollections {
-                shapes,
-                users,
-                articles,
+            conf,
+            liquid_state: DbClientLiquidState {
+                sessions,
+                collections: DbCollections {
+                    shapes,
+                    users,
+                    articles,
+                },
+                client,
+                reconfiguration_id,
+                ping_handle,
             },
-            sessions,
-            client_params: params,
-            ping_handle,
-            reconfiguration_id,
         })
     }
 
     pub async fn reconfigure(&mut self) -> anyhow::Result<()> {
-        self.ping_handle.abort();
-        let renewed = Self::configure(self.client_params.clone()).await?;
+        self.liquid_state.ping_handle.abort();
+        let renewed = Self::configure(self.conf.clone()).await?;
 
-        self.client = renewed.client;
-        self.collections = renewed.collections;
-        self.reconfiguration_id = renewed.reconfiguration_id;
-        self.ping_handle = renewed.ping_handle;
-        self.sessions = renewed.sessions;
+        self.liquid_state = renewed.liquid_state;
 
         Ok(())
     }
 
+    pub fn sessions(&self) -> bonsaidb::client::AsyncRemoteDatabase {
+        self.liquid_state.sessions.clone()
+    }
+
+    pub fn collections(&self) -> DbCollections {
+        self.liquid_state.collections.clone()
+    }
+
     pub fn reconfiguration_id(&self) -> u32 {
-        self.reconfiguration_id
+        self.liquid_state.reconfiguration_id
     }
 }

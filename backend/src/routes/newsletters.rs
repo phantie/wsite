@@ -4,13 +4,13 @@ use crate::routes::imports::*;
 pub async fn publish_newsletter(
     State(state): State<AppState>,
     maybe_basic_auth: Result<TypedHeader<Authorization<Basic>>, TypedHeaderRejection>,
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
     Json(body): Json<BodyData>,
 ) -> ApiResult<()> {
     let TypedHeader(basic_auth) = maybe_basic_auth.map_err(ApiError::AuthHeaderRejection)?;
 
     let credentials: Credentials = basic_auth.into();
-    let _user_id = validate_credentials(shared_database.clone(), &credentials).await?;
+    let _user_id = validate_credentials(db_client.clone(), &credentials).await?;
 
     let subscriptions = &state.database.collections.subscriptions;
 
