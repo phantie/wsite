@@ -628,7 +628,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 dependencies = [
  "bonsaidb-client",
  "bonsaidb-core",
@@ -641,7 +641,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-client"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 dependencies = [
  "async-lock",
  "async-trait",
@@ -671,7 +671,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-core"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 dependencies = [
  "actionable",
  "arc-bytes",
@@ -699,7 +699,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-files"
 version = "0.1.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 dependencies = [
  "bonsaidb-core",
  "bonsaidb-macros",
@@ -716,7 +716,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-local"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 dependencies = [
  "argon2 0.4.1",
  "async-trait",
@@ -756,7 +756,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-macros"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 dependencies = [
  "attribute-derive",
  "manyhow",
@@ -771,7 +771,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-server"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 dependencies = [
  "async-acme",
  "async-lock",
@@ -806,7 +806,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-utils"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=3304c36#3304c36997663ee163966028d73f2825f7681468"
+source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
 
 [[package]]
 name = "boolinator"

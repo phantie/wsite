@@ -81,16 +81,7 @@ impl HostedDatabase {
                 //     }
                 // });
 
-                let mut listened = bonsaidb::server::BonsaiListenConfig::default();
-
-                listened.address = std::net::SocketAddr::V6(std::net::SocketAddrV6::new(
-                    std::net::Ipv6Addr::UNSPECIFIED,
-                    5645,
-                    0,
-                    0,
-                ));
-
-                server.listen_on(listened).await
+                server.listen_on(5645).await
             })
         };
 

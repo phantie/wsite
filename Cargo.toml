@@ -15,6 +15,9 @@ database_common = { path = "common/database_common" }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.159", features = ["derive"] }
 serde_json = "1.0.94"
-# 17.05.23 revision
-bonsaidb = { git = "https://github.com/khonsulabs/bonsaidb/", rev = "3304c36", features = ["server-full", "client-full", "local-full", "password-hashing"] }
 anyhow = "1.0.71"
+
+[workspace.dependencies.bonsaidb]
+rev = "c42b2f580ff6cef4854f0a2ae45e52a7743352d6" # 20.05.23
+git = "https://github.com/khonsulabs/bonsaidb/"
+features = ["server-full", "client-full", "local-full", "password-hashing"]
