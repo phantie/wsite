@@ -8,7 +8,7 @@ use interfacing::LoginForm;
 #[axum_macros::debug_handler]
 pub async fn login(
     mut session: WritableSession,
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
     maybe_form: Result<Json<LoginForm>, JsonRejection>,
 ) -> ApiResult<()> {
     let Json(form) = maybe_form?;
@@ -17,12 +17,12 @@ pub async fn login(
 
     let user_id = HangingStrategy::default()
         .execute(
-            |shared_database| async {
+            |db_client| async {
                 let credentials = credentials.clone();
-                let user_id = validate_credentials(shared_database, &credentials).await?;
+                let user_id = validate_credentials(db_client, &credentials).await?;
                 ApiResult::<_>::Ok(user_id)
             },
-            shared_database.clone(),
+            db_client.clone(),
         )
         .await??;
 

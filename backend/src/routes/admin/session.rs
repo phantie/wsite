@@ -3,7 +3,7 @@ use interfacing::AdminSession;
 
 #[axum_macros::debug_handler]
 pub async fn admin_session(
-    Extension(shared_database): Extension<SharedRemoteDatabase>,
+    Extension(db_client): Extension<SharedDbClient>,
     session: ReadableSession,
 ) -> ApiResult<Json<AdminSession>> {
     std::thread::sleep(std::time::Duration::from_millis(100));
@@ -13,11 +13,11 @@ pub async fn admin_session(
         Some(user_id) => {
             let user = HangingStrategy::default()
                 .execute(
-                    |shared_database| async {
+                    |db_client| async {
                         async move {
                             let user = schema::User::get_async(
                                 &user_id,
-                                &shared_database.read().await.collections.users,
+                                &db_client.read().await.collections().users,
                             )
                             .await?
                             .context("dangling user_id in session")?;
@@ -26,7 +26,7 @@ pub async fn admin_session(
                         }
                         .await
                     },
-                    shared_database.clone(),
+                    db_client.clone(),
                 )
                 .await??;
 

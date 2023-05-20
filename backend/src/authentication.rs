@@ -1,7 +1,6 @@
 use crate::{
     database::*,
     error::{ApiError, ApiResult},
-    startup::SharedRemoteDatabase,
     telemetry::spawn_blocking_with_tracing,
 };
 use anyhow::Context;
@@ -37,7 +36,7 @@ impl From<Authorization<Basic>> for Credentials {
     )
 )]
 pub async fn validate_credentials(
-    shared_database: SharedRemoteDatabase,
+    db_client: SharedDbClient,
     credentials: &Credentials,
 ) -> ApiResult<u64> {
     let mut user_id: Option<u64> = None;
@@ -48,7 +47,7 @@ pub async fn validate_credentials(
             .to_string(),
     );
 
-    let users = &shared_database.read().await.collections.users;
+    let users = &db_client.read().await.collections().users;
 
     let mapped_users = users
         .view::<schema::UserByUsername>()
