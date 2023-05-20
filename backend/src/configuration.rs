@@ -6,19 +6,28 @@ use serde_aux::field_attributes::deserialize_number_from_string; // to deseriali
 #[derive(Deserialize)]
 pub struct Settings {
     pub application: ApplicationSettings,
+
+    pub session_secret: String,
+    pub features: AppFeatures,
+
     pub database: DatabaseSettings,
     pub email_client: EmailClientSettings,
 
     pub testing: Testing,
 }
 
+// Fields used in tests, TODO migrate all to Settings
 #[derive(serde::Deserialize, Clone)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub base_url: String,
-    pub session_secret: String,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct AppFeatures {
+    pub newsletter: bool,
 }
 
 #[derive(Deserialize, Clone)]
@@ -52,16 +61,7 @@ pub fn get_configuration() -> Settings {
             .unwrap()
     }
 
-    let base_path = {
-        let base_path = std::env::current_dir().expect("Failed to determine the current directory");
-
-        if base_path.ends_with("backend") {
-            base_path
-        } else {
-            // to allow cargo run from workspace root
-            base_path.join("backend")
-        }
-    };
+    let base_path = std::env::current_dir().expect("Failed to determine the current directory");
 
     let configuration_directory = base_path.join("configuration");
     let env = get_env();
@@ -101,7 +101,16 @@ impl Environment {
             Environment::Production => "production",
         }
     }
+
+    pub fn local(&self) -> bool {
+        matches!(self, Self::Local)
+    }
+
+    pub fn prod(&self) -> bool {
+        matches!(self, Self::Production)
+    }
 }
+
 impl TryFrom<String> for Environment {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {

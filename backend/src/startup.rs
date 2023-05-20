@@ -1,5 +1,5 @@
 use crate::{
-    configuration::{get_configuration, Settings},
+    configuration::{get_configuration, get_env, Settings},
     database::*,
     email_client::EmailClient,
     error::ApiResult,
@@ -84,13 +84,6 @@ pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
 
     let api_router = Router::new()
         .route(routes.health_check.get().postfix(), get(health_check))
-        .route(routes.subs.get().postfix(), get(all_subs))
-        .route(routes.subs.new.post().postfix(), post(subscribe))
-        .route(routes.subs.confirm.get().postfix(), get(sub_confirm))
-        .route(
-            routes.newsletters.post().postfix(),
-            post(publish_newsletter),
-        )
         .route(routes.login.post().postfix(), post(login))
         .route(
             routes.admin.password.post().postfix(),
@@ -102,9 +95,28 @@ pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
         .route("/articles/:public_id", get(article_by_public_id))
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
-        .route("/admin/articles", put(update_article))
-        .route("/shapes", get(all_shapes))
-        .route("/shapes", post(new_shape));
+        .route("/admin/articles", put(update_article));
+
+    let api_router = if get_configuration().features.newsletter {
+        api_router
+            .route(routes.subs.get().postfix(), get(all_subs))
+            .route(routes.subs.new.post().postfix(), post(subscribe))
+            .route(routes.subs.confirm.get().postfix(), get(sub_confirm))
+            .route(
+                routes.newsletters.post().postfix(),
+                post(publish_newsletter),
+            )
+    } else {
+        api_router
+    };
+
+    let api_router = if get_env().local() {
+        api_router
+            .route("/shapes", get(all_shapes))
+            .route("/shapes", post(new_shape))
+    } else {
+        api_router
+    };
 
     let request_tracing_layer = tower::ServiceBuilder::new()
         .set_x_request_id(RequestIdProducer::default())
@@ -138,7 +150,7 @@ pub fn router(shared_database: SharedRemoteDatabase) -> Router<AppState> {
             // let store = axum_sessions::async_session::MemoryStore::new();
             let store = BonsaiDBSessionStore { shared_database };
 
-            let decoded = hex::decode(get_configuration().application.session_secret)
+            let decoded = hex::decode(get_configuration().session_secret)
                 .expect("HEX Decoding of session secret failed");
 
             // use rand::Rng;
