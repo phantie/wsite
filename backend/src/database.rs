@@ -180,16 +180,21 @@ impl RemoteClient {
 
         // dbg!(&params.certificate);
 
-        let cert = match params.certificate {
-            None => load_certificate().await?,
-            Some(cert) => cert,
-        };
+        let needs_auth = matches!(&params.certificate, None);
 
+        let cert = match &params.certificate {
+            None => load_certificate().await?,
+            Some(cert) => cert.clone(),
+        };
         let client = bonsaidb::client::AsyncClient::build(
             bonsaidb::client::url::Url::parse(&params.url).unwrap(),
         )
         .with_certificate(cert)
         .build()?;
+
+        if !needs_auth {
+            return Ok(client);
+        }
 
         let admin_password = params.password;
 
