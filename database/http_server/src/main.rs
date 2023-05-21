@@ -11,12 +11,11 @@ use bonsaidb::{
     },
     server::CustomServer,
 };
+use database_common::schema;
 use secrecy::ExposeSecret;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{sync::RwLock, task::JoinHandle};
 use tower_http::add_extension::AddExtensionLayer;
-mod database;
-use database_common::schema;
 mod external_server;
 
 struct HostedDatabase {
@@ -66,7 +65,9 @@ impl HostedDatabase {
     async fn restart(&mut self, backup: BackupLocation) {
         self.stop().await.unwrap();
 
-        let server = database::server(backup).await.unwrap();
+        let server = database_common::init::server(database_common::storage_location(), backup)
+            .await
+            .unwrap();
 
         let handle = {
             let server = server.clone();
@@ -74,14 +75,8 @@ impl HostedDatabase {
             tokio::spawn(async move {
                 println!("database server {} is listening on 5645", number);
 
-                // let _ping_handle = tokio::spawn(async move {
-                //     loop {
-                //         tokio::time::sleep(Duration::from_secs(3)).await;
-                //         println!("database server {} ping", number);
-                //     }
-                // });
-
-                server.listen_on(5645).await
+                let e = server.endpoint_from_config(5645).await.unwrap();
+                server.listen_on(e).await
             })
         };
 

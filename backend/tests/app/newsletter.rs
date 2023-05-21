@@ -9,6 +9,14 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
+// cargo test ::just_spawn -- --nocapture
+#[serial]
+#[tokio::test]
+async fn just_spawn() {
+    // Arrange
+    let _app = spawn_app().await;
+}
+
 #[serial]
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {

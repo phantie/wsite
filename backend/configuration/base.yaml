@@ -4,6 +4,7 @@ application:
 database:
     dir: "basic.bonsaidb"
     memory_only: false
+    port: 5645
 
 email_client:
     base_url: "http://127.0.0.1"
@@ -14,8 +15,9 @@ testing:
     database:
         dir: "target/tmp/test/basic.bonsaidb"
         memory_only: true
-        host: "NULL:FIX"
-        password: "NULL:FIX"
+        host: "localhost"
+        password: "1"
+        port: 0 # replaced in testing
 
     application:
         port: 0

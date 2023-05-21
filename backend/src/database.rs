@@ -1,6 +1,7 @@
 pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
+use fabruic::Certificate;
 
 use crate::configuration::get_configuration;
 use crate::timeout::TimeoutStrategy;
@@ -165,6 +166,7 @@ impl std::fmt::Debug for DbClient {
 pub struct DbClientConf {
     pub url: String,
     pub password: String,
+    pub certificate: Option<Certificate>,
 }
 
 pub struct RemoteClient {}
@@ -176,10 +178,17 @@ impl RemoteClient {
             connection::{Authentication, SensitiveString},
         };
 
+        // dbg!(&params.certificate);
+
+        let cert = match params.certificate {
+            None => load_certificate().await?,
+            Some(cert) => cert,
+        };
+
         let client = bonsaidb::client::AsyncClient::build(
             bonsaidb::client::url::Url::parse(&params.url).unwrap(),
         )
-        .with_certificate(load_certificate().await?)
+        .with_certificate(cert)
         .build()?;
 
         let admin_password = params.password;
