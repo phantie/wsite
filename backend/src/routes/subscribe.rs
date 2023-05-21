@@ -1,8 +1,5 @@
+use crate::email_client::EmailClient;
 use crate::routes::imports::*;
-use crate::{
-    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
-    email_client::EmailClient,
-};
 
 #[axum_macros::debug_handler]
 #[tracing::instrument(
@@ -23,7 +20,8 @@ pub async fn subscribe(
         .record("subscriber_email", &tracing::field::display(&form.email))
         .record("subscriber_name", &tracing::field::display(&form.name));
 
-    let new_subscriber: NewSubscriber = form.try_into().map_err(SubscribeError::ValidationError)?;
+    let new_subscriber: domain::NewSubscriber =
+        form.try_into().map_err(SubscribeError::ValidationError)?;
 
     let subscription_token = generate_subscription_token();
 
@@ -49,11 +47,11 @@ pub struct FormData {
     email: String,
 }
 
-impl TryFrom<FormData> for NewSubscriber {
+impl TryFrom<FormData> for domain::NewSubscriber {
     type Error = String;
     fn try_from(value: FormData) -> Result<Self, Self::Error> {
-        let name = SubscriberName::parse(value.name)?;
-        let email = SubscriberEmail::parse(value.email)?;
+        let name = domain::SubscriberName::parse(value.name)?;
+        let email = domain::SubscriberEmail::parse(value.email)?;
         Ok(Self { email, name })
     }
 }
@@ -61,7 +59,7 @@ impl TryFrom<FormData> for NewSubscriber {
 #[tracing::instrument(name = "Send a confirmation email to a new subscriber", skip_all)]
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
-    new_subscriber: &NewSubscriber,
+    new_subscriber: &domain::NewSubscriber,
     base_url: &str,
     subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
@@ -97,10 +95,13 @@ pub async fn send_confirmation_email(
 )]
 pub async fn insert_subscriber(
     state: &AppState,
-    new_subscriber: &NewSubscriber,
+    new_subscriber: &domain::NewSubscriber,
     subscription_token: String,
-) -> Result<CollectionDocument<Subscription>, bonsaidb::core::schema::InsertError<Subscription>> {
-    Subscription {
+) -> Result<
+    CollectionDocument<schema::Subscription>,
+    bonsaidb::core::schema::InsertError<schema::Subscription>,
+> {
+    schema::Subscription {
         name: new_subscriber.name.as_ref().to_owned(),
         email: new_subscriber.email.clone(),
         status: "pending_confirmation".to_owned(),

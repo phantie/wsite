@@ -116,6 +116,9 @@ async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
     let _: ServerDatabase = server
         .create_database::<schema::Article>("articles", true)
         .await?;
+    let _: ServerDatabase = server
+        .create_database::<schema::Subscription>("subscriptions", true)
+        .await?;
     let _: ServerDatabase = server.create_database::<()>("sessions", true).await?;
     Ok(())
 }
@@ -126,12 +129,16 @@ fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfigura
         .with_schema::<schema::Shape>()?
         .with_schema::<schema::User>()?
         .with_schema::<schema::Article>()?
+        .with_schema::<schema::Subscription>()?
         .with_schema::<()>()?)
 }
 
 pub async fn test_server() -> anyhow::Result<CustomServer> {
+    // TODO tmp dirs are not removed
     let storage_location = tempdir::TempDir::new("test_db_server").unwrap().into_path();
+    dbg!(storage_location.as_path());
     let configuration = ServerConfiguration::new(storage_location)
+        .memory_only()
         .default_permissions(DefaultPermissions::AllowAll);
     let configuration = register_schemas(configuration)?;
 

@@ -1,0 +1,18 @@
+[package]
+name = "domain"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde.workspace = true
+validator = "0.16.0"
+unicode-segmentation = "1.10.1"
+
+[dev-dependencies]
+claim.workspace = true
+rand = { version = "0.8.5", features = ["std_rng"] }
+fake = "2.5.0"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"

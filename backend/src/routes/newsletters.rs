@@ -15,7 +15,7 @@ pub async fn publish_newsletter(
     let subscriptions = &state.database.collections.subscriptions;
 
     let confirmed_subscriptions = subscriptions
-        .view::<SubscriptionByStatus>()
+        .view::<schema::SubscriptionByStatus>()
         .with_key("confirmed")
         .query_with_collection_docs()
         .await?;
