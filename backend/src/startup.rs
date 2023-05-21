@@ -274,7 +274,6 @@ impl SessionStore for BonsaiDBSessionStore {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub database: Arc<Database>,
     pub email_client: Arc<EmailClient>,
     pub base_url: String,
 }
@@ -284,7 +283,6 @@ pub type SharedDbClient = Arc<RwLock<DbClient>>;
 pub struct Application {
     port: u16,
     server: std::pin::Pin<Box<dyn std::future::Future<Output = hyper::Result<()>> + Send>>,
-    database: Arc<Database>,
     host: String,
     pub db_client: SharedDbClient,
 }
@@ -319,18 +317,13 @@ impl Application {
             );
         }
 
-        let storage = Arc::new(storage(&conf.database.dir, conf.database.memory_only).await);
-        let database = Arc::new(Database::init(storage.clone()).await);
-
         pub fn run(
             listener: std::net::TcpListener,
-            database: Arc<Database>,
             email_client: Arc<EmailClient>,
             base_url: String,
             db_client: SharedDbClient,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
             let app_state = AppState {
-                database,
                 email_client,
                 base_url,
             };
@@ -354,7 +347,6 @@ impl Application {
 
         let server = Box::pin(run(
             listener,
-            database.clone(),
             email_client,
             conf.application.base_url.clone(),
             db_client.clone(),
@@ -362,7 +354,6 @@ impl Application {
 
         Self {
             server,
-            database,
             port,
             host,
             db_client,
@@ -376,10 +367,6 @@ impl Application {
 
     pub fn port(&self) -> u16 {
         self.port
-    }
-
-    pub fn database(&self) -> Arc<Database> {
-        self.database.clone()
     }
 
     pub fn host(&self) -> &str {

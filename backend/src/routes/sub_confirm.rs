@@ -7,12 +7,12 @@ pub struct Parameters {
 
 #[tracing::instrument(name = "Confirm a pending subscriber", skip_all)]
 pub async fn sub_confirm(
-    State(state): State<AppState>,
+    Extension(db_client): Extension<SharedDbClient>,
     Query(parameters): Query<Parameters>,
 ) -> ApiResult<()> {
     // TODO implement error handling like in subscriptions.rs
 
-    let subscriptions = &state.database.collections.subscriptions;
+    let subscriptions = &db_client.read().await.collections().subs;
 
     let docs = subscriptions
         .view::<schema::SubscriptionByToken>()
