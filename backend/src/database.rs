@@ -8,10 +8,6 @@ use crate::timeout::TimeoutStrategy;
 use bonsaidb::client::AsyncClient;
 use bonsaidb::client::AsyncRemoteDatabase;
 use bonsaidb::core::connection::AsyncStorageConnection;
-use bonsaidb::local::config::Builder;
-use bonsaidb::local::config::StorageConfiguration;
-use bonsaidb::local::AsyncDatabase;
-use bonsaidb::local::AsyncStorage;
 use fabruic::Certificate;
 use hyper::StatusCode;
 use std::sync::atomic::AtomicU32;
@@ -19,48 +15,6 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
-
-pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
-    let mut configuration = StorageConfiguration::new(dir);
-    configuration.memory_only = memory_only;
-    let configuration = configuration.with_schema::<schema::Subscription>().unwrap();
-    let configuration = configuration.with_schema::<schema::User>().unwrap();
-
-    AsyncStorage::open(configuration).await.unwrap()
-}
-
-#[derive(Clone, Debug)]
-pub struct Database {
-    pub storage: Arc<AsyncStorage>,
-    pub collections: Collections,
-}
-
-#[derive(Clone, Debug)]
-pub struct Collections {
-    pub subscriptions: AsyncDatabase,
-    // TODO can't remove because god-forgotten tests that access this field
-    pub users: AsyncDatabase,
-}
-
-impl Database {
-    pub async fn init(storage: Arc<AsyncStorage>) -> Self {
-        let collections = Collections {
-            subscriptions: storage
-                .create_database::<schema::Subscription>("subscriptions", true)
-                .await
-                .unwrap(),
-            users: storage
-                .create_database::<schema::User>("users", true)
-                .await
-                .unwrap(),
-        };
-
-        Self {
-            storage,
-            collections,
-        }
-    }
-}
 
 pub async fn load_certificate() -> anyhow::Result<fabruic::Certificate> {
     let conf = get_configuration();

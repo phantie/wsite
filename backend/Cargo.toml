@@ -11,9 +11,6 @@ path = "src/lib.rs"
 path = "src/main.rs"
 name = "api_aga_in"
 
-[[bin]]
-path = "tools/create_user/main.rs"
-name = "create_user"
 
 [dependencies]
 axum = { version = "0.6.10", features = ["headers"] }

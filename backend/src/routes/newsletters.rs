@@ -12,7 +12,7 @@ pub async fn publish_newsletter(
     let credentials: Credentials = basic_auth.into();
     let _user_id = validate_credentials(db_client.clone(), &credentials).await?;
 
-    let subscriptions = &state.database.collections.subscriptions;
+    let subscriptions = &db_client.read().await.collections().subs;
 
     let confirmed_subscriptions = subscriptions
         .view::<schema::SubscriptionByStatus>()

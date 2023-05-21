@@ -12,6 +12,7 @@ use crate::routes::imports::*;
 )]
 pub async fn subscribe(
     State(state): State<AppState>,
+    Extension(db_client): Extension<SharedDbClient>,
     maybe_form: Result<Form<FormData>, FormRejection>,
 ) -> Result<StatusCode, SubscribeError> {
     let Form(form) = maybe_form?;
@@ -34,7 +35,7 @@ pub async fn subscribe(
     .await
     .context("Failed to send a confirmation email")?;
 
-    insert_subscriber(&state, &new_subscriber, subscription_token)
+    insert_subscriber(db_client, &new_subscriber, subscription_token)
         .await
         .context("Failed to insert into the database")?;
 
@@ -89,25 +90,23 @@ pub async fn send_confirmation_email(
         .await
 }
 
-#[tracing::instrument(
-    name = "Saving new subscriber details in the database",
-    skip(new_subscriber, state)
-)]
+#[tracing::instrument(name = "Saving new subscriber details in the database", skip_all)]
 pub async fn insert_subscriber(
-    state: &AppState,
+    db_client: SharedDbClient,
     new_subscriber: &domain::NewSubscriber,
     subscription_token: String,
 ) -> Result<
     CollectionDocument<schema::Subscription>,
     bonsaidb::core::schema::InsertError<schema::Subscription>,
 > {
+    let subscriptions = &db_client.read().await.collections().subs;
     schema::Subscription {
         name: new_subscriber.name.as_ref().to_owned(),
         email: new_subscriber.email.clone(),
         status: "pending_confirmation".to_owned(),
         token: subscription_token,
     }
-    .push_into_async(&state.database.collections.subscriptions)
+    .push_into_async(subscriptions)
     .await
 }
 
