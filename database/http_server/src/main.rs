@@ -11,12 +11,11 @@ use bonsaidb::{
     },
     server::CustomServer,
 };
+use database_common::schema;
 use secrecy::ExposeSecret;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{sync::RwLock, task::JoinHandle};
 use tower_http::add_extension::AddExtensionLayer;
-mod database;
-use database_common::schema;
 mod external_server;
 
 struct HostedDatabase {
@@ -66,7 +65,10 @@ impl HostedDatabase {
     async fn restart(&mut self, backup: BackupLocation) {
         self.stop().await.unwrap();
 
-        let server = database::server(backup).await.unwrap();
+        let storage_location = database_common::storage_location();
+        let server = database_common::init::create_server(storage_location, backup)
+            .await
+            .unwrap();
 
         let handle = {
             let server = server.clone();

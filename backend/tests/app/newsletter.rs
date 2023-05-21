@@ -11,6 +11,12 @@ use wiremock::{
 
 #[serial]
 #[tokio::test]
+async fn just_spawn() {
+    let _app = spawn_app().await;
+}
+
+#[serial]
+#[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     // Arrange
     let app = spawn_app().await;

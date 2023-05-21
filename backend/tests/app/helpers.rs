@@ -3,6 +3,10 @@ use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
+use bonsaidb::local::{
+    config::{Builder, StorageConfiguration},
+    AsyncStorage,
+};
 use database_common::schema::*;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
@@ -34,6 +38,24 @@ pub async fn spawn_app() -> TestApp {
         c.email_client.base_url = email_server.uri();
         c
     };
+
+    let _db_storage = {
+        let tmp_dir = tempdir::TempDir::new("db_storage").unwrap().into_path();
+        let conf = StorageConfiguration::new(tmp_dir);
+        let conf = database_common::init::register_schemas(conf).unwrap();
+        let storage = AsyncStorage::open(conf).await.unwrap();
+        database_common::init::setup_contents(&storage)
+            .await
+            .unwrap();
+        storage
+        // let db_server = database_common::init::server(tmp_dir, None).await.unwrap();
+        // let address = "localhost:0";
+        // let listener = std::net::TcpListener::bind(&address).unwrap();
+        // let q = listener.local_addr().unwrap();
+        // db_server.listen_for_tcp_on(addr, service)
+    };
+
+    println!("SPAWNED DB SERVERR");
 
     let application = Application::build(&configuration).await;
 

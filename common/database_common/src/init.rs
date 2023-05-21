@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use bonsaidb::local::config::Builder;
-use bonsaidb::server::{Server, ServerConfiguration, ServerDatabase};
+use bonsaidb::server::{Server, ServerConfiguration};
 use bonsaidb::{
     core::{
         admin::{PermissionGroup, Role},
@@ -16,9 +16,9 @@ use bonsaidb::{
     server::CustomServer,
 };
 
-use database_common::schema;
+use crate::schema;
 
-async fn setup_permissions(server: &CustomServer) -> anyhow::Result<()> {
+pub async fn setup_permissions(server: &impl AsyncStorageConnection) -> anyhow::Result<()> {
     let admin_username = "admin";
 
     let user_id = match server.create_user(admin_username).await {
@@ -97,32 +97,42 @@ async fn setup_permissions(server: &CustomServer) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn setup_certificate(server: &CustomServer) -> anyhow::Result<()> {
+pub async fn setup_certificate(server: &CustomServer) -> anyhow::Result<()> {
     if server.certificate_chain().await.is_err() {
         server.install_self_signed_certificate(true).await?;
     }
     Ok(())
 }
 
-async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
+pub async fn setup_contents(server: &impl AsyncStorageConnection) -> anyhow::Result<()> {
     // SCHEMA TWEAK
-    let _: ServerDatabase = server
+    let _ = server
         .create_database::<schema::Shape>("shapes", true)
         .await?;
-    let _: ServerDatabase = server
+    let _ = server
         .create_database::<schema::User>("users", true)
         .await?;
-    let _: ServerDatabase = server
+    let _ = server
         .create_database::<schema::Article>("articles", true)
         .await?;
-    let _: ServerDatabase = server.create_database::<()>("sessions", true).await?;
+    let _ = server.create_database::<()>("sessions", true).await?;
     Ok(())
 }
 
-pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
-    let storage_location = database_common::storage_location();
+pub fn register_schemas<C: bonsaidb::local::config::Builder>(conf: C) -> anyhow::Result<C> {
+    // SCHEMA TWEAK
+    Ok(conf
+        .with_schema::<schema::Shape>()?
+        .with_schema::<schema::User>()?
+        .with_schema::<schema::Article>()?
+        .with_schema::<()>()?)
+}
 
-    match &backup {
+pub async fn create_server(
+    storage_location: PathBuf,
+    backup_location: Option<String>,
+) -> anyhow::Result<CustomServer> {
+    match &backup_location {
         None => {}
         Some(backup_location) => {
             let tmp_dir = tempdir::TempDir::new("restored-server-data")?;
@@ -135,10 +145,8 @@ pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
             server.restore(backup_location.clone()).await?;
 
             std::fs::copy(
-                backup_location.join(database_common::public_certificate_name()),
-                tmp_dir
-                    .path()
-                    .join(database_common::public_certificate_name()),
+                backup_location.join(crate::public_certificate_name()),
+                tmp_dir.path().join(crate::public_certificate_name()),
             )?;
 
             server.shutdown(Some(Duration::from_secs(1))).await?;
@@ -168,15 +176,6 @@ pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
     setup_certificate(&server).await?;
 
     setup_permissions(&server).await?;
-
-    fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfiguration> {
-        // SCHEMA TWEAK
-        Ok(conf
-            .with_schema::<schema::Shape>()?
-            .with_schema::<schema::User>()?
-            .with_schema::<schema::Article>()?
-            .with_schema::<()>()?)
-    }
 
     Ok(server)
 }
