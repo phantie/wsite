@@ -3,7 +3,6 @@ use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
-use bonsaidb::core::connection::{AsyncStorageConnection, SensitiveString};
 use database_common::schema::*;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
@@ -28,25 +27,7 @@ pub async fn spawn_app() -> TestApp {
 
     let email_server = MockServer::start().await;
 
-    let db_server = {
-        let tmp_dir = tempdir::TempDir::new("db_server").unwrap().into_path();
-        let server = database_common::init::server(tmp_dir, None).await.unwrap();
-
-        let user_id = match server.create_user("admin").await {
-            Ok(user_id) => user_id,
-            Err(bonsaidb::core::Error::UniqueKeyViolation {
-                existing_document, ..
-            }) => existing_document.id.deserialize().unwrap(),
-            Err(_other) => todo!(),
-        };
-
-        let _: () = server
-            .set_user_password(user_id, SensitiveString("1".into()))
-            .await
-            .unwrap();
-
-        server
-    };
+    let db_server = database_common::init::test_server().await.unwrap();
 
     let e = db_server.endpoint_from_config(0).await.unwrap();
     let db_port = e.local_address().unwrap().port();
@@ -63,7 +44,6 @@ pub async fn spawn_app() -> TestApp {
                 .unwrap()
                 .into_end_entity_certificate(),
         );
-        // dbg!(&c.database.certificate);
 
         c.application = c.testing.application.clone();
         c.email_client.base_url = email_server.uri();

@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use bonsaidb::core::connection::AuthenticationMethod;
 use bonsaidb::local::config::Builder;
-use bonsaidb::server::{Server, ServerConfiguration, ServerDatabase};
+use bonsaidb::server::{DefaultPermissions, Server, ServerConfiguration, ServerDatabase};
 use bonsaidb::{
     core::{
         admin::{PermissionGroup, Role},
-        connection::{AsyncStorageConnection, AuthenticationMethod},
+        connection::AsyncStorageConnection,
         permissions::{
             bonsai::{BonsaiAction, ServerAction},
             Permissions, Statement,
@@ -119,6 +120,27 @@ async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfiguration> {
+    // SCHEMA TWEAK
+    Ok(conf
+        .with_schema::<schema::Shape>()?
+        .with_schema::<schema::User>()?
+        .with_schema::<schema::Article>()?
+        .with_schema::<()>()?)
+}
+
+pub async fn test_server() -> anyhow::Result<CustomServer> {
+    let storage_location = tempdir::TempDir::new("test_db_server").unwrap().into_path();
+    let configuration = ServerConfiguration::new(storage_location)
+        .default_permissions(DefaultPermissions::AllowAll);
+    let configuration = register_schemas(configuration)?;
+
+    let server = Server::open(configuration).await?;
+    setup_contents(&server).await?;
+    setup_certificate(&server).await?;
+    Ok(server)
+}
+
 pub async fn server(
     storage_location: PathBuf,
     backup: Option<String>,
@@ -150,14 +172,15 @@ pub async fn server(
         }
     };
 
-    let configuration =
-        ServerConfiguration::new(storage_location).default_permissions(Permissions::from(
-            Statement::for_any()
-                .allowing(&BonsaiAction::Server(ServerAction::Connect))
-                .allowing(&BonsaiAction::Server(ServerAction::Authenticate(
-                    AuthenticationMethod::PasswordHash,
-                ))),
-        ));
+    let permissions = Permissions::from(
+        Statement::for_any()
+            .allowing(&BonsaiAction::Server(ServerAction::Connect))
+            .allowing(&BonsaiAction::Server(ServerAction::Authenticate(
+                AuthenticationMethod::PasswordHash,
+            ))),
+    );
+
+    let configuration = ServerConfiguration::new(storage_location).default_permissions(permissions);
     let configuration = register_schemas(configuration)?;
 
     let server = Server::open(configuration).await?;
@@ -167,15 +190,6 @@ pub async fn server(
     setup_certificate(&server).await?;
 
     setup_permissions(&server).await?;
-
-    fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfiguration> {
-        // SCHEMA TWEAK
-        Ok(conf
-            .with_schema::<schema::Shape>()?
-            .with_schema::<schema::User>()?
-            .with_schema::<schema::Article>()?
-            .with_schema::<()>()?)
-    }
 
     Ok(server)
 }
