@@ -1,4 +1,5 @@
 pub use bonsaidb::core::connection::AsyncConnection;
+pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
 pub use database_common::schema;
@@ -7,7 +8,6 @@ use crate::configuration::get_configuration;
 use crate::timeout::TimeoutStrategy;
 use bonsaidb::client::AsyncClient;
 use bonsaidb::client::AsyncRemoteDatabase;
-use bonsaidb::core::connection::AsyncStorageConnection;
 use fabruic::Certificate;
 use hyper::StatusCode;
 use std::sync::atomic::AtomicU32;
