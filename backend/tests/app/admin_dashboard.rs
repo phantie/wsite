@@ -1,9 +1,6 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
 use static_routes::*;
 
-use serial_test::serial;
-
-#[serial]
 #[tokio::test]
 async fn you_must_be_logged_in_to_access_the_admin_dashboard() {
     // Arrange
@@ -16,7 +13,6 @@ async fn you_must_be_logged_in_to_access_the_admin_dashboard() {
     assert_is_redirect_to(&response, routes().root.login);
 }
 
-#[serial]
 #[tokio::test]
 async fn logout_clears_session_state() {
     // Arrange

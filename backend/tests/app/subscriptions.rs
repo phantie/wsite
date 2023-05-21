@@ -1,11 +1,10 @@
 use crate::helpers::spawn_app;
 use api_aga_in::database::*;
 use hyper::StatusCode;
-use serial_test::serial;
+
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, ResponseTemplate};
 
-#[serial]
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
@@ -22,7 +21,6 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(StatusCode::OK, response.status());
 }
 
-#[serial]
 #[tokio::test]
 async fn subscribe_persists_the_new_subscriber() {
     // Arrange
@@ -50,7 +48,6 @@ async fn subscribe_persists_the_new_subscriber() {
     assert_eq!(subscription.status, "pending_confirmation");
 }
 
-#[serial]
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
     // Arrange
@@ -82,7 +79,6 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     assert_eq!(subscriptions_docs.iter().count(), 0);
 }
 
-#[serial]
 #[tokio::test]
 async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
     // Arrange
@@ -106,7 +102,6 @@ async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
     }
 }
 
-#[serial]
 #[tokio::test]
 async fn subscribe_sends_a_confirmation_email_for_valid_data() {
     // Arrange
@@ -125,7 +120,6 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
     // Assert on mock drop
 }
 
-#[serial]
 #[tokio::test]
 async fn subscribe_sends_a_confirmation_email_with_a_link() {
     // Arrange

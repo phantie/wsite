@@ -1,10 +1,8 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
 use static_routes::*;
 
-use serial_test::serial;
 use uuid::Uuid;
 
-#[serial]
 #[tokio::test]
 async fn you_must_be_logged_in_to_see_the_change_password_form() {
     // Arrange
@@ -17,7 +15,6 @@ async fn you_must_be_logged_in_to_see_the_change_password_form() {
     assert_is_redirect_to(&response, routes().root.login);
 }
 
-#[serial]
 #[tokio::test]
 async fn you_must_be_logged_in_to_change_your_password() {
     // Arrange
@@ -37,7 +34,6 @@ async fn you_must_be_logged_in_to_change_your_password() {
     assert_is_redirect_to(&response, routes().root.login);
 }
 
-#[serial]
 #[tokio::test]
 async fn new_password_fields_must_match() {
     // Arrange
@@ -63,7 +59,6 @@ async fn new_password_fields_must_match() {
     // Act - Part 3 - Follow the redirect
 }
 
-#[serial]
 #[tokio::test]
 async fn current_password_must_be_valid() {
     // Arrange
@@ -91,7 +86,6 @@ async fn current_password_must_be_valid() {
     assert_is_redirect_to(&response, routes().root.admin.password);
 }
 
-#[serial]
 #[tokio::test]
 async fn changing_password_works() {
     // Arrange

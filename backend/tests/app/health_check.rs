@@ -1,9 +1,8 @@
 use crate::helpers::spawn_app;
 use hyper::StatusCode;
-use serial_test::serial;
+
 use static_routes::*;
 
-#[serial]
 #[tokio::test]
 async fn health_check_works() {
     let app = spawn_app().await;

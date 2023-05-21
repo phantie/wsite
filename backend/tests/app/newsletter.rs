@@ -4,7 +4,7 @@ use bonsaidb::core::connection::AsyncStorageConnection;
 use static_routes::*;
 
 use hyper::StatusCode;
-use serial_test::serial;
+
 use uuid::Uuid;
 use wiremock::{
     matchers::{any, method, path},
@@ -12,7 +12,7 @@ use wiremock::{
 };
 
 // cargo test ::just_spawn -- --nocapture
-#[serial]
+
 #[tokio::test]
 async fn just_spawn() {
     // Arrange
@@ -29,7 +29,6 @@ async fn just_spawn() {
     assert_eq!(user_count, 0);
 }
 
-#[serial]
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     // Arrange
@@ -93,7 +92,6 @@ async fn create_confirmed_subscriber(app: &TestApp) {
         .unwrap();
 }
 
-#[serial]
 #[tokio::test]
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // Arrange
@@ -121,7 +119,6 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     // Mock verifies on Drop that we have sent the newsletter email
 }
 
-#[serial]
 #[tokio::test]
 async fn newsletters_returns_400_for_invalid_data() {
     // Arrange
@@ -157,7 +154,6 @@ async fn newsletters_returns_400_for_invalid_data() {
     }
 }
 
-#[serial]
 #[tokio::test]
 async fn requests_missing_authorization_are_rejected() {
     // Arrange
@@ -183,7 +179,6 @@ async fn requests_missing_authorization_are_rejected() {
     );
 }
 
-#[serial]
 #[tokio::test]
 async fn non_existing_user_is_rejected() {
     // Arrange
@@ -213,7 +208,6 @@ async fn non_existing_user_is_rejected() {
     );
 }
 
-#[serial]
 #[tokio::test]
 async fn invalid_password_is_rejected() {
     // Arrange
