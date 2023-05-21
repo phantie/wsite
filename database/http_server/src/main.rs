@@ -75,8 +75,7 @@ impl HostedDatabase {
             tokio::spawn(async move {
                 println!("database server {} is listening on 5645", number);
 
-                let e = server.endpoint_from_config(5645).await.unwrap();
-                server.listen_on(e).await
+                server.listen_on(5645).await
             })
         };
 

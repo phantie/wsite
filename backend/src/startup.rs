@@ -286,8 +286,7 @@ pub struct Application {
     server: std::pin::Pin<Box<dyn std::future::Future<Output = hyper::Result<()>> + Send>>,
     database: Arc<Database>,
     host: String,
-    #[allow(dead_code)]
-    db_client: SharedDbClient,
+    pub db_client: SharedDbClient,
 }
 
 impl Application {

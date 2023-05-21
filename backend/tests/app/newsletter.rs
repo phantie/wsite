@@ -1,4 +1,6 @@
 use crate::helpers::{spawn_app, TestApp};
+use api_aga_in::database::SerializedCollection;
+use bonsaidb::core::connection::AsyncStorageConnection;
 use static_routes::*;
 
 use hyper::StatusCode;
@@ -14,7 +16,17 @@ use wiremock::{
 #[tokio::test]
 async fn just_spawn() {
     // Arrange
-    let _app = spawn_app().await;
+    let app = spawn_app().await;
+    let db_client = app.db_client.read().await.client();
+    let users = db_client
+        .database::<database_common::schema::User>("users")
+        .await
+        .unwrap();
+    let user_count = database_common::schema::User::all_async(&users)
+        .await
+        .unwrap()
+        .len();
+    assert_eq!(user_count, 0);
 }
 
 #[serial]
