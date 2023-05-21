@@ -3,12 +3,13 @@ use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
+use bonsaidb::server::BonsaiListenConfig;
 use database_common::schema::*;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
 use reqwest::{RequestBuilder, Response};
 use static_routes::*;
-use std::sync::Arc;
+use std::{net::UdpSocket, sync::Arc};
 use uuid::Uuid;
 use wiremock::MockServer;
 
@@ -29,9 +30,12 @@ pub async fn spawn_app() -> TestApp {
 
     let db_server = database_common::init::test_server().await.unwrap();
 
-    let e = db_server.endpoint_from_config(0).await.unwrap();
-    let db_port = e.local_address().unwrap().port();
-    dbg!(db_port);
+    let s = UdpSocket::bind("localhost:0").unwrap();
+    let db_port = s.local_addr().unwrap().port();
+    // dbg!(db_port);
+    let listen_config = BonsaiListenConfig::default()
+        .port(db_port)
+        .reuse_address(true);
 
     let configuration = {
         let mut c = get_configuration();
@@ -52,7 +56,7 @@ pub async fn spawn_app() -> TestApp {
 
     let _h = tokio::spawn(async move {
         db_server
-            .listen_on(e)
+            .listen_on(listen_config)
             .await
             .expect("failed to start db server");
     });
@@ -65,6 +69,8 @@ pub async fn spawn_app() -> TestApp {
     let address = format!("http://{}:{}", host, port);
 
     let database = application.database();
+
+    let db_client = application.db_client.clone();
 
     let _ = tokio::spawn(application.server());
 
@@ -84,6 +90,7 @@ pub async fn spawn_app() -> TestApp {
         port,
         test_user,
         api_client,
+        db_client,
     }
 }
 
@@ -94,6 +101,7 @@ pub struct TestApp {
     pub port: u16,
     pub test_user: TestUser,
     pub api_client: reqwest::Client,
+    pub db_client: SharedDbClient,
 }
 
 impl TestApp {

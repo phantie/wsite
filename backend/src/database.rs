@@ -152,7 +152,6 @@ pub struct DbClientLiquidState {
     sessions: bonsaidb::client::AsyncRemoteDatabase,
     reconfiguration_id: u32,
     ping_handle: JoinHandle<()>,
-    #[allow(dead_code)]
     client: AsyncClient,
 }
 
@@ -316,5 +315,9 @@ impl DbClient {
 
     pub fn reconfiguration_id(&self) -> u32 {
         self.liquid_state.reconfiguration_id
+    }
+
+    pub fn client(&self) -> AsyncClient {
+        self.liquid_state.client.clone()
     }
 }
