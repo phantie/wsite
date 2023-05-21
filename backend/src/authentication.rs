@@ -10,7 +10,6 @@ use argon2::{
 };
 use axum::headers::{authorization::Basic, Authorization};
 use axum_sessions::extractors::ReadableSession;
-use database_common::schema;
 use secrecy::{ExposeSecret, SecretString};
 
 #[derive(Clone)]

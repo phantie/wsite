@@ -1,4 +1,3 @@
-use crate::domain::SubscriberEmail;
 use secrecy::SecretString;
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string; // to deserialize variables provided via env vars
@@ -137,8 +136,8 @@ pub struct EmailClientSettings {
     pub timeout_milliseconds: u64,
 }
 impl EmailClientSettings {
-    pub fn sender(&self) -> Result<SubscriberEmail, String> {
-        SubscriberEmail::parse(self.sender_email.clone())
+    pub fn sender(&self) -> Result<domain::SubscriberEmail, String> {
+        domain::SubscriberEmail::parse(self.sender_email.clone())
     }
 
     pub fn timeout(&self) -> std::time::Duration {

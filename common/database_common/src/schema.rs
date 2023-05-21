@@ -84,3 +84,48 @@ impl MapReduce for ArticleByPublicID {
         Ok(mappings.iter().map(|mapping| mapping.value).sum())
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
+#[collection(name = "subscriptions", views = [SubscriptionByStatus, SubscriptionByToken])]
+pub struct Subscription {
+    pub name: String,
+    pub email: domain::SubscriberEmail,
+    pub status: String,
+    pub token: String,
+}
+
+#[derive(Debug, Clone, View)]
+#[view(collection = Subscription, key = String, value = u32, name = "by-status")]
+pub struct SubscriptionByStatus;
+
+impl ViewSchema for SubscriptionByStatus {
+    type View = Self;
+    type MappedKey<'doc> = <Self::View as View>::Key;
+}
+
+impl MapReduce for SubscriptionByStatus {
+    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
+        let subscription = Subscription::document_contents(document)?;
+        document.header.emit_key_and_value(subscription.status, 1)
+    }
+}
+
+#[derive(Debug, Clone, View)]
+#[view(collection = Subscription, key = String, value = u32, name = "by-token")]
+pub struct SubscriptionByToken;
+
+impl ViewSchema for SubscriptionByToken {
+    type View = Self;
+    type MappedKey<'doc> = <Self::View as View>::Key;
+
+    fn update_policy(&self) -> ViewUpdatePolicy {
+        ViewUpdatePolicy::Unique
+    }
+}
+
+impl MapReduce for SubscriptionByToken {
+    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
+        let subscription = Subscription::document_contents(document)?;
+        document.header.emit_key_and_value(subscription.token, 1)
+    }
+}

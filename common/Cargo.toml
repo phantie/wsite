@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 static_routes = { path = "static_routes" }
+domain = { path = "domain" }
 interfacing = { path = "interfacing" }
 database_common = { path = "database_common" }

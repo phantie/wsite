@@ -38,9 +38,10 @@ async fn subscribe_persists_the_new_subscriber() {
     let _response = app.post_subscriptions(body.into()).await;
 
     // Assert
-    let subscriptions_docs = Subscription::all_async(&app.database.collections.subscriptions)
-        .await
-        .unwrap();
+    let subscriptions_docs =
+        schema::Subscription::all_async(&app.db_client.read().await.collections().subs)
+            .await
+            .unwrap();
     assert_eq!(subscriptions_docs.iter().count(), 1);
 
     let subscription = &subscriptions_docs.iter().next().unwrap().contents;
@@ -73,9 +74,10 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     }
 
     // Assert
-    let subscriptions_docs = Subscription::all_async(&app.database.collections.subscriptions)
-        .await
-        .unwrap();
+    let subscriptions_docs =
+        schema::Subscription::all_async(&app.db_client.read().await.collections().subs)
+            .await
+            .unwrap();
 
     assert_eq!(subscriptions_docs.iter().count(), 0);
 }

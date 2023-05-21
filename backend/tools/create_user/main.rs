@@ -2,7 +2,6 @@ use api_aga_in::configuration::get_configuration;
 use api_aga_in::database::*;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use clap::Parser;
-use database_common::schema;
 use rpassword::read_password;
 use std::io::Write;
 use std::sync::Arc;

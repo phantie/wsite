@@ -6,7 +6,6 @@ pub mod telemetry;
 pub mod timeout;
 
 mod authentication;
-mod domain;
 mod email_client;
 mod routes;
 mod static_routes;

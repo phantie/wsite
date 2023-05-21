@@ -1,82 +1,29 @@
 pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
-use fabruic::Certificate;
+pub use database_common::schema;
 
 use crate::configuration::get_configuration;
 use crate::timeout::TimeoutStrategy;
 use bonsaidb::client::AsyncClient;
+use bonsaidb::client::AsyncRemoteDatabase;
 use bonsaidb::core::connection::AsyncStorageConnection;
-use bonsaidb::core::document::BorrowedDocument;
-use bonsaidb::core::document::Emit;
-use bonsaidb::core::schema::view::ViewUpdatePolicy;
-use bonsaidb::core::schema::Collection;
-use bonsaidb::core::schema::MapReduce;
-use bonsaidb::core::schema::View;
-use bonsaidb::core::schema::ViewMapResult;
-use bonsaidb::core::schema::ViewSchema;
 use bonsaidb::local::config::Builder;
 use bonsaidb::local::config::StorageConfiguration;
 use bonsaidb::local::AsyncDatabase;
 use bonsaidb::local::AsyncStorage;
-use database_common::schema;
+use fabruic::Certificate;
 use hyper::StatusCode;
-use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 
-#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
-#[collection(name = "subscriptions", views = [SubscriptionByStatus, SubscriptionByToken])]
-pub struct Subscription {
-    pub name: String,
-    pub email: crate::domain::SubscriberEmail,
-    pub status: String,
-    pub token: String,
-}
-
-#[derive(Debug, Clone, View)]
-#[view(collection = Subscription, key = String, value = u32, name = "by-status")]
-pub struct SubscriptionByStatus;
-
-impl ViewSchema for SubscriptionByStatus {
-    type View = Self;
-    type MappedKey<'doc> = <Self::View as View>::Key;
-}
-
-impl MapReduce for SubscriptionByStatus {
-    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
-        let subscription = Subscription::document_contents(document)?;
-        document.header.emit_key_and_value(subscription.status, 1)
-    }
-}
-
-#[derive(Debug, Clone, View)]
-#[view(collection = Subscription, key = String, value = u32, name = "by-token")]
-pub struct SubscriptionByToken;
-
-impl ViewSchema for SubscriptionByToken {
-    type View = Self;
-    type MappedKey<'doc> = <Self::View as View>::Key;
-
-    fn update_policy(&self) -> ViewUpdatePolicy {
-        ViewUpdatePolicy::Unique
-    }
-}
-
-impl MapReduce for SubscriptionByToken {
-    fn map(&self, document: &BorrowedDocument<'_>) -> ViewMapResult<Self::View> {
-        let subscription = Subscription::document_contents(document)?;
-        document.header.emit_key_and_value(subscription.token, 1)
-    }
-}
-
 pub async fn storage(dir: &str, memory_only: bool) -> AsyncStorage {
     let mut configuration = StorageConfiguration::new(dir);
     configuration.memory_only = memory_only;
-    let configuration = configuration.with_schema::<Subscription>().unwrap();
+    let configuration = configuration.with_schema::<schema::Subscription>().unwrap();
     let configuration = configuration.with_schema::<schema::User>().unwrap();
 
     AsyncStorage::open(configuration).await.unwrap()
@@ -99,7 +46,7 @@ impl Database {
     pub async fn init(storage: Arc<AsyncStorage>) -> Self {
         let collections = Collections {
             subscriptions: storage
-                .create_database::<Subscription>("subscriptions", true)
+                .create_database::<schema::Subscription>("subscriptions", true)
                 .await
                 .unwrap(),
             users: storage
@@ -149,7 +96,7 @@ pub struct DbClient {
 // might result with buggy consequent reconfigurations
 pub struct DbClientLiquidState {
     collections: DbCollections,
-    sessions: bonsaidb::client::AsyncRemoteDatabase,
+    sessions: AsyncRemoteDatabase,
     reconfiguration_id: u32,
     ping_handle: JoinHandle<()>,
     client: AsyncClient,
@@ -220,9 +167,10 @@ impl RemoteClient {
 
 #[derive(Clone)]
 pub struct DbCollections {
-    pub shapes: bonsaidb::client::AsyncRemoteDatabase,
-    pub users: bonsaidb::client::AsyncRemoteDatabase,
-    pub articles: bonsaidb::client::AsyncRemoteDatabase,
+    pub shapes: AsyncRemoteDatabase,
+    pub users: AsyncRemoteDatabase,
+    pub articles: AsyncRemoteDatabase,
+    pub subs: AsyncRemoteDatabase,
 }
 
 pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;
@@ -275,6 +223,9 @@ impl DbClient {
         let shapes = client.database::<schema::Shape>("shapes").await?;
         let users = client.database::<schema::User>("users").await?;
         let articles = client.database::<schema::Article>("articles").await?;
+        let subs = client
+            .database::<schema::Subscription>("subscriptions")
+            .await?;
         let sessions = client.database::<()>("sessions").await?;
 
         let reconfiguration_id = unsafe { ReconfigurationID.load(Ordering::SeqCst) };
@@ -288,6 +239,7 @@ impl DbClient {
                     shapes,
                     users,
                     articles,
+                    subs,
                 },
                 client,
                 reconfiguration_id,
@@ -305,7 +257,7 @@ impl DbClient {
         Ok(())
     }
 
-    pub fn sessions(&self) -> bonsaidb::client::AsyncRemoteDatabase {
+    pub fn sessions(&self) -> AsyncRemoteDatabase {
         self.liquid_state.sessions.clone()
     }
 

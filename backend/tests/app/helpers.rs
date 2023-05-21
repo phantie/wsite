@@ -9,7 +9,7 @@ use hyper::StatusCode;
 use once_cell::sync::Lazy;
 use reqwest::{RequestBuilder, Response};
 use static_routes::*;
-use std::{net::UdpSocket, sync::Arc};
+use std::net::UdpSocket;
 use uuid::Uuid;
 use wiremock::MockServer;
 
@@ -68,14 +68,12 @@ pub async fn spawn_app() -> TestApp {
 
     let address = format!("http://{}:{}", host, port);
 
-    let database = application.database();
-
     let db_client = application.db_client.clone();
 
     let _ = tokio::spawn(application.server());
 
     let test_user = TestUser::generate();
-    test_user.store(database.clone()).await.unwrap();
+    test_user.store(db_client.clone()).await.unwrap();
 
     let api_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -85,7 +83,6 @@ pub async fn spawn_app() -> TestApp {
 
     TestApp {
         address,
-        database,
         email_server,
         port,
         test_user,
@@ -96,7 +93,6 @@ pub async fn spawn_app() -> TestApp {
 
 pub struct TestApp {
     pub address: String,
-    pub database: Arc<Database>,
     pub email_server: MockServer,
     pub port: u16,
     pub test_user: TestUser,
@@ -244,7 +240,7 @@ impl TestUser {
 
     async fn store(
         &self,
-        database: Arc<Database>,
+        db_client: SharedDbClient,
     ) -> Result<CollectionDocument<User>, bonsaidb::core::schema::InsertError<User>> {
         let salt = SaltString::generate(&mut rand::thread_rng());
         let password_hash = Argon2::new(
@@ -260,7 +256,7 @@ impl TestUser {
             username: self.username.clone(),
             password_hash: password_hash,
         }
-        .push_into_async(&database.collections.users)
+        .push_into_async(&db_client.read().await.collections().users)
         .await
     }
 }
@@ -286,7 +282,7 @@ mod tests {
 
         let test_user = &app.test_user;
 
-        let ok = match test_user.store(app.database.clone()).await {
+        let ok = match test_user.store(app.db_client.clone()).await {
             Ok(_) => false,
             Err(e) => match e.error {
                 bonsaidb::core::Error::UniqueKeyViolation { .. } => true,

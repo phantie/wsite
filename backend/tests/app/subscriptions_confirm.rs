@@ -64,9 +64,11 @@ async fn clicking_on_the_confirmation_link_confirms_a_subscriber() {
         .unwrap();
 
     // Assert
-    let subscriptions_docs = Subscription::all_async(&app.database.collections.subscriptions)
-        .await
-        .unwrap();
+    let subscriptions_docs = database_common::schema::Subscription::all_async(
+        &app.db_client.read().await.collections().subs,
+    )
+    .await
+    .unwrap();
     assert_eq!(subscriptions_docs.iter().count(), 1);
 
     let subscription = &subscriptions_docs.iter().next().unwrap().contents;

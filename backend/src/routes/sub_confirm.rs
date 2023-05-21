@@ -15,7 +15,7 @@ pub async fn sub_confirm(
     let subscriptions = &state.database.collections.subscriptions;
 
     let docs = subscriptions
-        .view::<SubscriptionByToken>()
+        .view::<schema::SubscriptionByToken>()
         .with_key(&parameters.subscription_token)
         .query_with_collection_docs()
         .await?;
