@@ -272,9 +272,7 @@ pub fn assert_is_redirect_to(response: &reqwest::Response, location: impl Get) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serial_test::serial;
 
-    #[serial]
     #[tokio::test]
     async fn users_usernames_must_be_unique() {
         // Arrange

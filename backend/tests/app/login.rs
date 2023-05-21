@@ -1,10 +1,9 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
 #[allow(unused_imports)]
 use hyper::StatusCode;
-use serial_test::serial;
+
 use static_routes::*;
 
-#[serial]
 #[tokio::test]
 async fn redirect_to_admin_dashboard_after_login_success() {
     // Arrange
