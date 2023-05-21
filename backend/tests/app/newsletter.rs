@@ -1,6 +1,4 @@
-use crate::helpers::{spawn_app, TestApp};
-use api_aga_in::database::SerializedCollection;
-use bonsaidb::core::connection::AsyncStorageConnection;
+use crate::helpers::*;
 use static_routes::*;
 
 use hyper::StatusCode;
@@ -10,24 +8,6 @@ use wiremock::{
     matchers::{any, method, path},
     Mock, ResponseTemplate,
 };
-
-// cargo test ::just_spawn -- --nocapture
-
-#[tokio::test]
-async fn just_spawn() {
-    // Arrange
-    let app = spawn_app().await;
-    let db_client = app.db_client.read().await.client();
-    let users = db_client
-        .database::<database_common::schema::User>("users")
-        .await
-        .unwrap();
-    let user_count = database_common::schema::User::all_async(&users)
-        .await
-        .unwrap()
-        .len();
-    assert_eq!(user_count, 0);
-}
 
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {

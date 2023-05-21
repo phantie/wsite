@@ -1,5 +1,6 @@
+pub use api_aga_in::database::*;
+
 use api_aga_in::configuration::get_configuration;
-use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
@@ -28,7 +29,7 @@ pub async fn spawn_app() -> TestApp {
 
     let email_server = MockServer::start().await;
 
-    let db_server = database_common::init::test_server().await.unwrap();
+    let (db_server, db_storage_location) = database_common::init::test_server().await.unwrap();
 
     let s = UdpSocket::bind("localhost:0").unwrap();
     let db_port = s.local_addr().unwrap().port();
@@ -88,6 +89,7 @@ pub async fn spawn_app() -> TestApp {
         test_user,
         api_client,
         db_client,
+        _db_storage_location: db_storage_location,
     }
 }
 
@@ -98,6 +100,8 @@ pub struct TestApp {
     pub test_user: TestUser,
     pub api_client: reqwest::Client,
     pub db_client: SharedDbClient,
+    // drop last with app
+    _db_storage_location: tempdir::TempDir,
 }
 
 impl TestApp {
@@ -272,6 +276,23 @@ pub fn assert_is_redirect_to(response: &reqwest::Response, location: impl Get) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // cargo test ::test_user_created -- --nocapture
+
+    #[tokio::test]
+    async fn test_user_created() {
+        // Arrange
+        let app = spawn_app().await;
+        let db_client = app.db_client.read().await.client();
+        let users = db_client
+            .database::<database_common::schema::User>("users")
+            .await
+            .unwrap();
+        let user_docs = database_common::schema::User::all_async(&users)
+            .await
+            .unwrap();
+        assert_eq!(user_docs.len(), 1);
+    }
 
     #[tokio::test]
     async fn users_usernames_must_be_unique() {

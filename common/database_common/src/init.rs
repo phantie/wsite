@@ -133,11 +133,11 @@ fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfigura
         .with_schema::<()>()?)
 }
 
-pub async fn test_server() -> anyhow::Result<CustomServer> {
-    // TODO tmp dirs are not removed
-    let storage_location = tempdir::TempDir::new("test_db_server").unwrap().into_path();
-    dbg!(storage_location.as_path());
-    let configuration = ServerConfiguration::new(storage_location)
+pub async fn test_server() -> anyhow::Result<(CustomServer, tempdir::TempDir)> {
+    let storage_location = tempdir::TempDir::new("test_db_server").unwrap();
+    // dbg!(storage_location.path());
+
+    let configuration = ServerConfiguration::new(&storage_location)
         .memory_only()
         .default_permissions(DefaultPermissions::AllowAll);
     let configuration = register_schemas(configuration)?;
@@ -145,7 +145,7 @@ pub async fn test_server() -> anyhow::Result<CustomServer> {
     let server = Server::open(configuration).await?;
     setup_contents(&server).await?;
     setup_certificate(&server).await?;
-    Ok(server)
+    Ok((server, storage_location))
 }
 
 pub async fn server(
