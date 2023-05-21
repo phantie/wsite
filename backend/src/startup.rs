@@ -291,47 +291,36 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(configuration: &Settings) -> Self {
-        let sender_email = configuration
+    pub async fn build(conf: &Settings) -> Self {
+        let sender_email = conf
             .email_client
             .sender()
             .expect("Invalid sender email address.");
-        let timeout = configuration.email_client.timeout();
+        let timeout = conf.email_client.timeout();
         let email_client = Arc::new(EmailClient::new(
-            configuration.email_client.base_url.clone(),
+            conf.email_client.base_url.clone(),
             sender_email,
-            configuration.email_client.authorization_token.clone(),
+            conf.email_client.authorization_token.clone(),
             timeout,
         ));
 
-        let address = format!(
-            "{}:{}",
-            configuration.application.host, configuration.application.port
-        );
+        let address = format!("{}:{}", conf.application.host, conf.application.port);
         let listener = std::net::TcpListener::bind(&address).unwrap();
         tracing::info!("Listening on http://{}", address);
-        let host = configuration.application.host.clone();
+        let host = conf.application.host.clone();
         let port = listener.local_addr().unwrap().port();
 
         {
             let first_symbols_count = 5;
-            let first_symbols_of_email_token = &(*configuration
-                .email_client
-                .authorization_token
-                .expose_secret())[..first_symbols_count];
+            let first_symbols_of_email_token =
+                &(*conf.email_client.authorization_token.expose_secret())[..first_symbols_count];
             tracing::info!(
                 "First symbols of email token:{}",
                 first_symbols_of_email_token
             );
         }
 
-        let storage = Arc::new(
-            storage(
-                &configuration.database.dir,
-                configuration.database.memory_only,
-            )
-            .await,
-        );
+        let storage = Arc::new(storage(&conf.database.dir, conf.database.memory_only).await);
         let database = Arc::new(Database::init(storage.clone()).await);
 
         pub fn run(
@@ -354,12 +343,11 @@ impl Application {
                 .serve(app.into_make_service())
         }
 
-        let conf = get_configuration();
-
         let db_client = SharedDbClient::new(RwLock::new(
             DbClient::configure(DbClientConf {
-                url: format!("bonsaidb://{}", conf.database.host),
-                password: conf.database.password,
+                url: format!("bonsaidb://{}:{}", conf.database.host, conf.database.port),
+                password: conf.database.password.clone(),
+                certificate: conf.database.certificate.clone(),
             })
             .await
             .expect("database must be available on deployment"),
@@ -369,7 +357,7 @@ impl Application {
             listener,
             database.clone(),
             email_client,
-            configuration.application.base_url.clone(),
+            conf.application.base_url.clone(),
             db_client.clone(),
         ));
 

@@ -37,6 +37,10 @@ pub struct DatabaseSettings {
 
     pub host: String,
     pub password: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    pub port: u16,
+
+    pub certificate: Option<fabruic::Certificate>,
 }
 
 #[derive(Deserialize, Clone)]

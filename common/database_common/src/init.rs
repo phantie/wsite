@@ -16,7 +16,7 @@ use bonsaidb::{
     server::CustomServer,
 };
 
-use database_common::schema;
+use crate::schema;
 
 async fn setup_permissions(server: &CustomServer) -> anyhow::Result<()> {
     let admin_username = "admin";
@@ -119,9 +119,10 @@ async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
-    let storage_location = database_common::storage_location();
-
+pub async fn server(
+    storage_location: PathBuf,
+    backup: Option<String>,
+) -> anyhow::Result<CustomServer> {
     match &backup {
         None => {}
         Some(backup_location) => {
@@ -135,10 +136,8 @@ pub async fn server(backup: Option<String>) -> anyhow::Result<CustomServer> {
             server.restore(backup_location.clone()).await?;
 
             std::fs::copy(
-                backup_location.join(database_common::public_certificate_name()),
-                tmp_dir
-                    .path()
-                    .join(database_common::public_certificate_name()),
+                backup_location.join(crate::public_certificate_name()),
+                tmp_dir.path().join(crate::public_certificate_name()),
             )?;
 
             server.shutdown(Some(Duration::from_secs(1))).await?;

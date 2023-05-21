@@ -219,6 +219,7 @@ dependencies = [
  "serde_json",
  "serial_test",
  "static_routes",
+ "tempdir",
  "thiserror",
  "tokio",
  "tower",
@@ -1326,8 +1327,10 @@ checksum = "23d8666cb01533c39dde32bcbab8e227b4ed6679b2c925eba05feabea39508fb"
 name = "database_common"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bonsaidb",
  "serde",
+ "tempdir",
 ]
 
 [[package]]

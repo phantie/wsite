@@ -10,4 +10,5 @@ pub fn public_certificate_name() -> PathBuf {
     PathBuf::from("pinned-certificate.der")
 }
 
+pub mod init;
 pub mod schema;
