@@ -43,7 +43,7 @@ pub struct Conf {
     pub db_client: DbClientConf,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DbClientConf {
     Normal {
         quic_url: String,
@@ -56,7 +56,7 @@ pub enum DbClientConf {
     },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DbInfoServer {
     pub cert_url: String,
 }

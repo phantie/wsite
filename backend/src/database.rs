@@ -62,14 +62,14 @@ impl std::fmt::Debug for DbClient {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DbClientConf {
     pub quic_url: String,
     pub auth: DbClientAuth,
     pub certificate: fabruic::Certificate,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DbClientAuth {
     Password(String),
     None,
@@ -105,6 +105,9 @@ impl RemoteClient {
                 auth: DbClientAuth::None,
             },
         };
+
+        dbg!(&params.quic_url);
+        dbg!(&params.auth);
 
         let client = bonsaidb::client::AsyncClient::build(
             bonsaidb::client::url::Url::parse(&params.quic_url).unwrap(),
