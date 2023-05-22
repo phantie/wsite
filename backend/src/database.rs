@@ -4,11 +4,10 @@ pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
 pub use database_common::schema;
 
-use crate::configuration::get_configuration;
+use crate::configuration;
 use crate::timeout::TimeoutStrategy;
 use bonsaidb::client::AsyncClient;
 use bonsaidb::client::AsyncRemoteDatabase;
-use fabruic::Certificate;
 use hyper::StatusCode;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -16,10 +15,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 
-pub async fn load_certificate() -> anyhow::Result<fabruic::Certificate> {
-    let conf = get_configuration();
-
-    let r = reqwest::get(format!("http://{}:4000/cert", conf.database.host)).await?;
+pub async fn load_certificate(
+    info_server: configuration::DbInfoServer,
+) -> anyhow::Result<fabruic::Certificate> {
+    let r = reqwest::get(info_server.cert_url).await?;
 
     match r.status() {
         StatusCode::OK => {
@@ -41,7 +40,7 @@ pub type SharedDbClient = Arc<tokio::sync::RwLock<DbClient>>;
 
 // SCHEMA TWEAK
 pub struct DbClient {
-    conf: DbClientConf,
+    conf: configuration::DbClientConf,
     liquid_state: DbClientLiquidState,
 }
 
@@ -64,56 +63,78 @@ impl std::fmt::Debug for DbClient {
 
 #[derive(Clone)]
 pub struct DbClientConf {
-    pub url: String,
-    pub password: String,
-    pub certificate: Option<Certificate>,
+    pub quic_url: String,
+    pub auth: DbClientAuth,
+    pub certificate: fabruic::Certificate,
+}
+
+#[derive(Clone)]
+pub enum DbClientAuth {
+    Password(String),
+    None,
 }
 
 pub struct RemoteClient {}
 
 impl RemoteClient {
-    pub async fn create(params: DbClientConf) -> anyhow::Result<bonsaidb::client::AsyncClient> {
+    pub async fn create(
+        params: configuration::DbClientConf,
+    ) -> anyhow::Result<bonsaidb::client::AsyncClient> {
         use bonsaidb::core::{
             admin::Role,
             connection::{Authentication, SensitiveString},
         };
 
-        // dbg!(&params.certificate);
-
-        let needs_auth = matches!(&params.certificate, None);
-
-        let cert = match &params.certificate {
-            None => load_certificate().await?,
-            Some(cert) => cert.clone(),
+        let params = match params {
+            configuration::DbClientConf::Normal {
+                password,
+                quic_url,
+                info_server,
+            } => {
+                let cert = load_certificate(info_server).await?;
+                DbClientConf {
+                    quic_url,
+                    certificate: cert,
+                    auth: DbClientAuth::Password(password),
+                }
+            }
+            configuration::DbClientConf::Testing { quic_url, cert } => DbClientConf {
+                quic_url,
+                certificate: cert,
+                auth: DbClientAuth::None,
+            },
         };
+
         let client = bonsaidb::client::AsyncClient::build(
-            bonsaidb::client::url::Url::parse(&params.url).unwrap(),
+            bonsaidb::client::url::Url::parse(&params.quic_url).unwrap(),
         )
-        .with_certificate(cert)
+        .with_certificate(params.certificate)
         .build()?;
 
-        if !needs_auth {
-            return Ok(client);
-        }
+        let client = match params.auth {
+            DbClientAuth::None => client,
+            DbClientAuth::Password(password) => {
+                let admin_password = password;
 
-        let admin_password = params.password;
+                let client = TimeoutStrategy::Once {
+                    timeout: Duration::from_secs(5),
+                }
+                .execute(|| {
+                    client.authenticate(Authentication::Password {
+                        user: "admin".into(),
+                        password: SensitiveString(admin_password.clone().into()),
+                    })
+                })
+                .await??;
 
-        let client = TimeoutStrategy::Once {
-            timeout: Duration::from_secs(5),
-        }
-        .execute(|| {
-            client.authenticate(Authentication::Password {
-                user: "admin".into(),
-                password: SensitiveString(admin_password.clone().into()),
-            })
-        })
-        .await??;
+                let client = TimeoutStrategy::default()
+                    .execute(|| Role::assume_identity_async("superuser", &client))
+                    .await??;
 
-        let client = TimeoutStrategy::default()
-            .execute(|| Role::assume_identity_async("superuser", &client))
-            .await??;
-
-        tracing::info!("Authenticated client as superuser");
+                tracing::info!("Authenticated client as superuser");
+                client
+            }
+        };
 
         Ok(client)
     }
@@ -148,7 +169,7 @@ impl Ping for AsyncClient {
 static mut ReconfigurationID: AtomicU32 = AtomicU32::new(0);
 
 impl DbClient {
-    pub async fn configure(conf: DbClientConf) -> anyhow::Result<Self> {
+    pub async fn configure(conf: configuration::DbClientConf) -> anyhow::Result<Self> {
         let client = RemoteClient::create(conf.clone()).await?;
 
         // try to solve a problem of client hanging forever

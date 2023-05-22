@@ -23,7 +23,7 @@ services:
       envs:
           # We use DO's APP_URL to inject the dynamically
           # provisioned base url as an environment variable
-          - key: APP__APPLICATION__BASE_URL
+          - key: APP__BASE_URL
             scope: RUN_TIME
             value: ${APP_URL}
           - key: APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN

@@ -1,6 +1,6 @@
 pub use api_aga_in::database::*;
 
-use api_aga_in::configuration::get_configuration;
+use api_aga_in::configuration;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry;
 use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
@@ -31,38 +31,57 @@ pub async fn spawn_app() -> TestApp {
 
     let (db_server, db_storage_location) = database_common::init::test_server().await.unwrap();
 
-    let s = UdpSocket::bind("localhost:0").unwrap();
-    let db_port = s.local_addr().unwrap().port();
-    // dbg!(db_port);
+    let db_port = UdpSocket::bind("localhost:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+
     let listen_config = BonsaiListenConfig::default()
         .port(db_port)
         .reuse_address(true);
 
-    let configuration = {
-        let mut c = get_configuration();
-        c.database = c.testing.database.clone();
-        c.database.port = db_port;
-        c.database.certificate = Some(
-            db_server
-                .certificate_chain()
-                .await
-                .unwrap()
-                .into_end_entity_certificate(),
-        );
+    let cert = db_server
+        .certificate_chain()
+        .await
+        .unwrap()
+        .into_end_entity_certificate();
 
-        c.application = c.testing.application.clone();
-        c.email_client.base_url = email_server.uri();
-        c
-    };
-
-    let _h = tokio::spawn(async move {
+    let _ = tokio::spawn(async move {
         db_server
             .listen_on(listen_config)
             .await
             .expect("failed to start db server");
     });
 
-    let application = Application::build(&configuration).await;
+    let env_conf = configuration::EnvConf {
+        host: "localhost".into(),
+        base_url: "http://127.0.0.1".into(),
+        port: 0,
+        session_secret: hex::encode([0_u8; 64]),
+        db: configuration::EnvDbClientConf {
+            host: "localhost".into(),
+            password: None,
+            port: db_port,
+        },
+        email_client: configuration::EnvEmailClientConf {
+            base_url: email_server.uri(),
+            sender_email: "test@gmail.com".into(),
+            authorization_token: secrecy::SecretString::new("preciously-secret".to_owned()),
+            timeout_milliseconds: 1000,
+        },
+        features: configuration::EnvFeatures { newsletter: true },
+    };
+
+    let conf = configuration::Conf {
+        db_client: configuration::DbClientConf::Testing {
+            quic_url: format!("bonsaidb://{}:{}", env_conf.db.host, env_conf.db.port),
+            cert,
+        },
+        env: env_conf,
+    };
+
+    let application = Application::build(&conf).await;
 
     let host = application.host();
     let port = application.port();

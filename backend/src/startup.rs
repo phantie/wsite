@@ -1,5 +1,5 @@
 use crate::{
-    configuration::{get_configuration, get_env, Settings},
+    configuration::{get_env, Conf},
     database::*,
     email_client::EmailClient,
     error::ApiResult,
@@ -97,7 +97,7 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(db_client: SharedDbClient) -> Router<AppState> {
+pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -117,7 +117,7 @@ pub fn router(db_client: SharedDbClient) -> Router<AppState> {
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article));
 
-    let api_router = if get_configuration().features.newsletter {
+    let api_router = if conf.env.features.newsletter {
         api_router
             .route(routes.subs.get().postfix(), get(all_subs))
             .route(routes.subs.new.post().postfix(), post(subscribe))
@@ -170,7 +170,7 @@ pub fn router(db_client: SharedDbClient) -> Router<AppState> {
             // let store = axum_sessions::async_session::MemoryStore::new();
             let store = BonsaiDBSessionStore { db_client };
 
-            let decoded = hex::decode(get_configuration().session_secret)
+            let decoded = hex::decode(conf.env.session_secret.clone())
                 .expect("HEX Decoding of session secret failed");
 
             // use rand::Rng;
@@ -288,29 +288,31 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(conf: &Settings) -> Self {
+    pub async fn build(conf: &Conf) -> Self {
         let sender_email = conf
+            .env
             .email_client
             .sender()
             .expect("Invalid sender email address.");
-        let timeout = conf.email_client.timeout();
+        let timeout = conf.env.email_client.timeout();
         let email_client = Arc::new(EmailClient::new(
-            conf.email_client.base_url.clone(),
+            conf.env.email_client.base_url.clone(),
             sender_email,
-            conf.email_client.authorization_token.clone(),
+            conf.env.email_client.authorization_token.clone(),
             timeout,
         ));
 
-        let address = format!("{}:{}", conf.application.host, conf.application.port);
+        let address = format!("{}:{}", conf.env.host, conf.env.port);
         let listener = std::net::TcpListener::bind(&address).unwrap();
         tracing::info!("Listening on http://{}", address);
-        let host = conf.application.host.clone();
+        let host = conf.env.host.clone();
         let port = listener.local_addr().unwrap().port();
 
         {
             let first_symbols_count = 5;
             let first_symbols_of_email_token =
-                &(*conf.email_client.authorization_token.expose_secret())[..first_symbols_count];
+                &(*conf.env.email_client.authorization_token.expose_secret())
+                    [..first_symbols_count];
             tracing::info!(
                 "First symbols of email token:{}",
                 first_symbols_of_email_token
@@ -318,6 +320,7 @@ impl Application {
         }
 
         pub fn run(
+            conf: &Conf,
             listener: std::net::TcpListener,
             email_client: Arc<EmailClient>,
             base_url: String,
@@ -328,7 +331,7 @@ impl Application {
                 base_url,
             };
 
-            let app = router(db_client).with_state(app_state);
+            let app = router(conf, db_client).with_state(app_state);
 
             axum::Server::from_tcp(listener)
                 .unwrap()
@@ -336,19 +339,16 @@ impl Application {
         }
 
         let db_client = SharedDbClient::new(RwLock::new(
-            DbClient::configure(DbClientConf {
-                url: format!("bonsaidb://{}:{}", conf.database.host, conf.database.port),
-                password: conf.database.password.clone(),
-                certificate: conf.database.certificate.clone(),
-            })
-            .await
-            .expect("database must be available on deployment"),
+            DbClient::configure(conf.db_client.clone())
+                .await
+                .expect("database must be available on deployment"),
         ));
 
         let server = Box::pin(run(
+            conf,
             listener,
             email_client,
-            conf.application.base_url.clone(),
+            conf.env.base_url.clone(),
             db_client.clone(),
         ));
 
