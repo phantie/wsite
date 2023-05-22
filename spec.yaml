@@ -26,8 +26,3 @@ services:
           - key: APP__BASE_URL
             scope: RUN_TIME
             value: ${APP_URL}
-          - key: APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN
-            scope: RUN_TIME
-            # FAKE VALUE until I figure out a better way
-            value: 6709685d-4dae-4a9c-aed5-9b6802c949b5
-            type: SECRET
