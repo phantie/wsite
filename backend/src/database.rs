@@ -117,7 +117,7 @@ impl RemoteClient {
                 let admin_password = password;
 
                 let client = TimeoutStrategy::Once {
-                    timeout: Duration::from_secs(5),
+                    timeout: Duration::from_secs(10),
                 }
                 .execute(|| {
                     client.authenticate(Authentication::Password {
@@ -127,9 +127,11 @@ impl RemoteClient {
                 })
                 .await??;
 
-                let client = TimeoutStrategy::default()
-                    .execute(|| Role::assume_identity_async("superuser", &client))
-                    .await??;
+                let client = TimeoutStrategy::Once {
+                    timeout: Duration::from_secs(10),
+                }
+                .execute(|| Role::assume_identity_async("superuser", &client))
+                .await??;
 
                 tracing::info!("Authenticated client as superuser");
                 client
