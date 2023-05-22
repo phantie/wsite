@@ -22,6 +22,7 @@ pub async fn load_certificate(
 
     match r.status() {
         StatusCode::OK => {
+            tracing::info!("loaded Certificate");
             let c: fabruic::Certificate = r.bytes().await?.to_vec().try_into()?;
             Ok(c)
         }
@@ -116,8 +117,9 @@ impl RemoteClient {
             DbClientAuth::Password(password) => {
                 let admin_password = password;
 
+                tracing::info!("trying to auth...");
                 let client = TimeoutStrategy::Once {
-                    timeout: Duration::from_secs(10),
+                    timeout: Duration::from_secs(20),
                 }
                 .execute(|| {
                     client.authenticate(Authentication::Password {
@@ -126,12 +128,15 @@ impl RemoteClient {
                     })
                 })
                 .await??;
+                tracing::info!("authed");
 
+                tracing::info!("trying to assume identity...");
                 let client = TimeoutStrategy::Once {
-                    timeout: Duration::from_secs(10),
+                    timeout: Duration::from_secs(20),
                 }
                 .execute(|| Role::assume_identity_async("superuser", &client))
                 .await??;
+                tracing::info!("assumed identity");
 
                 tracing::info!("Authenticated client as superuser");
                 client
@@ -172,7 +177,9 @@ static mut ReconfigurationID: AtomicU32 = AtomicU32::new(0);
 
 impl DbClient {
     pub async fn configure(conf: configuration::DbClientConf) -> anyhow::Result<Self> {
+        tracing::info!("creating RemoteClient...");
         let client = RemoteClient::create(conf.clone()).await?;
+        tracing::info!("created RemoteClient...");
 
         // try to solve a problem of client hanging forever
         // when not accessed for some time (empirically found more than 10 minutes)
