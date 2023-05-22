@@ -1,25 +1,9 @@
-application:
-    port: 8000
+port: 8000
 
-database:
-    dir: "basic.bonsaidb"
-    memory_only: false
+db:
     port: 5645
 
 email_client:
     base_url: "http://127.0.0.1"
     sender_email: "test@gmail.com"
     timeout_milliseconds: 10000
-
-testing:
-    database:
-        dir: "target/tmp/test/basic.bonsaidb"
-        memory_only: true
-        host: "localhost"
-        password: "1"
-        port: 0 # replaced in testing
-
-    application:
-        port: 0
-        host: 127.0.0.1
-        base_url: "http://127.0.0.1"

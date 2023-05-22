@@ -3,49 +3,30 @@ use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string; // to deserialize variables provided via env vars
 
 #[derive(Deserialize)]
-pub struct Settings {
-    pub application: ApplicationSettings,
-
+pub struct EnvConf {
     pub session_secret: String,
-    pub features: AppFeatures,
-
-    pub database: DatabaseSettings,
-    pub email_client: EmailClientSettings,
-
-    pub testing: Testing,
-}
-
-// Fields used in tests, TODO migrate all to Settings
-#[derive(serde::Deserialize, Clone)]
-pub struct ApplicationSettings {
+    pub features: EnvFeatures,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub base_url: String,
+
+    pub db: EnvDbClientConf,
+    pub email_client: EnvEmailClientConf,
 }
 
-#[derive(serde::Deserialize, Clone)]
-pub struct AppFeatures {
+#[derive(Deserialize, Clone)]
+pub struct EnvFeatures {
     pub newsletter: bool,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct DatabaseSettings {
-    pub dir: String,
-    pub memory_only: bool,
-
-    pub host: String,
-    pub password: String,
+pub struct EnvDbClientConf {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
 
-    pub certificate: Option<fabruic::Certificate>,
-}
-
-#[derive(Deserialize, Clone)]
-pub struct Testing {
-    pub database: DatabaseSettings,
-    pub application: ApplicationSettings,
+    pub host: String,
+    pub password: Option<String>,
 }
 
 pub fn get_env() -> Environment {
@@ -55,7 +36,39 @@ pub fn get_env() -> Environment {
         .expect("Failed to parse APP_ENVIRONMENT.")
 }
 
-pub fn get_configuration() -> Settings {
+pub struct Conf {
+    pub env: EnvConf,
+
+    pub db_client: DbClientConf,
+}
+
+#[derive(Clone)]
+pub enum DbClientConf {
+    Normal {
+        quic_url: String,
+        password: String,
+        info_server: DbInfoServer,
+    },
+    Testing {
+        quic_url: String,
+        cert: fabruic::Certificate,
+    },
+}
+
+#[derive(Clone)]
+pub struct DbInfoServer {
+    pub cert_url: String,
+}
+
+impl From<EnvDbClientConf> for DbInfoServer {
+    fn from(value: EnvDbClientConf) -> Self {
+        Self {
+            cert_url: format!("http://{}:4000/cert", value.host),
+        }
+    }
+}
+
+pub fn env_conf() -> EnvConf {
     fn conf_path(conf_dir: &std::path::PathBuf, filename: &str) -> String {
         conf_dir
             .join(filename)
@@ -85,10 +98,7 @@ pub fn get_configuration() -> Settings {
 
     match config.try_deserialize() {
         Ok(settings) => settings,
-        Err(e) => {
-            // dbg!(&_config_clone);
-            Err(e).unwrap()
-        }
+        Err(e) => Err(e).unwrap(),
     }
 }
 
@@ -128,14 +138,15 @@ impl TryFrom<String> for Environment {
     }
 }
 
-#[derive(serde::Deserialize)]
-pub struct EmailClientSettings {
+#[derive(Deserialize)]
+pub struct EnvEmailClientConf {
     pub base_url: String,
     pub sender_email: String,
     pub authorization_token: SecretString,
     pub timeout_milliseconds: u64,
 }
-impl EmailClientSettings {
+
+impl EnvEmailClientConf {
     pub fn sender(&self) -> Result<domain::SubscriberEmail, String> {
         domain::SubscriberEmail::parse(self.sender_email.clone())
     }

@@ -1,21 +1,16 @@
 # APP_ENVIRONMENT=production
 # REQUIRES:
-# APP__APPLICATION__BASE_URL
+# APP__BASE_URL
 # APP__SESSION_SECRET
 # APP__EMAIL_CLIENT__AUTHORIZATION_TOKEN
-# APP__DATABASE__HOST
-# APP__DATABASE__PASSWORD
+# APP__DB__HOST
+# APP__DB__PASSWORD
 
-
-features:
-    newsletter: false
-
-application:
-    host: 0.0.0.0
+host: 0.0.0.0
 
 email_client:
     base_url: "https://api.postmarkapp.com"
     sender_email: "phantie@phantie.com"
 
-database:
-    host: "localhost"
+features:
+    newsletter: false
