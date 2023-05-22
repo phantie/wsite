@@ -78,7 +78,16 @@ pub fn env_conf() -> EnvConf {
             .unwrap()
     }
 
-    let base_path = std::env::current_dir().expect("Failed to determine the current directory");
+    let base_path = {
+        let base_path = std::env::current_dir().expect("Failed to determine the current directory");
+
+        if base_path.ends_with("backend") {
+            base_path
+        } else {
+            // to allow cargo run from workspace root
+            base_path.join("backend")
+        }
+    };
 
     let configuration_directory = base_path.join("configuration");
     let env = get_env();
