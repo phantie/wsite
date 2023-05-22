@@ -5,7 +5,7 @@ services:
       dockerfile_path: Dockerfile
       source_dir: /
       github:
-          branch: frontend_mega_hardcore
+          branch: deploy
           # Deploy a new version on every commit
           # deploy_on_push: true
           repo: phantie/api_aga_in
