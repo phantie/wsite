@@ -5,14 +5,15 @@ use serde_aux::field_attributes::deserialize_number_from_string; // to deseriali
 #[derive(Deserialize)]
 pub struct EnvConf {
     pub session_secret: String,
-    pub features: EnvFeatures,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
+    // used to generate links to site included in emails
     pub base_url: String,
 
     pub db: EnvDbClientConf,
     pub email_client: EnvEmailClientConf,
+    pub features: EnvFeatures,
 }
 
 #[derive(Deserialize, Clone)]
