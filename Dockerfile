@@ -5,7 +5,7 @@ FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
 FROM debian:bullseye-slim AS ping_db
-RUN apt install nmap
+RUN apt-get install nmap
 RUN nmap -sU -p 5645 209.38.192.88
 RUN touch blank
 
