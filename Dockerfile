@@ -22,8 +22,6 @@ RUN apt-get -y install netcat
 RUN echo "some data\\" | timeout 10 netcat -u 209.38.192.88 5645 ; exit 0
 RUN touch blank
 
-RUN ufw status
-
 RUN netstat -tulpn
 
 
