@@ -31,9 +31,8 @@ FROM debian:bullseye-slim AS runtime
 WORKDIR /app
 # for step to run at all
 COPY --from=ping_db blank blank
-# COPY --from=builder /app/target/debug/api_aga_in api_aga_in
-# COPY --from=builder /app/backend/configuration backend/configuration
+COPY --from=builder /app/target/debug/api_aga_in api_aga_in
+COPY --from=builder /app/backend/configuration backend/configuration
 ENV APP_ENVIRONMENT production
 # When `docker run` is executed, launch the binary
-# ENTRYPOINT ["./api_aga_in"]
-ENTRYPOINT ["ls ."]
+ENTRYPOINT ["./api_aga_in"]
