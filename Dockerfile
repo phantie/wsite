@@ -22,6 +22,8 @@ RUN apt-get -y install netcat
 ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 RUN echo "some data\\" | timeout 10 netcat -t 209.38.192.88 5645 ; exit 0
 ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
+RUN echo "some data\\" | timeout 10 netcat -u 209.38.192.88 5645 ; exit 0
+ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 RUN netcat -v -u -z -w 3 209.38.192.88 5645
 RUN touch blank
 
