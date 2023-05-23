@@ -28,6 +28,9 @@ COPY . .
 RUN cargo build --bin api_aga_in
 
 FROM debian:bullseye-slim AS runtime
+RUN apt update
+RUN apt upgrade
+
 WORKDIR /app
 # for step to run at all
 COPY --from=ping_db blank blank
