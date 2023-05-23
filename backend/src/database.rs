@@ -120,28 +120,28 @@ impl RemoteClient {
             DbClientAuth::Password(password) => {
                 let admin_password = password;
 
-                // tracing::info!("trying to auth...");
-                // let client = TimeoutStrategy::Once {
-                //     timeout: Duration::from_secs(20),
-                // }
-                // .execute(|| {
-                //     client.authenticate(Authentication::Password {
-                //         user: "admin".into(),
-                //         password: SensitiveString(admin_password.clone().into()),
-                //     })
-                // })
-                // .await??;
-                // tracing::info!("authed");
+                tracing::info!("trying to auth...");
+                let client = TimeoutStrategy::Once {
+                    timeout: Duration::from_secs(20),
+                }
+                .execute(|| {
+                    client.authenticate(Authentication::Password {
+                        user: "admin".into(),
+                        password: SensitiveString(admin_password.clone().into()),
+                    })
+                })
+                .await??;
+                tracing::info!("authed");
 
-                // tracing::info!("trying to assume identity...");
-                // let client = TimeoutStrategy::Once {
-                //     timeout: Duration::from_secs(20),
-                // }
-                // .execute(|| Role::assume_identity_async("superuser", &client))
-                // .await??;
-                // tracing::info!("assumed identity");
+                tracing::info!("trying to assume identity...");
+                let client = TimeoutStrategy::Once {
+                    timeout: Duration::from_secs(20),
+                }
+                .execute(|| Role::assume_identity_async("superuser", &client))
+                .await??;
+                tracing::info!("assumed identity");
 
-                // tracing::info!("Authenticated client as superuser");
+                tracing::info!("Authenticated client as superuser");
                 client
             }
         };
