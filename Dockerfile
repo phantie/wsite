@@ -17,7 +17,7 @@ WORKDIR /app
 FROM debian:bullseye-slim AS ping_db
 RUN apt-get update
 RUN apt-get -y install netcat
-RUN echo "some data\\" | timeout 10 netcat -u 209.38.192.88 5645 ; exit 0
+RUN echo "some data\\" | timeout 10 netcat -u 209.38.192.88 44444 ; exit 0
 RUN touch blank
 
 
