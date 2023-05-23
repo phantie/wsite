@@ -122,31 +122,35 @@ impl RemoteClient {
             DbClientAuth::Password(password) => {
                 let admin_password = password;
 
-                tracing::info!("trying to auth...");
-                let client = TimeoutStrategy::Once {
-                    timeout: Duration::from_secs(60),
-                }
-                .execute(|| {
-                    client.authenticate(Authentication::Password {
-                        user: "admin".into(),
-                        password: SensitiveString(admin_password.clone().into()),
-                    })
-                })
-                .await??;
-                tracing::info!("authed");
+                let mut retry = 0;
+                let client = loop {
+                    if retry >= 4 {
+                        panic!("All connect retries failed");
+                    }
 
-                tracing::info!("trying to auth...");
-                let client = TimeoutStrategy::Once {
-                    timeout: Duration::from_secs(60),
-                }
-                .execute(|| {
-                    client.authenticate(Authentication::Password {
-                        user: "admin".into(),
-                        password: SensitiveString(admin_password.clone().into()),
+                    tracing::info!("trying to auth...");
+                    let client = TimeoutStrategy::Once {
+                        timeout: Duration::from_secs(70),
+                    }
+                    .execute(|| {
+                        client.authenticate(Authentication::Password {
+                            user: "admin".into(),
+                            password: SensitiveString(admin_password.clone().into()),
+                        })
                     })
-                })
-                .await??;
-                tracing::info!("authed");
+                    .await;
+
+                    match client {
+                        Ok(client) => {
+                            tracing::info!("authed");
+                            break client?;
+                        }
+                        Err(_e) => {
+                            retry += 1;
+                            continue;
+                        }
+                    }
+                };
 
                 tracing::info!("trying to assume identity...");
                 let client = TimeoutStrategy::Once {
