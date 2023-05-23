@@ -124,7 +124,20 @@ impl RemoteClient {
 
                 tracing::info!("trying to auth...");
                 let client = TimeoutStrategy::Once {
-                    timeout: Duration::from_secs(20),
+                    timeout: Duration::from_secs(60),
+                }
+                .execute(|| {
+                    client.authenticate(Authentication::Password {
+                        user: "admin".into(),
+                        password: SensitiveString(admin_password.clone().into()),
+                    })
+                })
+                .await??;
+                tracing::info!("authed");
+
+                tracing::info!("trying to auth...");
+                let client = TimeoutStrategy::Once {
+                    timeout: Duration::from_secs(60),
                 }
                 .execute(|| {
                     client.authenticate(Authentication::Password {
