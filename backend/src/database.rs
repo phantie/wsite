@@ -141,13 +141,18 @@ impl RemoteClient {
                     .await;
 
                     match client {
-                        Ok(client) => {
-                            tracing::info!("authed");
-                            break client?;
-                        }
+                        Ok(client) => match client {
+                            Ok(client) => {
+                                tracing::info!("authed");
+                                break client;
+                            }
+                            Err(_e) => {
+                                retry += 1;
+                                continue;
+                            }
+                        },
                         Err(_e) => {
-                            retry += 1;
-                            continue;
+                            unreachable!()
                         }
                     }
                 };
