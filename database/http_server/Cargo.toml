@@ -21,4 +21,5 @@ secrecy.workspace = true
 database_common.workspace = true
 bonsaidb.workspace = true
 interfacing.workspace = true
+telemetry.workspace = true
 anyhow.workspace = true

@@ -13,6 +13,7 @@ static_routes = { path = "common/static_routes" }
 interfacing = { path = "common/interfacing" }
 database_common = { path = "common/database_common" }
 domain = { path = "common/domain" }
+telemetry = { path = "common/telemetry" }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.159", features = ["derive"] }
 serde_json = "1.0.94"

@@ -219,6 +219,7 @@ dependencies = [
  "serde-aux",
  "serde_json",
  "static_routes",
+ "telemetry",
  "tempdir",
  "thiserror",
  "tokio",
@@ -1005,6 +1006,7 @@ dependencies = [
  "domain",
  "interfacing",
  "static_routes",
+ "telemetry",
 ]
 
 [[package]]
@@ -2312,6 +2314,7 @@ dependencies = [
  "rand 0.8.5",
  "secrecy",
  "serde",
+ "telemetry",
  "tempdir",
  "tokio",
  "tower-http 0.4.0",
@@ -4361,6 +4364,16 @@ dependencies = [
  "ntapi",
  "once_cell",
  "winapi",
+]
+
+[[package]]
+name = "telemetry"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+ "tracing-bunyan-formatter",
+ "tracing-log",
+ "tracing-subscriber",
 ]
 
 [[package]]

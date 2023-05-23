@@ -10,3 +10,4 @@ static_routes = { path = "static_routes" }
 domain = { path = "domain" }
 interfacing = { path = "interfacing" }
 database_common = { path = "database_common" }
+telemetry = { path = "telemetry" }

@@ -1,6 +1,5 @@
 use api_aga_in::configuration::{self, env_conf, get_env};
 use api_aga_in::startup::Application;
-use api_aga_in::telemetry;
 
 #[tokio::main]
 async fn main() -> hyper::Result<()> {

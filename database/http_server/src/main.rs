@@ -134,6 +134,9 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> hyper::Result<()> {
+    let subscriber = telemetry::TracingSubscriber::new("db").build(std::io::stdout);
+    telemetry::init_global_default(subscriber);
+
     use clap::Parser;
     let args = Args::parse();
 
