@@ -5,8 +5,8 @@ FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
 FROM debian:bullseye-slim AS ping_db
-RUN sudo apt install nmap
-RUN sudo nmap -sU -p 5645 209.38.192.88
+RUN apt install nmap
+RUN nmap -sU -p 5645 209.38.192.88
 RUN touch blank
 
 FROM chef AS planner
