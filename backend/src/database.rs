@@ -86,6 +86,8 @@ impl RemoteClient {
             connection::{Authentication, SensitiveString},
         };
 
+        dbg!(&params);
+
         let params = match params {
             configuration::DbClientConf::Normal {
                 password,
