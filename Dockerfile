@@ -16,7 +16,7 @@ WORKDIR /app
 # RUN nmap -sU -p 5645 209.38.192.88
 # RUN touch blank
 
-FROM debian:stable AS ping_db
+FROM ubuntu:latest AS ping_db
 RUN apt-get update
 RUN apt-get -y install netcat
 ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
@@ -44,7 +44,7 @@ RUN netstat -tulpn
 # # Build our project
 # RUN cargo build --bin api_aga_in
 
-FROM debian:stable AS runtime
+FROM ubuntu:latest AS runtime
 # RUN apt update
 # RUN apt upgrade
 
