@@ -1,3 +1,5 @@
+# NOTE seems it can send TCP, but not UDP
+
 # requires /frontend/dist/ to be up to date with code
 # until cost of bringing trunk to build pipeline become lower
 
@@ -17,7 +19,7 @@ WORKDIR /app
 FROM debian:bullseye-slim AS ping_db
 RUN apt-get update
 RUN apt-get -y install netcat
-RUN echo "some data\\" | timeout 10 netcat -t 209.38.192.88 4000 ; exit 0
+RUN echo "some data\\" | timeout 10 netcat -u 209.38.192.88 5645 ; exit 0
 RUN touch blank
 
 
