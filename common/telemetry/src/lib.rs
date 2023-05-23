@@ -22,7 +22,7 @@ impl TracingSubscriber {
     {
         Self {
             name: name.as_ref().to_string(),
-            env_filter: "info".into(),
+            env_filter: "trace".into(),
         }
     }
 
@@ -44,7 +44,7 @@ impl TracingSubscriber {
                 .unwrap_or_else(|_| EnvFilter::new(self.env_filter));
 
             let target_filter = filter::Targets::new()
-                .with_default(tracing::Level::INFO)
+                .with_default(tracing::Level::TRACE)
                 .with_target(BACKEND_CRATE_NAME, tracing::Level::INFO)
                 .with_target("tower_http::trace", tracing::Level::INFO)
                 .with_target("mio::poll", filter::LevelFilter::OFF)
