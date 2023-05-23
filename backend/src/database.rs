@@ -152,7 +152,8 @@ impl RemoteClient {
                             }
                         },
                         Err(_e) => {
-                            unreachable!()
+                            retry += 1;
+                            continue;
                         }
                     }
                 };
