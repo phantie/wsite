@@ -630,7 +630,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 dependencies = [
  "bonsaidb-client",
  "bonsaidb-core",
@@ -643,7 +643,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-client"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 dependencies = [
  "async-lock",
  "async-trait",
@@ -673,7 +673,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-core"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 dependencies = [
  "actionable",
  "arc-bytes",
@@ -701,7 +701,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-files"
 version = "0.1.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 dependencies = [
  "bonsaidb-core",
  "bonsaidb-macros",
@@ -718,7 +718,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-local"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 dependencies = [
  "argon2 0.4.1",
  "async-trait",
@@ -758,7 +758,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-macros"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 dependencies = [
  "attribute-derive",
  "manyhow",
@@ -773,7 +773,7 @@ dependencies = [
 [[package]]
 name = "bonsaidb-server"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 dependencies = [
  "async-acme",
  "async-lock",
@@ -803,12 +803,13 @@ dependencies = [
  "tokio",
  "tokio-rustls 0.23.4",
  "tokio-tungstenite",
+ "tracing",
 ]
 
 [[package]]
 name = "bonsaidb-utils"
 version = "0.4.0"
-source = "git+https://github.com/khonsulabs/bonsaidb/?rev=c42b2f580ff6cef4854f0a2ae45e52a7743352d6#c42b2f580ff6cef4854f0a2ae45e52a7743352d6"
+source = "git+https://github.com/phantie/bonsaidb?rev=64ebbcd5b138a130f8b665f5a9ce565d461359a3#64ebbcd5b138a130f8b665f5a9ce565d461359a3"
 
 [[package]]
 name = "boolinator"

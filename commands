@@ -26,4 +26,12 @@ doctl apps create-deployment $APP_ID
 setsid nohup cargo run -- --start &>server.log &
 
 # List listeners
+netstat -tulpn | grep http_server
+
 netstat -tulpn
+
+# Sniff packets
+tcpdump -n udp port 5645
+
+
+# packets to do not reach remote server
