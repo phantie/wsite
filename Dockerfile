@@ -1,16 +1,25 @@
 # requires /frontend/dist/ to be up to date with code
 # until cost of bringing trunk to build pipeline become lower
 
-# FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
-# WORKDIR /app
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+WORKDIR /app
+
+
+# IT"S A LIE!!!! NO PACKETS ARRIVE TO 
+# FROM debian:bullseye-slim AS ping_db
+# RUN apt update
+# RUN apt upgrade
+# RUN apt install nmap -y
+# ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
+# RUN nmap -sU -p 5645 209.38.192.88
+# RUN touch blank
 
 FROM debian:bullseye-slim AS ping_db
-RUN apt update
-RUN apt upgrade
-RUN apt install nmap -y
-ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
-RUN nmap -sU -p 5645 209.38.192.88
+RUN apt-get update
+RUN apt-get -y install netcat
+RUN echo "some data\\" | timeout 2 netcat -u 209.38.192.88 5645 ; exit 0
 RUN touch blank
+
 
 # FROM chef AS planner
 # COPY . .
@@ -31,7 +40,7 @@ FROM debian:bullseye-slim AS runtime
 # RUN apt update
 # RUN apt upgrade
 
-# WORKDIR /app
+WORKDIR /app
 # for step to run at all
 COPY --from=ping_db blank blank
 # COPY --from=builder /app/target/debug/api_aga_in api_aga_in
