@@ -21,6 +21,6 @@ anyhow = "1.0.71"
 claim = { package = "claims", version = "0.7.1"}
 
 [workspace.dependencies.bonsaidb]
-rev = "64ebbcd5b138a130f8b665f5a9ce565d461359a3"
+branch = "debug_app_conn"
 git = "https://github.com/phantie/bonsaidb"
 features = ["server-full", "client-full", "local-full", "password-hashing", "instrument"]
