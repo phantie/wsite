@@ -212,18 +212,19 @@ impl DbClient {
         // try to solve a problem of client hanging forever
         // when not accessed for some time (empirically found more than 10 minutes)
         let ping_handle = {
-            let client = client.clone();
+            let _client = client.clone();
             let ping_handle = tokio::task::spawn(async move {
                 loop {
-                    let ping = TimeoutStrategy::default().execute(|| client.ping()).await;
+                    // let ping = TimeoutStrategy::default().execute(|| client.ping()).await;
 
-                    match ping {
-                        Ok(o) => match o {
-                            Ok(()) => tracing::info!("Ping database"),
-                            Err(_e) => tracing::error!("Database error"),
-                        },
-                        Err(_) => tracing::error!("Database unreachable"),
-                    }
+                    // match ping {
+                    //     Ok(o) => match o {
+                    //         Ok(()) => tracing::info!("Ping database"),
+                    //         Err(_e) => tracing::error!("Database error"),
+                    //     },
+                    //     Err(_) => tracing::error!("Database unreachable"),
+                    // }
+
                     // ping database every 5 minutes, to keep connection alive
                     tokio::time::sleep(std::time::Duration::from_secs(60 * 5)).await;
                 }
