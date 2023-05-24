@@ -38,6 +38,7 @@ impl IntoResponse for ApiError {
                 format!("{}: {}", self.to_string(), rejection.to_string())
             }
             Self::UnexpectedError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
+            Self::AuthError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
             _ => self.to_string(),
         };
         tracing::error!("{}", trace_message);

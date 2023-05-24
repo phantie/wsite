@@ -13,6 +13,4 @@
 **/tmp/
 
 # frontend final assets
-# right now this directory is required
-# in docker build pipeline, ideally it should be removed
 /frontend/dist/
