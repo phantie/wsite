@@ -19,7 +19,7 @@ sudo apt-get install pkg-config libssl-dev -y
 
 /// Setup nginx
 sudo apt install nginx -y
-sudo ufw allow 'Nginx HTTP'
+sudo ufw allow 'Nginx Full'
 
 sudo nano /etc/nginx/sites-available/phantie.com
 
@@ -33,6 +33,10 @@ sudo nano /etc/nginx/sites-available/phantie.com
                     proxy_pass http://127.0.0.1:8000;
             }
     }
+
+/// Setup TLS
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d phantie.com -d www.phantie.com
 
 sudo ln -s /etc/nginx/sites-available/phantie.com /etc/nginx/sites-enabled/
 sudo nginx -t
@@ -51,9 +55,6 @@ sudo ufw allow ssh
 sudo ufw allow 4000
 /// Db server port
 sudo ufw allow 5645
-
-/// App http port, no tls now
-sudo ufw allow 8000
 
 /// Enable firewall
 sudo ufw enable
