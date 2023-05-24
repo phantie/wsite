@@ -7,8 +7,9 @@ APP__BASE_URL="" \
 APP__SESSION_SECRET= \
 APP__DB__HOST=localhost \
 APP__DB__PASSWORD= \
-cargo run
-
+setsid nohup cargo run -- --start &>server.log &
+# Inspect logs
+tail server.log
 
 APP FRONTEND (api_aga_in/frontend/)
 # build assets
@@ -19,8 +20,9 @@ trunk serve
 
 DB HTTP_SERVER (api_aga_in/database/http_server/)
 # Start Db server detached
-# setsid nohup cargo run -- --start &>server.log &
-nohup cargo run -- --start > server.log &
+setsid nohup cargo run -- --start &>server.log &
+# Inspect logs
+tail server.log
 # Start Db server
 cargo run -- --start
 
