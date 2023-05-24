@@ -13,8 +13,13 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
 
 /// Update system
+sudo apt update
 sudo apt install net-tools build-essential -y
 sudo apt-get install pkg-config libssl-dev -y
+
+/// Install nginx
+sudo apt install nginx -y
+sudo ufw allow 'Nginx HTTP'
 
 /// Install trunk
 rustup target add wasm32-unknown-unknown
@@ -31,8 +36,9 @@ sudo ufw allow 4000
 sudo ufw allow 5645
 
 /// App http port, no tls now
-sudo ufw allow 80
+sudo ufw allow 8000
 
 /// Enable firewall
 sudo ufw enable
+
 
