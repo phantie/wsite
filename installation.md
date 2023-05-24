@@ -31,7 +31,7 @@ sudo ufw allow 4000
 sudo ufw allow 5645
 
 /// App http port, no tls now
-sudo ufw allow 8000
+sudo ufw allow 80
 
 /// Enable firewall
 sudo ufw enable
