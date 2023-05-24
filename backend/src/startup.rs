@@ -178,7 +178,7 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
             // rand::thread_rng().fill(&mut secret);
             // dbg!(hex::encode(secret));
 
-            SessionLayer::new(store, decoded.as_slice()).with_secure(false)
+            SessionLayer::new(store, decoded.as_slice()).with_secure(true)
         })
 }
 
