@@ -17,9 +17,26 @@ sudo apt update
 sudo apt install net-tools build-essential -y
 sudo apt-get install pkg-config libssl-dev -y
 
-/// Install nginx
+/// Setup nginx
 sudo apt install nginx -y
 sudo ufw allow 'Nginx HTTP'
+
+sudo nano /etc/nginx/sites-available/phantie.com
+
+    server {
+            listen 80;
+            listen [::]:80;
+
+            server_name phantie.com www.phantie.com;
+
+            location / {
+                    proxy_pass http://127.0.0.1:8000;
+            }
+    }
+
+sudo ln -s /etc/nginx/sites-available/phantie.com /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
 
 /// Install trunk
 rustup target add wasm32-unknown-unknown
@@ -40,5 +57,4 @@ sudo ufw allow 8000
 
 /// Enable firewall
 sudo ufw enable
-
 
