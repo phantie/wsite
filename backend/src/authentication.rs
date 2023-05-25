@@ -4,7 +4,6 @@ use crate::{
     telemetry::spawn_blocking_with_tracing,
 };
 use anyhow::Context;
-use axum::headers::{authorization::Basic, Authorization};
 use axum_sessions::extractors::ReadableSession;
 use secrecy::{ExposeSecret, SecretString};
 
@@ -12,15 +11,6 @@ use secrecy::{ExposeSecret, SecretString};
 pub struct Credentials {
     pub username: String,
     pub password: SecretString,
-}
-
-impl From<Authorization<Basic>> for Credentials {
-    fn from(value: Authorization<Basic>) -> Self {
-        Self {
-            username: value.username().into(),
-            password: SecretString::new(value.password().into()),
-        }
-    }
 }
 
 #[tracing::instrument(

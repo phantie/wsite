@@ -12,7 +12,6 @@ pub use axum::{
         rejection::{FormRejection, JsonRejection, TypedHeaderRejection},
         Extension, Form, Json, Path, Query, State, TypedHeader,
     },
-    headers::{authorization::Basic, Authorization},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
 };

@@ -3,14 +3,11 @@ use crate::routes::imports::*;
 #[axum_macros::debug_handler]
 pub async fn publish_newsletter(
     State(state): State<AppState>,
-    maybe_basic_auth: Result<TypedHeader<Authorization<Basic>>, TypedHeaderRejection>,
+    session: ReadableSession,
     Extension(db_client): Extension<SharedDbClient>,
-    Json(body): Json<BodyData>,
+    Json(newsletter): Json<Newsletter>,
 ) -> ApiResult<()> {
-    let TypedHeader(basic_auth) = maybe_basic_auth.map_err(ApiError::AuthHeaderRejection)?;
-
-    let credentials: Credentials = basic_auth.into();
-    let _user_id = validate_credentials(db_client.clone(), &credentials).await?;
+    let _user_id = reject_anonymous_users(&session)?;
 
     let subscriptions = &db_client.read().await.collections().subs;
 
@@ -25,9 +22,9 @@ pub async fn publish_newsletter(
             .email_client
             .send_email(
                 &subscriber.document.contents.email,
-                &body.title,
-                &body.content.html,
-                &body.content.text,
+                &newsletter.title,
+                &newsletter.content.html,
+                &newsletter.content.text,
             )
             .await
             .context("Failed to send email to a confirmed subscriber")?;
@@ -37,7 +34,7 @@ pub async fn publish_newsletter(
 }
 
 #[derive(Deserialize)]
-pub struct BodyData {
+pub struct Newsletter {
     title: String,
     content: Content,
 }
