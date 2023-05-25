@@ -29,48 +29,38 @@ pub async fn validate_credentials(
 
     let user = mapped_users.into_iter().next();
 
+    if let None = &user {
+        tracing::info!(
+            "trying to login as a nonexistent user: {}",
+            &credentials.username
+        );
+    }
+
     let expected_password_hash = match &user {
         // even if user does not exist, take time to compare provided pwd with invalid
-        None => SecretString::new(
-            "$argon2id$v=19$m=15000,t=1,p=1$\
-            gZiV/M1gPc22ElAH/Jh1Hw$\
-            CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
-                .to_string(),
-        ),
-        Some(doc) => doc.document.contents.password_hash.clone().into(),
+        None => common::auth::invalid_password_hash(),
+        Some(doc) => doc.document.contents.password_hash.clone(),
     };
 
     let password = credentials.password.clone();
 
-    spawn_blocking_with_tracing(|| verify_password_hash(expected_password_hash, password))
-        .await
-        .context("failed to spawn a verify password hash task")
-        .map_err(ApiError::UnexpectedError)??;
+    spawn_blocking_with_tracing(move || {
+        common::auth::verify_password_hash(
+            expected_password_hash,
+            password.expose_secret().as_bytes(),
+        )
+    })
+    .await
+    .context("failed to spawn a verify password hash task")
+    .map_err(ApiError::UnexpectedError)?
+    .context("invalid password")
+    .map_err(ApiError::AuthError)?;
 
     Ok(user
         .expect("since password verified, user exists")
         .document
         .header
         .id)
-}
-
-/// It's a slow operation, 10ms kind of slow.
-fn verify_password_hash(
-    expected_password_hash: SecretString,
-    password_candidate: SecretString,
-) -> ApiResult<()> {
-    use argon2::PasswordVerifier;
-
-    let expected_password_hash = argon2::PasswordHash::new(expected_password_hash.expose_secret())
-        .context("Failed to parse hash in PHC string format.")?;
-
-    argon2::Argon2::default()
-        .verify_password(
-            password_candidate.expose_secret().as_bytes(),
-            &expected_password_hash,
-        )
-        .context("Invalid password")
-        .map_err(ApiError::AuthError)
 }
 
 pub fn reject_anonymous_users(session: &ReadableSession) -> ApiResult<u64> {

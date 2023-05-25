@@ -186,7 +186,6 @@ name = "api_aga_in"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "argon2 0.5.0",
  "async-trait",
  "axum",
  "axum-macros",
@@ -2306,7 +2305,6 @@ name = "http_server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "argon2 0.5.0",
  "axum",
  "axum-macros",
  "bonsaidb",
