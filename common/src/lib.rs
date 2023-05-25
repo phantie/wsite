@@ -1,5 +1,5 @@
 #[cfg(feature = "db")]
-pub mod db;
+pub use db;
 
 #[cfg(feature = "domain")]
 pub use domain;

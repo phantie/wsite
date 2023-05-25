@@ -6,17 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-static_routes = { path = "static_routes" }
-domain = { path = "domain" }
-interfacing = { path = "interfacing" }
-tempdir = { version = "0.3.7", optional = true }
-bonsaidb = { workspace = true, optional = true }
-serde.workspace = true
-anyhow.workspace = true
+db = { path = "db", optional = true }
+static_routes = { path = "static_routes", optional = true }
+domain = { path = "domain", optional = true }
+interfacing = { path = "interfacing", optional = true }
 
 [features]
 default = ["db", "static_routes", "domain", "interfacing"]
-db = ["dep:tempdir", "dep:bonsaidb"]
-static_routes = []
-domain = []
-interfacing = []
+db = ["dep:db"]
+static_routes = ["dep:static_routes"]
+domain = ["dep:domain"]
+interfacing = ["dep:interfacing"]
