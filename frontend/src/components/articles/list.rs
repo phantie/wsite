@@ -127,10 +127,15 @@ impl Component for ArticleList {
                             }
                         };
 
-                        let draft = match article.draft {
-                            true => html!{"draft"},
-                            false => html!{"not draft"},
-                        };
+                        let draft = match session { 
+                            None => html!{},
+                            Some(_session) => {
+                                match article.draft {
+                                    true => html!{ "draft" },
+                                    false => html!{},
+                                }
+                            }
+                    };
 
                         html! {
                             <div key={public_id.clone()} ref={article_node_ref} class={article_classes.clone()}>
