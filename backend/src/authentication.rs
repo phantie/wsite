@@ -13,25 +13,11 @@ pub struct Credentials {
     pub password: SecretString,
 }
 
-#[tracing::instrument(
-    name = "Validate credentials",
-    skip_all,
-    fields(
-        success = tracing::field::Empty
-    )
-)]
+#[tracing::instrument(name = "Validate credentials", skip_all)]
 pub async fn validate_credentials(
     db_client: SharedDbClient,
     credentials: &Credentials,
 ) -> ApiResult<u64> {
-    let mut user_id: Option<u64> = None;
-    let mut expected_password_hash = SecretString::new(
-        "$argon2id$v=19$m=15000,t=1,p=1$\
-        gZiV/M1gPc22ElAH/Jh1Hw$\
-        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
-            .to_string(),
-    );
-
     let users = &db_client.read().await.collections().users;
 
     let mapped_users = users
@@ -41,28 +27,33 @@ pub async fn validate_credentials(
         .await
         .unwrap();
 
-    if let Some(doc) = mapped_users.into_iter().next() {
-        user_id = Some(doc.document.header.id);
-        expected_password_hash = SecretString::new(doc.document.contents.password_hash.clone());
-    }
+    let user = mapped_users.into_iter().next();
 
-    let current_span = tracing::Span::current();
+    let expected_password_hash = match &user {
+        // even if user does not exist, take time to compare provided pwd with invalid
+        None => SecretString::new(
+            "$argon2id$v=19$m=15000,t=1,p=1$\
+            gZiV/M1gPc22ElAH/Jh1Hw$\
+            CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
+                .to_string(),
+        ),
+        Some(doc) => doc.document.contents.password_hash.clone().into(),
+    };
+
     let password = credentials.password.clone();
 
-    // Tests that spawn an app run sequentially, therefore it does not speed up execution
-    spawn_blocking_with_tracing(move || {
-        current_span.in_scope(|| verify_password_hash(expected_password_hash, password))
-    })
-    .await
-    .context("Failed to spawn blocking task.")
-    .map_err(ApiError::UnexpectedError)??;
+    spawn_blocking_with_tracing(|| verify_password_hash(expected_password_hash, password))
+        .await
+        .context("failed to spawn a verify password hash task")
+        .map_err(ApiError::UnexpectedError)??;
 
-    tracing::Span::current().record("success", &tracing::field::display(true));
-
-    Ok(user_id.unwrap())
+    Ok(user
+        .expect("since password verified, user exists")
+        .document
+        .header
+        .id)
 }
 
-#[tracing::instrument(name = "Verify password hash", skip_all)]
 /// It's a slow operation, 10ms kind of slow.
 fn verify_password_hash(
     expected_password_hash: SecretString,
