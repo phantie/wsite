@@ -10,15 +10,16 @@
 // plain backup database +
 #![allow(dead_code)]
 
+use common::interfacing;
+
 use clap::{arg, command, value_parser};
 use reqwest::StatusCode;
-
 use std::io::Write;
 use std::time::Duration;
 
 fn main() -> anyhow::Result<()> {
     let client = reqwest::blocking::Client::new();
-    let addr = database_common::ADDR.to_string();
+    let addr = common::db::MANAGER_ADDR.to_string();
 
     let server = Server { client, addr };
 

@@ -43,15 +43,12 @@ hex = "0.4.3"
 bytes = "1.4.0"
 httpdate = "1.0.2"
 
-database_common.workspace = true
-static_routes.workspace = true
-interfacing.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 bonsaidb.workspace = true
 anyhow.workspace = true
-domain.workspace = true
+common.workspace = true
 
 [features]
 

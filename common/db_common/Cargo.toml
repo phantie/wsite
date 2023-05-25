@@ -1,5 +1,5 @@
 [package]
-name = "database_common"
+name = "db_common"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,4 +11,4 @@ tempdir = "0.3.7"
 bonsaidb.workspace = true
 serde.workspace = true
 anyhow.workspace = true
-domain.workspace = true
+domain = { path = "../domain" }

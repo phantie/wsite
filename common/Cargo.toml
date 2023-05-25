@@ -9,4 +9,4 @@ edition = "2021"
 static_routes = { path = "static_routes" }
 domain = { path = "domain" }
 interfacing = { path = "interfacing" }
-database_common = { path = "database_common" }
+db_common = { path = "db_common" }

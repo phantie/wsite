@@ -1,5 +1,5 @@
 use crate::helpers::*;
-use static_routes::*;
+use common::static_routes::routes;
 
 use hyper::StatusCode;
 

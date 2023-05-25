@@ -12,6 +12,5 @@ reqwest = { version = "0.11.17", features = ["blocking", "json"] }
 fork = "0.1.21"
 
 secrecy.workspace = true
-database_common.workspace = true
-interfacing.workspace = true
+common.workspace = true
 anyhow.workspace = true

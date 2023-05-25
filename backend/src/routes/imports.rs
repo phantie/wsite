@@ -17,9 +17,10 @@ pub use axum::{
     response::{IntoResponse, Response},
 };
 pub use axum_sessions::extractors::{ReadableSession, WritableSession};
+pub use common::interfacing;
+pub use common::static_routes::*;
 pub use secrecy::{ExposeSecret, SecretString};
 pub use serde::{Deserialize, Serialize};
-pub use static_routes::*;
 
 pub fn collect_contents<S>(docs: Vec<CollectionDocument<S>>) -> Vec<S::Contents>
 where

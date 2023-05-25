@@ -148,8 +148,8 @@ pub struct EnvEmailClientConf {
 }
 
 impl EnvEmailClientConf {
-    pub fn sender(&self) -> Result<domain::SubscriberEmail, String> {
-        domain::SubscriberEmail::parse(self.sender_email.clone())
+    pub fn sender(&self) -> Result<common::domain::SubscriberEmail, String> {
+        common::domain::SubscriberEmail::parse(self.sender_email.clone())
     }
 
     pub fn timeout(&self) -> std::time::Duration {

@@ -195,16 +195,14 @@ dependencies = [
  "bytes",
  "claims",
  "clap",
+ "common",
  "config",
- "database_common",
- "domain",
  "fabruic",
  "fake",
  "hex",
  "httpdate",
  "hyper",
  "include_dir",
- "interfacing",
  "linkify",
  "mime_guess",
  "once_cell",
@@ -218,7 +216,6 @@ dependencies = [
  "serde",
  "serde-aux",
  "serde_json",
- "static_routes",
  "tempdir",
  "thiserror",
  "tokio",
@@ -977,9 +974,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "database_common",
+ "common",
  "fork",
- "interfacing",
  "reqwest",
  "rpassword",
  "secrecy",
@@ -1001,7 +997,7 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 name = "common"
 version = "0.1.0"
 dependencies = [
- "database_common",
+ "db_common",
  "domain",
  "interfacing",
  "static_routes",
@@ -1312,7 +1308,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23d8666cb01533c39dde32bcbab8e227b4ed6679b2c925eba05feabea39508fb"
 
 [[package]]
-name = "database_common"
+name = "db_common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1663,15 +1659,14 @@ name = "frontend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "common",
  "gloo-console",
  "gloo-net",
  "gloo-storage",
- "interfacing",
  "pulldown-cmark",
  "secrecy",
  "serde",
  "serde_json",
- "static_routes",
  "stylist",
  "thiserror",
  "web-sys",
@@ -2306,9 +2301,8 @@ dependencies = [
  "axum-macros",
  "bonsaidb",
  "clap",
- "database_common",
+ "common",
  "hyper",
- "interfacing",
  "rand 0.8.5",
  "secrecy",
  "serde",

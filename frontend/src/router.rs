@@ -30,7 +30,7 @@ pub enum Route {
 
 #[cfg(test)]
 mod tests {
-    use static_routes::*;
+    use common::static_routes::*;
     use yew_router::Routable;
 
     use super::Route;

@@ -1,5 +1,5 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
-use static_routes::*;
+use common::static_routes::*;
 
 #[tokio::test]
 async fn you_must_be_logged_in_to_access_the_admin_dashboard() {
