@@ -9,8 +9,8 @@ pub use crate::{
 pub use anyhow::Context;
 pub use axum::{
     extract::{
-        rejection::{FormRejection, JsonRejection, TypedHeaderRejection},
-        Extension, Form, Json, Path, Query, State, TypedHeader,
+        rejection::{FormRejection, JsonRejection},
+        Extension, Form, Json, Path, Query, State,
     },
     http::{header, StatusCode},
     response::{IntoResponse, Response},

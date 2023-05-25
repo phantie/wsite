@@ -1,7 +1,7 @@
 #[derive(thiserror::Error, Debug)]
 pub enum ApiError {
-    #[error("Json is rejected")]
-    JsonRejection(#[from] JsonRejection),
+    #[error("Json is rejected: {0}")]
+    JsonRejection(#[from] axum::extract::rejection::JsonRejection),
 
     #[error("Authentication failed")]
     AuthError(#[source] anyhow::Error),
@@ -28,18 +28,15 @@ pub enum ApiError {
     UnexpectedError(#[from] anyhow::Error),
 }
 
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
+impl axum::response::IntoResponse for ApiError {
+    fn into_response(self) -> axum::response::Response {
         let trace_message = match &self {
-            Self::JsonRejection(rejection) => {
-                format!("{}: {}", self.to_string(), rejection.to_string())
-            }
-            Self::UnexpectedError(e) => format!("{}: {}", self.to_string(), e.source().unwrap()),
-            Self::AuthError(e) => format!("{}: {}", self.to_string(), e.root_cause()),
+            Self::AuthError(e) => format!("{}: {}", self, e.root_cause()),
             _ => self.to_string(),
         };
         tracing::error!("{}", trace_message);
 
+        use hyper::StatusCode;
         match &self {
             Self::JsonRejection(_e) => StatusCode::BAD_REQUEST,
             Self::AuthError(_e) => StatusCode::UNAUTHORIZED,
@@ -56,9 +53,3 @@ impl IntoResponse for ApiError {
 }
 
 pub type ApiResult<T> = Result<T, ApiError>;
-
-use axum::{
-    extract::rejection::{JsonRejection, TypedHeaderRejection},
-    response::{IntoResponse, Response},
-};
-use hyper::StatusCode;
