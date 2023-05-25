@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tempdir = "0.3.7"
+domain = { path = "../domain" }
+
+tempdir.workspace = true
 bonsaidb.workspace = true
 serde.workspace = true
 anyhow.workspace = true
-domain = { path = "../domain" }

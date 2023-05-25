@@ -5,7 +5,6 @@ members = [
     "database/http_server",
     "database/cli"
 ]
-default-members = ["backend"]
 
 [workspace.dependencies]
 common = { path = "common" }
@@ -15,6 +14,7 @@ claim = { package = "claims", version = "0.7.1"}
 rand = { version = "0.8.5", features = ["std_rng"] }
 serde_json = "1.0.94"
 anyhow = "1.0.71"
+tempdir = "0.3.7"
 
 [workspace.dependencies.bonsaidb]
 rev = "c42b2f580ff6cef4854f0a2ae45e52a7743352d6" # 20.05.23

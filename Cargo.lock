@@ -205,12 +205,8 @@ dependencies = [
  "linkify",
  "mime_guess",
  "once_cell",
- "quickcheck",
- "quickcheck_macros",
  "rand 0.8.5",
- "rand_core 0.6.4",
  "reqwest",
- "rpassword",
  "secrecy",
  "serde",
  "serde-aux",
@@ -224,9 +220,7 @@ dependencies = [
  "tracing-bunyan-formatter",
  "tracing-log",
  "tracing-subscriber",
- "unicode-segmentation",
  "uuid",
- "validator",
  "wiremock",
 ]
 

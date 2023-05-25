@@ -12,7 +12,6 @@ hyper = "0.14.24"
 clap = "4.2.7"
 tower-http = { version = "0.4.0", features = ["add-extension"] }
 axum-macros = "0.3.6"
-tempdir = "0.3.7"
 
 rand.workspace = true
 serde.workspace = true
@@ -20,3 +19,4 @@ secrecy.workspace = true
 common.workspace = true
 bonsaidb.workspace = true
 anyhow.workspace = true
+tempdir.workspace = true
