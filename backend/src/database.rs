@@ -5,6 +5,7 @@ pub use bonsaidb::core::schema::SerializedCollection;
 pub use common::db::schema;
 
 use crate::configuration;
+use crate::error::ApiResult;
 use crate::timeout::TimeoutStrategy;
 use bonsaidb::client::AsyncClient;
 use bonsaidb::client::AsyncRemoteDatabase;
@@ -146,6 +147,34 @@ pub struct DbCollections {
     pub users: AsyncRemoteDatabase,
     pub articles: AsyncRemoteDatabase,
     pub subs: AsyncRemoteDatabase,
+}
+
+impl DbCollections {
+    pub async fn user_by_username(
+        &self,
+        username: impl AsRef<str>,
+    ) -> ApiResult<Option<CollectionDocument<schema::User>>> {
+        let mapped_users = self
+            .users
+            .view::<schema::UserByUsername>()
+            .with_key(username.as_ref())
+            .query_with_collection_docs()
+            .await?;
+        Ok(mapped_users.into_iter().next().map(|v| v.document.clone()))
+    }
+
+    pub async fn article_by_public_id(
+        &self,
+        public_id: impl AsRef<str>,
+    ) -> ApiResult<Option<CollectionDocument<schema::Article>>> {
+        let mapped = self
+            .articles
+            .view::<schema::ArticleByPublicID>()
+            .with_key(public_id.as_ref())
+            .query_with_collection_docs()
+            .await?;
+        Ok(mapped.into_iter().next().map(|v| v.document.clone()))
+    }
 }
 
 pub type ClientResult<T> = std::result::Result<T, bonsaidb::core::Error>;

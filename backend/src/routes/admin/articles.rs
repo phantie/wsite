@@ -68,15 +68,15 @@ pub async fn update_article(
                 let body = body.clone();
                 async move {
                     let articles = &db_client.read().await.collections().articles;
-                    let docs = articles
-                        .view::<schema::ArticleByPublicID>()
-                        .with_key(&body.public_id)
-                        .query_with_collection_docs()
-                        .await?;
 
-                    let doc = docs.into_iter().next().ok_or(ApiError::EntryNotFound)?;
+                    let mut doc = db_client
+                        .read()
+                        .await
+                        .collections()
+                        .article_by_public_id(&body.public_id)
+                        .await?
+                        .ok_or(ApiError::EntryNotFound)?;
 
-                    let mut doc = doc.document.clone();
                     doc.contents.title = body.title;
                     doc.contents.markdown = body.markdown;
                     doc.contents.draft = body.draft;
@@ -104,15 +104,16 @@ pub async fn delete_article(
                 let public_id = public_id.clone();
                 async move {
                     let articles = &db_client.read().await.collections().articles;
-                    let docs = articles
-                        .view::<schema::ArticleByPublicID>()
-                        .with_key(&public_id)
-                        .query_with_collection_docs()
-                        .await?;
 
-                    let doc = docs.into_iter().next().ok_or(ApiError::EntryNotFound)?;
+                    let doc = db_client
+                        .read()
+                        .await
+                        .collections()
+                        .article_by_public_id(&public_id)
+                        .await?
+                        .ok_or(ApiError::EntryNotFound)?;
 
-                    doc.document.delete_async(articles).await?;
+                    doc.delete_async(articles).await?;
                     Ok(())
                 }
                 .await
@@ -160,16 +161,15 @@ pub async fn article_by_public_id(
             |db_client| async {
                 let public_id = public_id.clone();
                 async move {
-                    let articles = &db_client.read().await.collections().articles;
+                    let doc = db_client
+                        .read()
+                        .await
+                        .collections()
+                        .article_by_public_id(&public_id)
+                        .await?
+                        .ok_or(ApiError::EntryNotFound)?;
 
-                    let docs = articles
-                        .view::<schema::ArticleByPublicID>()
-                        .with_key(&public_id)
-                        .query_with_collection_docs()
-                        .await?;
-
-                    let doc = docs.into_iter().next().ok_or(ApiError::EntryNotFound)?;
-                    Ok(Json(&doc.document.contents).into_response())
+                    Ok(Json(&doc.contents).into_response())
                 }
                 .await
             },

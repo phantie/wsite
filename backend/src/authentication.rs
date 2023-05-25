@@ -2,6 +2,7 @@ use crate::{
     database::*,
     error::{ApiError, ApiResult},
     telemetry::spawn_blocking_with_tracing,
+    timeout::HangingStrategy,
 };
 use anyhow::Context;
 use axum_sessions::extractors::ReadableSession;
@@ -18,16 +19,23 @@ pub async fn validate_credentials(
     db_client: SharedDbClient,
     credentials: &Credentials,
 ) -> ApiResult<u64> {
-    let users = &db_client.read().await.collections().users;
-
-    let mapped_users = users
-        .view::<schema::UserByUsername>()
-        .with_key(&credentials.username)
-        .query_with_collection_docs()
-        .await
-        .unwrap();
-
-    let user = mapped_users.into_iter().next();
+    let user = HangingStrategy::long_linear()
+        .execute(
+            |db_client| async {
+                async move {
+                    let user = db_client
+                        .read()
+                        .await
+                        .collections()
+                        .user_by_username(&credentials.username)
+                        .await?;
+                    ApiResult::<_>::Ok(user)
+                }
+                .await
+            },
+            db_client.clone(),
+        )
+        .await??;
 
     if let None = &user {
         tracing::info!(
@@ -39,7 +47,7 @@ pub async fn validate_credentials(
     let expected_password_hash = match &user {
         // even if user does not exist, take time to compare provided pwd with invalid
         None => common::auth::invalid_password_hash(),
-        Some(doc) => doc.document.contents.password_hash.clone(),
+        Some(doc) => doc.contents.password_hash.clone(),
     };
 
     let password = credentials.password.clone();
@@ -58,7 +66,6 @@ pub async fn validate_credentials(
 
     Ok(user
         .expect("since password verified, user exists")
-        .document
         .header
         .id)
 }
