@@ -9,3 +9,6 @@ pub use interfacing;
 
 #[cfg(feature = "static_routes")]
 pub use static_routes;
+
+#[cfg(feature = "auth")]
+pub use auth;

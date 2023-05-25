@@ -27,7 +27,6 @@ serde-aux = "4.1.2"
 unicode-segmentation = "1.10.1"
 validator = "0.16.0"
 reqwest = { version = "0.11.14", default-features = false, features = ["json", "rustls-tls", "cookies"] }
-rand = { version = "0.8.5", features = ["std_rng"] }
 axum-macros = "0.3.6"
 thiserror = "1.0.39"
 uuid = { version = "1.3.0", features = ["v4"] }
@@ -49,6 +48,7 @@ serde_json.workspace = true
 bonsaidb.workspace = true
 anyhow.workspace = true
 common.workspace = true
+rand.workspace = true
 
 [features]
 

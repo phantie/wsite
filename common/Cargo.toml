@@ -10,10 +10,12 @@ db = { path = "db", optional = true }
 static_routes = { path = "static_routes", optional = true }
 domain = { path = "domain", optional = true }
 interfacing = { path = "interfacing", optional = true }
+auth = { path = "auth", optional = true }
 
 [features]
-default = ["db", "static_routes", "domain", "interfacing"]
+default = ["db", "static_routes", "domain", "interfacing", "auth"]
 db = ["dep:db"]
 static_routes = ["dep:static_routes"]
 domain = ["dep:domain"]
 interfacing = ["dep:interfacing"]
+auth = ["dep:auth"]

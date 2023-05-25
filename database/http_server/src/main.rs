@@ -193,7 +193,6 @@ async fn replace_dashboard_user(
     Extension(database_server): Extension<SharedHostedDatabase>,
     Json(form): Json<interfacing::LoginForm>,
 ) -> String {
-    use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
     let users = database_server
         .read()
         .await
@@ -214,21 +213,13 @@ async fn replace_dashboard_user(
         .unwrap();
     let user = user.into_iter().next();
 
-    let salt = SaltString::generate(&mut rand::thread_rng());
-    let password_hash = Argon2::new(
-        Algorithm::Argon2id,
-        Version::V0x13,
-        Params::new(15000, 2, 1, None).unwrap(),
-    )
-    .hash_password(password.as_bytes(), &salt)
-    .unwrap()
-    .to_string();
+    let password_hash = common::auth::hash_pwd(password.as_bytes()).unwrap();
 
     match user {
         None => {
             schema::User {
                 username: username.clone(),
-                password_hash: password_hash,
+                password_hash,
             }
             .push_into_async(&users)
             .await

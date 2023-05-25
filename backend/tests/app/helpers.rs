@@ -2,10 +2,8 @@ use api_aga_in::configuration;
 pub use api_aga_in::database::*;
 use api_aga_in::startup::Application;
 use api_aga_in::telemetry;
-use common::static_routes::*;
-
-use argon2::{password_hash::SaltString, Algorithm, Argon2, Params, PasswordHasher, Version};
 use bonsaidb::server::BonsaiListenConfig;
+use common::static_routes::*;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
 use reqwest::{RequestBuilder, Response};
@@ -265,19 +263,11 @@ impl TestUser {
         db_client: SharedDbClient,
     ) -> Result<CollectionDocument<schema::User>, bonsaidb::core::schema::InsertError<schema::User>>
     {
-        let salt = SaltString::generate(&mut rand::thread_rng());
-        let password_hash = Argon2::new(
-            Algorithm::Argon2id,
-            Version::V0x13,
-            Params::new(15000, 1, 1, None).unwrap(),
-        )
-        .hash_password(self.password.as_bytes(), &salt)
-        .unwrap()
-        .to_string();
+        let password_hash = common::auth::hash_pwd(self.password.as_bytes()).unwrap();
 
         schema::User {
             username: self.username.clone(),
-            password_hash: password_hash,
+            password_hash,
         }
         .push_into_async(&db_client.read().await.collections().users)
         .await

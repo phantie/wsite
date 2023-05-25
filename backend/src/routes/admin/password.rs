@@ -1,4 +1,3 @@
-use crate::authentication::compute_password_hash;
 use crate::routes::imports::*;
 use interfacing::PasswordChangeForm;
 
@@ -30,8 +29,9 @@ pub async fn change_password(
                     };
                     let _user_id = validate_credentials(db_client.clone(), &credentials).await?;
 
-                    let password_hash = compute_password_hash(form.new_password)?;
-                    user.contents.password_hash = password_hash.expose_secret().to_owned();
+                    let password_hash =
+                        common::auth::hash_pwd(form.new_password.expose_secret().as_bytes())?;
+                    user.contents.password_hash = password_hash;
                     user.update_async(&db_client.read().await.collections().users)
                         .await?;
 
