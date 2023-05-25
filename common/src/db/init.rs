@@ -17,7 +17,7 @@ use bonsaidb::{
     server::CustomServer,
 };
 
-use crate::schema;
+use super::schema;
 
 async fn setup_permissions(server: &CustomServer) -> anyhow::Result<()> {
     let admin_username = "admin";
@@ -165,8 +165,8 @@ pub async fn server(
             server.restore(backup_location.clone()).await?;
 
             std::fs::copy(
-                backup_location.join(crate::public_certificate_name()),
-                tmp_dir.path().join(crate::public_certificate_name()),
+                backup_location.join(super::public_certificate_name()),
+                tmp_dir.path().join(super::public_certificate_name()),
             )?;
 
             server.shutdown(Some(Duration::from_secs(1))).await?;

@@ -9,4 +9,14 @@ edition = "2021"
 static_routes = { path = "static_routes" }
 domain = { path = "domain" }
 interfacing = { path = "interfacing" }
-db_common = { path = "db_common" }
+tempdir = { version = "0.3.7", optional = true }
+bonsaidb = { workspace = true, optional = true }
+serde.workspace = true
+anyhow.workspace = true
+
+[features]
+default = ["db", "static_routes", "domain", "interfacing"]
+db = ["dep:tempdir", "dep:bonsaidb"]
+static_routes = []
+domain = []
+interfacing = []
