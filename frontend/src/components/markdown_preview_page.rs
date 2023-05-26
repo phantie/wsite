@@ -3,9 +3,15 @@ use crate::components::MarkdownPreview;
 
 pub struct MarkdownPreviewPage;
 
+#[derive(Clone, PartialEq, Properties)]
+pub struct Props {
+    #[prop_or("".into())]
+    pub md: AttrValue,
+}
+
 impl Component for MarkdownPreviewPage {
     type Message = ();
-    type Properties = ();
+    type Properties = Props;
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
@@ -16,15 +22,15 @@ impl Component for MarkdownPreviewPage {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let wrapper_classes = css!(
             "
-            height: 100vh;
-        "
+                height: 100vh;
+            "
         );
 
         html! {
             <>
                 <PageTitle title={"Markdown preview"}/>
                 <div class={ wrapper_classes }>
-                    <MarkdownPreview/>
+                    <MarkdownPreview md={ctx.props().md.clone()}/>
                 </div>
             </>
         }

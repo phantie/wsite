@@ -37,6 +37,7 @@ impl Component for DefaultStyling {
                 body {
                     background-color: ${bg_color};
                     color: ${text_color};
+                    min-height: 100vh;
                 }
             ",
             bg_color = bg_color,

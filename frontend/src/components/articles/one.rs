@@ -38,10 +38,10 @@ impl Component for ArticleViewer {
             Some(article) => {
                 console::log!("rendering with loaded article");
                 html! {
-                    <>
+                    <DefaultStyling>
                         <PageTitle title={article.title.clone()}/>
                         <Post md={article.markdown.clone()}/>
-                    </>
+                    </DefaultStyling>
                 }
             }
         }

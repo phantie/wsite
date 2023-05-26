@@ -51,7 +51,6 @@ impl Component for Post {
 
                 background-color: ${bg_color};
                 padding: ${padding_vertical} 4em;
-                min-height: calc(100vh - 2 * ${padding_vertical});
             ",
             bg_color = bg_color,
             padding_vertical = padding_vertical

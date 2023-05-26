@@ -31,8 +31,13 @@ pub fn switch(routes: Route) -> Html {
         Route::ArticleList => {
             html! {<WithSession optional={true}><WithTheme><ArticleList/></WithTheme></WithSession>}
         }
-        Route::ArticleViewer { public_id } => {
-            html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>}
-        }
+        Route::ArticleViewer { public_id } => match public_id.as_str() {
+            "md-article-editor" => html! {
+                <WithTheme>
+                    <MarkdownPreviewPage md={ include_str!("../md/md_post.md") } />
+                </WithTheme>
+            },
+            _ => html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>},
+        },
     }
 }
