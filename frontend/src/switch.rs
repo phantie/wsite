@@ -1,5 +1,6 @@
 use crate::router::Route;
 
+use crate::static_articles::static_articles;
 use yew::prelude::*;
 
 pub fn switch(routes: Route) -> Html {
@@ -32,11 +33,13 @@ pub fn switch(routes: Route) -> Html {
             html! {<WithSession optional={true}><WithTheme><ArticleList/></WithTheme></WithSession>}
         }
         Route::ArticleViewer { public_id } => match public_id.as_str() {
-            "md-article-editor" => html! {
-                <WithTheme>
-                    <MarkdownPreviewPage md={ include_str!("../md/md_post.md") } />
-                </WithTheme>
-            },
+            _ if public_id == static_articles().md_article_editor.public_id => {
+                html! {
+                    <WithTheme>
+                        <MarkdownPreviewPage md={ include_str!("../md/md_post.md") } />
+                    </WithTheme>
+                }
+            }
             _ => html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>},
         },
     }

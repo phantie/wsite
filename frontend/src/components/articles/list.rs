@@ -1,10 +1,6 @@
 use crate::components::imports::*;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct StaticArticle {
-    pub title: String,
-    pub public_id: String,
-}
+use crate::static_articles::{StaticArticle, static_articles};
 
 enum Article {
     Dynamic(interfacing::Article),
@@ -233,14 +229,7 @@ impl Component for ArticleList {
             Self::Message::ArticlesLoaded(dyn_articles) => {
                 let mut articles = vec![];
 
-                let static_articles = vec![
-                    StaticArticle {
-                        title: "Markdown article editor".into(),
-                        public_id: "md-article-editor".into(),
-                    }
-                ];
-
-                articles.extend(static_articles.into_iter().map(Article::Static));
+                articles.extend(static_articles().into_iter().map(Article::Static));
                 articles.extend(dyn_articles.into_iter().map(Article::Dynamic));
 
                 self.articles = Some(articles);
