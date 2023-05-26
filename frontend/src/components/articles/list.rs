@@ -1,7 +1,34 @@
 use crate::components::imports::*;
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct StaticArticle {
+    pub title: String,
+    pub public_id: String,
+}
+
+enum Article {
+    Dynamic(interfacing::Article),
+    Static(StaticArticle)
+}
+
+impl Article {
+    pub fn title(&self) -> String {
+        match self {
+            Article::Dynamic(article) => article.title.to_owned(),
+            Article::Static(article) => article.title.to_owned(),
+        }
+    }
+
+    pub fn public_id(&self) -> String {
+        match self {
+            Article::Dynamic(article) => article.public_id.to_owned(),
+            Article::Static(article) => article.public_id.to_owned(),
+        }
+    }
+}
+
 pub struct ArticleList {
-    articles: Option<Vec<interfacing::Article>>,
+    articles: Option<Vec<Article>>,
     theme_ctx: ThemeCtxSub,
     session_ctx: SessionCtxSub,
 }
@@ -70,69 +97,88 @@ impl Component for ArticleList {
                 let articles = articles
                     .iter()
                     .map(|article| {
-                        let public_id = article.public_id.clone();
+                        let public_id = article.public_id().clone();
                         let article_node_ref = NodeRef::default();
 
-                        let delete_button = match session {
-                            None => html! {},
-                            Some(_session) => {
-                                let onclick = {
-                                    let public_id = public_id.clone();
-                                    let article_node_ref = article_node_ref.clone();
+                        let delete_button = match article {
+                            Article::Static(_) => html! {},
+                            Article::Dynamic(_article) => {
+                                match session {
+                                    None => html! {},
+                                    Some(_session) => {
 
-                                    ctx.link().callback_future(move |_| {
-                                        let public_id = public_id.clone();
-                                        let article_node_ref = article_node_ref.clone();
-
-                                        async move {
-                                            match delete_article(&public_id).await {
-                                                Ok(_) => {
-                                                    console::log!("article is removed");
-                                                    article_node_ref
-                                                        .clone()
-                                                        .cast::<HtmlElement>()
-                                                        .unwrap()
-                                                        .remove();
-                                                    Msg::ArticleRemoved(public_id.into())
+                                        let onclick = {
+                                            let public_id = public_id.clone();
+                                            let article_node_ref = article_node_ref.clone();
+        
+                                            ctx.link().callback_future(move |_| {
+                                                let public_id = public_id.clone();
+                                                let article_node_ref = article_node_ref.clone();
+        
+                                                async move {
+                                                    match delete_article(&public_id).await {
+                                                        Ok(_) => {
+                                                            console::log!("article is removed");
+                                                            article_node_ref
+                                                                .clone()
+                                                                .cast::<HtmlElement>()
+                                                                .unwrap()
+                                                                .remove();
+                                                            Msg::ArticleRemoved(public_id.into())
+                                                        }
+                                                        Err(_) => {
+                                                            console::log!("article is not removed");
+                                                            Msg::Nothing
+                                                        }
+                                                    }
                                                 }
-                                                Err(_) => {
-                                                    console::log!("article is not removed");
-                                                    Msg::Nothing
-                                                }
-                                            }
+                                            })
+                                        };
+        
+                                        html! {
+                                            <button { onclick }>{ "Delete" }</button>
                                         }
-                                    })
-                                };
-
-                                html! {
-                                    <button { onclick }>{ "Delete" }</button>
+                                    }
                                 }
+
                             }
                         };
 
-                        let edit_button = match session {
-                            None => html! {},
-                            Some(_session) => {
-                                let navigator = ctx.link().navigator().unwrap();
-                                let public_id = public_id.clone();
-                                let onclick = Callback::from(move |_| {
-                                    let navigator = navigator.clone();
-                                    let public_id = public_id.clone();
-                                    navigator.push(&Route::EditArticle { public_id });
-                                });
 
-                                html! {
-                                    <button {onclick}>{ "Edit" }</button>
+                        let edit_button = match article {
+                            Article::Static(_) => html! {},
+                            Article::Dynamic(_article) => {
+                                match session {
+                                    None => html! {},
+                                    Some(_session) => {
+                                        let navigator = ctx.link().navigator().unwrap();
+                                        let public_id = public_id.clone();
+                                        let onclick = Callback::from(move |_| {
+                                            let navigator = navigator.clone();
+                                            let public_id = public_id.clone();
+                                            navigator.push(&Route::EditArticle { public_id });
+                                        });
+        
+                                        html! {
+                                            <button {onclick}>{ "Edit" }</button>
+                                        }
+                                    }
                                 }
+
                             }
                         };
 
-                        let draft = match session { 
-                            None => html!{},
-                            Some(_session) => {
-                                match article.draft {
-                                    true => html!{ "draft" },
-                                    false => html!{},
+                        let draft = match article { 
+                            Article::Static(_) => html!{},
+                            Article::Dynamic(article) => {
+                                match session {
+                                    Some(_session) => {
+                                        match article.draft {
+                                            true => html!{ "draft" },
+                                            false => html!{},
+                                        }
+                                    }
+                                    None => html!{},
                                 }
                             }
                     };
@@ -141,7 +187,7 @@ impl Component for ArticleList {
                             <div key={public_id.clone()} ref={article_node_ref} class={article_classes.clone()}>
 
                                 <Link<Route> to={ Route::ArticleViewer { public_id: public_id.clone() } }>
-                                    <h1>{ &article.title }</h1>
+                                    <h1>{ &article.title() }</h1>
                                 </Link<Route>>
 
                                 {draft}
@@ -184,15 +230,18 @@ impl Component for ArticleList {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Self::Message::ArticlesLoaded(mut articles) => {
-                // TODO since this can't be deleted or edited, buttons should not appear in article list for admin
-                let md_article_editor = interfacing::Article {
-                    title: "Markdown article editor".into(),
-                    public_id: "md-article-editor".into(),
-                    markdown: "".into(),
-                    draft: false
-                };
-                articles.push(md_article_editor);
+            Self::Message::ArticlesLoaded(dyn_articles) => {
+                let mut articles = vec![];
+
+                let static_articles = vec![
+                    StaticArticle {
+                        title: "Markdown article editor".into(),
+                        public_id: "md-article-editor".into(),
+                    }
+                ];
+
+                articles.extend(static_articles.into_iter().map(Article::Static));
+                articles.extend(dyn_articles.into_iter().map(Article::Dynamic));
 
                 self.articles = Some(articles);
                 true
