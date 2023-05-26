@@ -184,7 +184,16 @@ impl Component for ArticleList {
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Self::Message::ArticlesLoaded(articles) => {
+            Self::Message::ArticlesLoaded(mut articles) => {
+                // TODO since this can't be deleted or edited, buttons should not appear in article list for admin
+                let md_article_editor = interfacing::Article {
+                    title: "Markdown article editor".into(),
+                    public_id: "md-article-editor".into(),
+                    markdown: "".into(),
+                    draft: false
+                };
+                articles.push(md_article_editor);
+
                 self.articles = Some(articles);
                 true
             }
