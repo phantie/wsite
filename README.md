@@ -1,4 +1,4 @@
-Source code behind <a href="https://phantie.com">phantie.com</a>.  
+Source code on <a href="https://github.com/phantie/wsite">Github</a> behind <a href="https://phantie.com">phantie.com</a>.  
 
 Fully supports articles with a strict schema stored in a database and with a liberal schema carved in source code, and an administration panel; partially implemented email subscription.
 
