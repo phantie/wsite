@@ -42,18 +42,25 @@ impl Component for Post {
         let theme = self.theme_ctx.as_ref();
 
         let bg_color = &theme.bg_color;
-        let padding_vertical = "2em";
+        let padding_top = "2em";
+        let padding_botttom = "4em";
         let style = css!(
             "
                 .markdown-body {
-                    font-size: 130%;
+                    font-size: 150%;
+                    width: 1200px;
+                    max-width: 90vw;
                 }
 
+                display: flex;
+                justify-content: center;
                 background-color: ${bg_color};
-                padding: ${padding_vertical} 4em;
+                padding-top: ${padding_top};
+                padding-bottom: ${padding_botttom};
             ",
             bg_color = bg_color,
-            padding_vertical = padding_vertical
+            padding_top = padding_top,
+            padding_botttom = padding_botttom
         );
 
         html! {
