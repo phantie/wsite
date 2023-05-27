@@ -17,65 +17,13 @@ use axum_sessions::{
 };
 use bonsaidb::core::keyvalue::AsyncKeyValue;
 use secrecy::ExposeSecret;
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::{
     add_extension::AddExtensionLayer,
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     LatencyUnit, ServiceBuilderExt,
 };
-
-static FRONTEND_DIR: include_dir::Dir<'_> =
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist/");
-
-static INDEX_HTML: &str = include_str!("../../frontend/dist/index.html");
-
-async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
-    use axum::body::{self, Full};
-    use axum::http::{header, HeaderValue, StatusCode};
-    use axum::response::Html;
-    use axum::response::IntoResponse;
-
-    fn file_response(
-        contents: impl Into<Full<bytes::Bytes>>,
-        path: &str,
-        modified: SystemTime,
-    ) -> axum::response::Response {
-        let last_modified = httpdate::fmt_http_date(modified);
-        let mime_type = mime_guess::from_path(path).first_or_text_plain();
-        axum::http::Response::builder()
-            .status(StatusCode::OK)
-            .header(
-                header::CONTENT_TYPE,
-                HeaderValue::from_str(mime_type.as_ref()).unwrap(),
-            )
-            .header(header::LAST_MODIFIED, last_modified)
-            .body(body::boxed(contents.into()))
-            .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
-    }
-
-    let path = uri.to_string();
-    let path = path.trim_start_matches('/');
-
-    if path.starts_with("api/static/") {
-        let path = path.strip_prefix("api/").unwrap();
-        match std::fs::read(path) {
-            Err(_e) => return StatusCode::NOT_FOUND.into_response(),
-            Ok(file) => {
-                let modified = std::fs::metadata(path).unwrap().modified().unwrap();
-                return file_response(file, path, modified);
-            }
-        }
-    }
-
-    match FRONTEND_DIR.get_file(path) {
-        None => Html(INDEX_HTML).into_response(),
-        Some(file) => {
-            let modified = file.metadata().unwrap().modified();
-            file_response(file.contents(), path, modified)
-        }
-    }
-}
 
 #[derive(Clone, Default)]
 pub struct RequestIdProducer {
@@ -116,7 +64,8 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
         .route("/articles/:public_id", get(article_by_public_id))
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
-        .route("/admin/articles", put(update_article));
+        .route("/admin/articles", put(update_article))
+        .route("/static/:path", get(serve_static));
 
     let api_router = if conf.env.features.newsletter {
         api_router
