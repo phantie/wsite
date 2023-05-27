@@ -40,6 +40,17 @@ pub fn switch(routes: Route) -> Html {
                     </WithTheme>
                 }
             }
+            _ if public_id == static_articles().about.public_id => {
+                // TODO this place looks similar to ArticleViewer's
+                html! {
+                    <WithTheme>
+                        <DefaultStyling>
+                            <PageTitle title={static_articles().about.title}/>
+                            <Post md={include_str!("../../README.md")}/>
+                        </DefaultStyling>
+                    </WithTheme>
+                }
+            }
             _ => html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>},
         },
     }
