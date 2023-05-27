@@ -2,25 +2,29 @@ APP BACKEND (api_aga_in/backend/)
 # Run locally, connecting to local db database
 cargo run
 # Run production when db is on the same machine
+cd /root/api_aga_in/frontend && trunk build --release && \
+cd /root/api_aga_in/backend && cargo build --release && \ 
+pkill api_aga_in ; \
 APP_ENVIRONMENT=production \
 APP__BASE_URL="" \
 APP__SESSION_SECRET= \
 APP__DB__HOST=localhost \
 APP__DB__PASSWORD= \
-setsid nohup cargo run -- --start &>server.log &
+setsid nohup cargo run --release -- --start &>server.log &
+
 # Inspect logs
 tail server.log
 
 APP FRONTEND (api_aga_in/frontend/)
 # build assets
-trunk build
+trunk build --release
 # start frontend server, for development
 trunk serve
 
 
 DB HTTP_SERVER (api_aga_in/database/http_server/)
-# Start Db server detached
-setsid nohup cargo run -- --start &>server.log &
+# Start ready Db server in prod
+cargo build && setsid nohup cargo run -- --start &>server.log &
 # Inspect logs
 tail server.log
 # Start Db server
