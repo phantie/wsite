@@ -1,5 +1,5 @@
 use crate::helpers::spawn_app;
-use api_aga_in::database::*;
+use backend::database::*;
 use hyper::StatusCode;
 
 use wiremock::matchers::{method, path};

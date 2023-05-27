@@ -1,7 +1,7 @@
-use api_aga_in::configuration;
-pub use api_aga_in::database::*;
-use api_aga_in::startup::Application;
-use api_aga_in::telemetry;
+use backend::configuration;
+pub use backend::database::*;
+use backend::startup::Application;
+use backend::telemetry;
 use bonsaidb::server::BonsaiListenConfig;
 use common::static_routes::*;
 use hyper::StatusCode;

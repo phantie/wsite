@@ -182,49 +182,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d301b3b94cb4b2f23d7917810addbbaff90738e0ca2be692bd027e70d7e0330c"
 
 [[package]]
-name = "api_aga_in"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "axum-macros",
- "axum-sessions",
- "bonsaidb",
- "bytes",
- "claims",
- "clap",
- "common",
- "config",
- "fabruic",
- "fake",
- "hex",
- "httpdate",
- "hyper",
- "include_dir",
- "linkify",
- "mime_guess",
- "once_cell",
- "rand 0.8.5",
- "reqwest",
- "secrecy",
- "serde",
- "serde-aux",
- "serde_json",
- "tempdir",
- "thiserror",
- "tokio",
- "tower",
- "tower-http 0.4.0",
- "tracing",
- "tracing-bunyan-formatter",
- "tracing-log",
- "tracing-subscriber",
- "uuid",
- "wiremock",
-]
-
-[[package]]
 name = "arc-bytes"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -511,6 +468,49 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "backend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "axum-macros",
+ "axum-sessions",
+ "bonsaidb",
+ "bytes",
+ "claims",
+ "clap",
+ "common",
+ "config",
+ "fabruic",
+ "fake",
+ "hex",
+ "httpdate",
+ "hyper",
+ "include_dir",
+ "linkify",
+ "mime_guess",
+ "once_cell",
+ "rand 0.8.5",
+ "reqwest",
+ "secrecy",
+ "serde",
+ "serde-aux",
+ "serde_json",
+ "tempdir",
+ "thiserror",
+ "tokio",
+ "tower",
+ "tower-http 0.4.0",
+ "tracing",
+ "tracing-bunyan-formatter",
+ "tracing-log",
+ "tracing-subscriber",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]

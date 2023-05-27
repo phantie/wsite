@@ -4,7 +4,7 @@ cargo run
 # Run production when db is on the same machine
 cd /root/wsite/frontend && trunk build --release && \
 cd /root/wsite/backend && cargo build --release && \ 
-pkill wsite ; \
+pkill backend ; \
 APP_ENVIRONMENT=production \
 APP__BASE_URL="" \
 APP__SESSION_SECRET= \

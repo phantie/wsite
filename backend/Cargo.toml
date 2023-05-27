@@ -1,5 +1,5 @@
 [package]
-name = "api_aga_in"
+name = "backend"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,7 +8,7 @@ path = "src/lib.rs"
 
 [[bin]]
 path = "src/main.rs"
-name = "api_aga_in"
+name = "backend"
 
 [dependencies]
 axum = { version = "0.6.10", features = ["headers"] }

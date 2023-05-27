@@ -8,7 +8,7 @@ use tracing_subscriber::{
     EnvFilter, Registry,
 };
 
-static BACKEND_CRATE_NAME: &str = "api_aga_in";
+static BACKEND_CRATE_NAME: &str = "backend";
 
 pub struct TracingSubscriber {
     name: String,
