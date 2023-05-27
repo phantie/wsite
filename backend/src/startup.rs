@@ -57,7 +57,8 @@ async fn fallback(uri: axum::http::Uri) -> axum::response::Response {
     let path = uri.to_string();
     let path = path.trim_start_matches('/');
 
-    if path.starts_with("static/") {
+    if path.starts_with("api/static/") {
+        let path = path.strip_prefix("api/").unwrap();
         match std::fs::read(path) {
             Err(_e) => return StatusCode::NOT_FOUND.into_response(),
             Ok(file) => {
