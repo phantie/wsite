@@ -21,6 +21,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::{
     add_extension::AddExtensionLayer,
+    compression::CompressionLayer,
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     LatencyUnit, ServiceBuilderExt,
 };
@@ -114,6 +115,7 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
     Router::new()
         .nest("/api", api_router)
         .fallback(fallback)
+        .layer(CompressionLayer::new())
         .layer(AddExtensionLayer::new(db_client.clone()))
         .layer(request_tracing_layer)
         .layer({
