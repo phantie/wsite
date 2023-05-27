@@ -8,7 +8,7 @@ add ssh to github
 ```
 - Get rep
 ```
-git clone git@github.com:phantie/api_aga_in.git
+git clone git@github.com:phantie/wsite.git
 ```
 - Install rust
 ```

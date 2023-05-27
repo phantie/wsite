@@ -1,10 +1,10 @@
-APP BACKEND (api_aga_in/backend/)
+APP BACKEND (wsite/backend/)
 # Run locally, connecting to local db database
 cargo run
 # Run production when db is on the same machine
-cd /root/api_aga_in/frontend && trunk build --release && \
-cd /root/api_aga_in/backend && cargo build --release && \ 
-pkill api_aga_in ; \
+cd /root/wsite/frontend && trunk build --release && \
+cd /root/wsite/backend && cargo build --release && \ 
+pkill wsite ; \
 APP_ENVIRONMENT=production \
 APP__BASE_URL="" \
 APP__SESSION_SECRET= \
@@ -15,14 +15,14 @@ setsid nohup cargo run --release -- --start &>server.log &
 # Inspect logs
 tail server.log
 
-APP FRONTEND (api_aga_in/frontend/)
+APP FRONTEND (wsite/frontend/)
 # build assets
 trunk build --release
 # start frontend server, for development
 trunk serve
 
 
-DB HTTP_SERVER (api_aga_in/database/http_server/)
+DB HTTP_SERVER (wsite/database/http_server/)
 # Start ready Db server in prod
 cargo build && setsid nohup cargo run -- --start &>server.log &
 # Inspect logs
@@ -31,7 +31,7 @@ tail server.log
 cargo run -- --start
 
 
-DB CLI (api_aga_in/database/cli/)
+DB CLI (wsite/database/cli/)
 export BACKUP_LOCATION=/mnt/{volume}/backup/
 cargo run -- http_server status
 cargo run -- db info
