@@ -1,4 +1,4 @@
-Installation when database and live on the same server
+Installation when app and database live on the same server
 
 - SSH
 ```
