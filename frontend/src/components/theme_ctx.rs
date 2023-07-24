@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use crate::components::imports::*;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -92,7 +94,7 @@ pub enum Themes {
 
 impl Default for Themes {
     fn default() -> Self {
-        Self::Pastel
+        Self::Dark
     }
 }
 
@@ -257,9 +259,9 @@ impl Component for WithTheme {
         match msg {
             Self::Message::ToggleTheme => {
                 let new_theme = match self.theme {
-                    Themes::Dark => Themes::Light,
-                    Themes::Light => Themes::Pastel,
-                    Themes::Pastel => Themes::Dark,
+                    Themes::Dark => Themes::Pastel,
+                    Themes::Pastel => Themes::Light,
+                    Themes::Light => Themes::Dark,
                 };
 
                 new_theme.remember();
