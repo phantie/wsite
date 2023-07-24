@@ -7,6 +7,7 @@ mod login;
 mod markdown;
 mod markdown_preview;
 mod markdown_preview_page;
+mod place;
 mod post;
 mod theme_ctx;
 mod title;

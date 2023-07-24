@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use crate::components::imports::*;
 
 use crate::static_articles::{StaticArticle, static_articles};
