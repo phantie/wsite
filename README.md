@@ -6,7 +6,18 @@ Its entirety is written in Rust: backend api, frontend and database. Core techno
 
 System can be horizontally scaled to the extent - backend api and frontend are stateless.
 
+Architecture
+---------------
+<!-- accessed from github, the second link should fail due to 404. accessed from deployment, the first should fail due to CORB -->
+![](https://github.com/phantie/wsite/blob/master/backend/static/app-system-diagram.png)
+![](/api/static/app-system-diagram.png)
+
+
+![](https://github.com/phantie/wsite/blob/master/backend/static/db-system-diagram.png)
+![](/api/static/db-system-diagram.png)
+
 Interesting implemented things:
+--------------------------------------
 - frontend in Rust
 - database self hosted with custom tooling and daily data auto backups using DigitalOcean Volumes
 - found and reported or fixed several noteworthy bugs of BonsaiDB
