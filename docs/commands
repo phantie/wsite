@@ -24,7 +24,7 @@ trunk serve
 
 DB HTTP_SERVER (wsite/database/http_server/)
 # Start ready Db server in prod
-cargo build && setsid nohup cargo run -- --start &>server.log &
+cargo build --release && setsid nohup cargo run --release -- --start &>server.log &
 # Inspect logs
 tail server.log
 # Start Db server

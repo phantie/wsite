@@ -70,6 +70,18 @@ sudo ufw allow 4000
 ```
 sudo ufw allow 5645
 ```
+- Set DB password
+```
+cd /root/wsite/database/cli/ && cargo run --release -- db admin password
+```
+- Create Admin dashboard password
+```
+cd /root/wsite/database/cli/ && cargo run --release -- dashboard admin replace
+```
+- Start backend
+```
+...
+```
 - Enable firewall
 ```
 sudo ufw enable
