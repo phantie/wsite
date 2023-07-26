@@ -20,7 +20,7 @@ pub async fn ws_users_online(
 async fn handle_socket(socket: WebSocket, state: AppState, connect_info: UserConnectInfo) {
     tracing::info!("Client connected: {:?}", connect_info.remote_addr);
     {
-        let ips = &mut state.users_online.ips.write().await;
+        let ips = &mut state.users_online.ips.lock().await;
         let pages_per_ip = *ips.entry(connect_info.remote_addr).or_default() + 1;
         ips.insert(connect_info.remote_addr, pages_per_ip);
 
@@ -47,7 +47,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, connect_info: UserCon
     };
 
     {
-        let ips = &mut state.users_online.ips.write().await;
+        let ips = &mut state.users_online.ips.lock().await;
         let count = *ips
             .get(&connect_info.remote_addr)
             .expect("Connect before disconnect");

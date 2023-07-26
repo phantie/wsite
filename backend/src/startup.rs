@@ -234,7 +234,7 @@ pub struct AppState {
 
 #[derive(Clone)]
 pub struct UsersOnline {
-    pub ips: Arc<RwLock<std::collections::HashMap<std::net::SocketAddr, i32>>>,
+    pub ips: Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, i32>>>,
     pub count_s: async_broadcast::Sender<i32>,
     pub count_r: async_broadcast::Receiver<i32>,
 }
@@ -297,7 +297,7 @@ impl Application {
                 email_client,
                 base_url,
                 users_online: UsersOnline {
-                    ips: Arc::new(RwLock::new(std::collections::HashMap::new())),
+                    ips: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
                     count_s: s,
                     count_r: r,
                 },
