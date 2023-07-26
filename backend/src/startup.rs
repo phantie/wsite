@@ -229,12 +229,14 @@ impl SessionStore for BonsaiDBSessionStore {
 pub struct AppState {
     pub email_client: Arc<EmailClient>,
     pub base_url: String,
-    pub users_online: Arc<RwLock<UsersOnline>>,
+    pub users_online: UsersOnline,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct UsersOnline {
-    pub ips: std::collections::HashMap<std::net::SocketAddr, i32>,
+    pub ips: Arc<RwLock<std::collections::HashMap<std::net::SocketAddr, i32>>>,
+    pub count_s: async_broadcast::Sender<i32>,
+    pub count_r: async_broadcast::Receiver<i32>,
 }
 
 pub type SharedDbClient = Arc<RwLock<DbClient>>;
@@ -286,10 +288,19 @@ impl Application {
             base_url: String,
             db_client: SharedDbClient,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
+            // simulate one value that many can await
+            // dropping all unhandled values by ignoring Overflow error
+            let (mut s, r) = async_broadcast::broadcast(1);
+            s.set_overflow(true);
+
             let app_state = AppState {
                 email_client,
                 base_url,
-                users_online: Arc::new(RwLock::new(UsersOnline::default())),
+                users_online: UsersOnline {
+                    ips: Arc::new(RwLock::new(std::collections::HashMap::new())),
+                    count_s: s,
+                    count_r: r,
+                },
             };
 
             let app = router(conf, db_client).with_state(app_state);
