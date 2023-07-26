@@ -51,6 +51,15 @@ pub fn switch(routes: Route) -> Html {
                     </WithTheme>
                 }
             }
+            _ if public_id == static_articles().place.public_id => {
+                html! {
+                    <WithTheme>
+                        <DefaultStyling>
+                            <Place/>
+                        </DefaultStyling>
+                    </WithTheme>
+                }
+            }
             _ => html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>},
         },
     }

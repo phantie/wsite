@@ -11,7 +11,7 @@ path = "src/main.rs"
 name = "backend"
 
 [dependencies]
-axum = { version = "0.6.10", features = ["headers"] }
+axum = { version = "0.6.10", features = ["headers", "ws"] }
 config = "0.13.3"
 hyper = "0.14.24"
 tokio = { version = "1.26.0", features = ["rt", "macros"] }
@@ -42,6 +42,7 @@ bonsaidb.workspace = true
 anyhow.workspace = true
 common.workspace = true
 rand.workspace = true
+futures-util = "0.3.28"
 
 [dev-dependencies]
 once_cell = "1.17.1"

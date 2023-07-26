@@ -1,3 +1,5 @@
+#![allow(non_upper_case_globals)]
+
 use crate::components::admin::dashboard::{Logout, WelcomeMessage};
 use crate::components::imports::*;
 

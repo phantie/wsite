@@ -8,12 +8,17 @@ pub fn static_articles() -> StaticArticles {
             title: "About".into(),
             public_id: "about".into(),
         },
+        place: StaticArticle {
+            title: "Place".into(),
+            public_id: "place".into(),
+        },
     }
 }
 
 pub struct StaticArticles {
     pub md_article_editor: StaticArticle,
     pub about: StaticArticle,
+    pub place: StaticArticle,
 }
 
 pub struct StaticArticle {
@@ -26,6 +31,6 @@ impl IntoIterator for StaticArticles {
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        vec![self.about, self.md_article_editor].into_iter()
+        vec![self.about, self.md_article_editor, self.place].into_iter()
     }
 }

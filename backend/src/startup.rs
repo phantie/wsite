@@ -66,7 +66,8 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
-        .route("/static/:path", get(serve_static));
+        .route("/static/:path", get(serve_static))
+        .route("/users_online", get(ws_users_online));
 
     let api_router = if conf.env.features.newsletter {
         api_router
@@ -228,9 +229,16 @@ impl SessionStore for BonsaiDBSessionStore {
 pub struct AppState {
     pub email_client: Arc<EmailClient>,
     pub base_url: String,
+    pub users_online: Arc<RwLock<UsersOnline>>,
+}
+
+#[derive(Clone, Default)]
+pub struct UsersOnline {
+    pub ips: std::collections::HashMap<std::net::SocketAddr, i32>,
 }
 
 pub type SharedDbClient = Arc<RwLock<DbClient>>;
+pub type SharedUsersOnline = Arc<RwLock<UsersOnline>>;
 
 pub struct Application {
     port: u16,
@@ -281,13 +289,14 @@ impl Application {
             let app_state = AppState {
                 email_client,
                 base_url,
+                users_online: Arc::new(RwLock::new(UsersOnline::default())),
             };
 
             let app = router(conf, db_client).with_state(app_state);
 
             axum::Server::from_tcp(listener)
                 .unwrap()
-                .serve(app.into_make_service())
+                .serve(app.into_make_service_with_connect_info::<UserConnectInfo>())
         }
 
         let db_client = SharedDbClient::new(RwLock::new(
@@ -323,5 +332,17 @@ impl Application {
 
     pub fn host(&self) -> &str {
         &self.host
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserConnectInfo {
+    pub remote_addr: std::net::SocketAddr,
+}
+
+impl axum::extract::connect_info::Connected<&hyper::server::conn::AddrStream> for UserConnectInfo {
+    fn connect_info(target: &hyper::server::conn::AddrStream) -> Self {
+        let remote_addr = target.remote_addr();
+        Self { remote_addr }
     }
 }
