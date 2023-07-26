@@ -96,16 +96,13 @@ async fn write(
         match count_r.recv().await {
             Ok(i) => {
                 let msg = Message::Text(format!("users_online:{i}"));
-                // TODO fix first message sent to client is skipped
-                for _ in 0..=1 {
-                    match sender.feed(msg.clone()).await {
-                        Ok(()) => {
-                            tracing::info!("Sent message: {msg:?}")
-                        }
-                        Err(_) => {
-                            tracing::info!("Client disconnected");
-                            return;
-                        }
+                match sender.send(msg.clone()).await {
+                    Ok(()) => {
+                        tracing::info!("Sent message: {msg:?}")
+                    }
+                    Err(_) => {
+                        tracing::info!("Client disconnected");
+                        return;
                     }
                 }
             }
