@@ -20,6 +20,7 @@ pub use login::Login;
 pub use markdown::Markdown;
 pub use markdown_preview::MarkdownPreview;
 pub use markdown_preview_page::MarkdownPreviewPage;
+pub use place::Place;
 pub use post::Post;
 pub use theme_ctx::{ThemeCtx, ThemeCtxSub, Themes, WithTheme};
 pub use title::PageTitle;
