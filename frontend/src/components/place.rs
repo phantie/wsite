@@ -40,6 +40,7 @@ impl Component for Place {
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
+        #![allow(unused)]
         use futures::{SinkExt, StreamExt};
         use gloo_net::websocket::{futures::WebSocket, Message};
 
@@ -48,30 +49,18 @@ impl Component for Place {
         let (mut write, mut read) = ws.split();
 
         ctx.link().send_future(async move {
-            write
-                .send(Message::Text(String::from("test")))
-                .await
-                .unwrap();
-            write
-                .send(Message::Text(String::from("test 2")))
-                .await
-                .unwrap();
-
+            // write
+            //     .send(Message::Text(String::from("test")))
+            //     .await
+            //     .unwrap();
+            console::log!("started websocket reading future");
             while let Some(msg) = read.next().await {
                 console::log!(format!("1. {:?}", msg))
             }
-            console::log!("WebSocket Closed");
+            // console::log!("WebSocket Closed");
 
             Self::Message::Nothing
         });
-
-        // ctx.link().send_future(async move {
-        //     while let Some(msg) = read.next().await {
-        //         console::log!(format!("1. {:?}", msg))
-        //     }
-        //     console::log!("WebSocket Closed");
-        //     Self::Message::Nothing
-        // });
 
         // console::log!("connected to WS");
 
