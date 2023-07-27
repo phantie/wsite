@@ -11,33 +11,29 @@ use futures_util::{
 #[axum_macros::debug_handler]
 pub async fn ws_users_online(
     ws: WebSocketUpgrade,
-    ConnectInfo(connect_info): ConnectInfo<UserConnectInfo>,
+    ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
     State(state): State<AppState>,
 ) -> Response {
-    ws.on_upgrade(|socket| handle_socket(socket, state, connect_info))
+    ws.on_upgrade(|socket| handle_socket(socket, state, con_info))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState, connect_info: UserConnectInfo) {
-    tracing::info!("Client connected: {:?}", connect_info.remote_addr);
-    {
-        let ips = &mut state.users_online.ips.lock().await;
-        let pages_per_ip = *ips.entry(connect_info.remote_addr).or_default() + 1;
-        ips.insert(connect_info.remote_addr, pages_per_ip);
+async fn handle_socket(socket: WebSocket, state: AppState, con_info: UserConnectInfo) {
+    tracing::info!("Client connected: {:?}", con_info.remote_addr);
 
-        let ip_count = ips.len() as i32;
-        state
-            .users_online
-            .count_s
-            .broadcast(ip_count)
-            .await
-            .unwrap();
-        tracing::info!("Broadcasted user count after add: {ip_count} {ips:?}");
+    {
+        let cons = &mut state.users_online.cons.lock().await;
+        let cons_per_ip = *cons.entry(con_info.remote_addr).or_default();
+        cons.insert(con_info.remote_addr, cons_per_ip + 1);
+
+        let con_count = cons.len();
+        state.users_online.broadcast_con_count(con_count).await;
+        tracing::info!("Broadcasted con count after add: {con_count}");
     }
 
     let (sender, receiver) = socket.split();
     let rh = tokio::spawn(read(receiver));
-    let count_r = state.users_online.count_r.clone();
-    let wh = tokio::spawn(write(sender, count_r));
+    let con_count_r = state.users_online.con_count_r.clone();
+    let wh = tokio::spawn(write(sender, con_count_r));
 
     // as soon as a closed channel error returns from any of these procedures,
     // cancel the other
@@ -47,24 +43,19 @@ async fn handle_socket(socket: WebSocket, state: AppState, connect_info: UserCon
     };
 
     {
-        let ips = &mut state.users_online.ips.lock().await;
-        let count = *ips
-            .get(&connect_info.remote_addr)
-            .expect("Connect before disconnect");
-        if count == 1 {
-            ips.remove(&connect_info.remote_addr);
+        let cons = &mut state.users_online.cons.lock().await;
+        let cons_per_ip = *cons
+            .get(&con_info.remote_addr)
+            .expect("Connect predates disconnect");
+        if cons_per_ip == 1 {
+            cons.remove(&con_info.remote_addr);
         } else {
-            ips.insert(connect_info.remote_addr, count - 1);
+            cons.insert(con_info.remote_addr, cons_per_ip - 1);
         }
 
-        let ip_count = ips.len() as i32;
-        state
-            .users_online
-            .count_s
-            .broadcast(ip_count)
-            .await
-            .unwrap();
-        tracing::info!("Broadcasted user count after delete: {ip_count} {ips:?}");
+        let con_count = cons.len();
+        state.users_online.broadcast_con_count(con_count).await;
+        tracing::info!("Broadcasted con count after delete: {con_count}");
     }
 }
 
@@ -90,10 +81,10 @@ async fn read(mut receiver: SplitStream<WebSocket>) {
 
 async fn write(
     mut sender: SplitSink<WebSocket, Message>,
-    mut count_r: async_broadcast::Receiver<i32>,
+    mut con_count_r: async_broadcast::Receiver<usize>,
 ) {
     loop {
-        match count_r.recv().await {
+        match con_count_r.recv().await {
             Ok(i) => {
                 let msg = Message::Text(format!("users_online:{i}"));
                 match sender.send(msg.clone()).await {

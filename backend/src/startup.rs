@@ -124,7 +124,7 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
             let store = BonsaiDBSessionStore { db_client };
 
             let decoded = hex::decode(conf.env.session_secret.clone())
-                .expect("HEX Decoding of session secret failed");
+                .expect("Successful HEX Decoding of session secret");
 
             // use rand::Rng;
             // let mut secret = [0_u8; 128];
@@ -232,15 +232,37 @@ pub struct AppState {
     pub users_online: UsersOnline,
 }
 
+pub type Cons = Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, i32>>>;
+
 #[derive(Clone)]
 pub struct UsersOnline {
-    pub ips: Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, i32>>>,
-    pub count_s: async_broadcast::Sender<i32>,
-    pub count_r: async_broadcast::Receiver<i32>,
+    pub cons: Cons,
+    pub con_count_s: async_broadcast::Sender<usize>,
+    pub con_count_r: async_broadcast::Receiver<usize>,
+}
+
+impl UsersOnline {
+    pub fn new() -> Self {
+        // simulate one value that many can await
+        // dropping all unhandled values by ignoring Overflow error
+        let (mut con_count_s, con_count_r) = async_broadcast::broadcast(1);
+        con_count_s.set_overflow(true);
+        Self {
+            cons: Cons::default(),
+            con_count_s,
+            con_count_r,
+        }
+    }
+
+    pub async fn broadcast_con_count(&self, count: usize) {
+        self.con_count_s
+            .broadcast(count)
+            .await
+            .expect("Channels are always open");
+    }
 }
 
 pub type SharedDbClient = Arc<RwLock<DbClient>>;
-pub type SharedUsersOnline = Arc<RwLock<UsersOnline>>;
 
 pub struct Application {
     port: u16,
@@ -251,18 +273,19 @@ pub struct Application {
 
 impl Application {
     pub async fn build(conf: &Conf) -> Self {
-        let sender_email = conf
-            .env
-            .email_client
-            .sender()
-            .expect("Invalid sender email address.");
-        let timeout = conf.env.email_client.timeout();
-        let email_client = Arc::new(EmailClient::new(
-            conf.env.email_client.base_url.clone(),
-            sender_email,
-            conf.env.email_client.authorization_token.clone(),
-            timeout,
-        ));
+        let email_client = {
+            let sender_email = conf
+                .env
+                .email_client
+                .sender()
+                .expect("Invalid sender email address");
+            Arc::new(EmailClient::new(
+                conf.env.email_client.base_url.clone(),
+                sender_email,
+                conf.env.email_client.authorization_token.clone(),
+                conf.env.email_client.timeout(),
+            ))
+        };
 
         let address = format!("{}:{}", conf.env.host, conf.env.port);
         let listener = std::net::TcpListener::bind(&address).unwrap();
@@ -272,63 +295,44 @@ impl Application {
 
         {
             let first_symbols_count = 5;
-            let first_symbols_of_email_token =
-                &(*conf.env.email_client.authorization_token.expose_secret())
-                    [..first_symbols_count];
             tracing::info!(
-                "First symbols of email token:{}",
-                first_symbols_of_email_token
+                "First {} symbols of email token:{}",
+                first_symbols_count,
+                &(*conf.env.email_client.authorization_token.expose_secret())
+                    [..first_symbols_count]
             );
         }
+
+        let db_client = Arc::new(RwLock::new(
+            DbClient::configure(conf.db_client.clone())
+                .await
+                .expect("Database unavailable"),
+        ));
+
+        let app_state = AppState {
+            email_client,
+            base_url: conf.env.base_url.clone(),
+            users_online: UsersOnline::new(),
+        };
+
+        return Self {
+            server: Box::pin(run(conf, listener, app_state, db_client.clone())),
+            port,
+            host,
+            db_client,
+        };
 
         pub fn run(
             conf: &Conf,
             listener: std::net::TcpListener,
-            email_client: Arc<EmailClient>,
-            base_url: String,
+            app_state: AppState,
             db_client: SharedDbClient,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
-            // simulate one value that many can await
-            // dropping all unhandled values by ignoring Overflow error
-            let (mut s, r) = async_broadcast::broadcast(1);
-            s.set_overflow(true);
-
-            let app_state = AppState {
-                email_client,
-                base_url,
-                users_online: UsersOnline {
-                    ips: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
-                    count_s: s,
-                    count_r: r,
-                },
-            };
-
-            let app = router(conf, db_client).with_state(app_state);
-
-            axum::Server::from_tcp(listener)
-                .unwrap()
-                .serve(app.into_make_service_with_connect_info::<UserConnectInfo>())
-        }
-
-        let db_client = SharedDbClient::new(RwLock::new(
-            DbClient::configure(conf.db_client.clone())
-                .await
-                .expect("database must be available on deployment"),
-        ));
-
-        let server = Box::pin(run(
-            conf,
-            listener,
-            email_client,
-            conf.env.base_url.clone(),
-            db_client.clone(),
-        ));
-
-        Self {
-            server,
-            port,
-            host,
-            db_client,
+            axum::Server::from_tcp(listener).unwrap().serve(
+                router(conf, db_client)
+                    .with_state(app_state)
+                    .into_make_service_with_connect_info::<UserConnectInfo>(),
+            )
         }
     }
 
@@ -353,7 +357,8 @@ pub struct UserConnectInfo {
 
 impl axum::extract::connect_info::Connected<&hyper::server::conn::AddrStream> for UserConnectInfo {
     fn connect_info(target: &hyper::server::conn::AddrStream) -> Self {
-        let remote_addr = target.remote_addr();
-        Self { remote_addr }
+        Self {
+            remote_addr: target.remote_addr(),
+        }
     }
 }
