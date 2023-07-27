@@ -11,6 +11,7 @@ mod place;
 mod post;
 mod theme_ctx;
 mod title;
+mod users_online;
 
 pub mod admin;
 pub use articles::*;
@@ -24,3 +25,4 @@ pub use place::Place;
 pub use post::Post;
 pub use theme_ctx::{ThemeCtx, ThemeCtxSub, Themes, WithTheme};
 pub use title::PageTitle;
+pub use users_online::UsersOnlineCount;
