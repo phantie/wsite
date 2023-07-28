@@ -1,10 +1,10 @@
 #![allow(non_upper_case_globals)]
 
 use crate::components::imports::*;
-use crate::components::Online;
 
 pub struct Header {
     theme_ctx: ThemeCtxSub,
+    online_ctx: OnlineCtxSub,
     online: i32,
 }
 
@@ -13,6 +13,7 @@ pub struct Props {}
 
 pub enum Msg {
     ThemeContextUpdate(ThemeCtx),
+    OnlineContextUpdate(OnlineCtx),
     OnlineChange(i32),
 }
 
@@ -20,19 +21,28 @@ impl Component for Header {
     type Message = Msg;
     type Properties = Props;
 
-    #[allow(unused_variables)]
+    #[allow(unused)]
     fn create(ctx: &Context<Self>) -> Self {
+        let online_ctx = OnlineCtxSub::subscribe(ctx, Self::Message::OnlineContextUpdate);
         Self {
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
-            online: 0,
+            online: *online_ctx.as_ref(),
+            online_ctx,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::ThemeContextUpdate(theme_ctx) => {
                 console::log!("WithTheme context updated from Header");
                 self.theme_ctx.set(theme_ctx);
+                true
+            }
+            Self::Message::OnlineContextUpdate(online_ctx) => {
+                console::log!("WithTheme context updated from Header");
+                self.online_ctx.set(online_ctx.clone());
+                ctx.link()
+                    .send_message(Self::Message::OnlineChange(*online_ctx));
                 true
             }
             Self::Message::OnlineChange(value) => {
@@ -42,10 +52,7 @@ impl Component for Header {
         }
     }
 
-    #[allow(unused_variables)]
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let on_online_change = ctx.link().callback(Self::Message::OnlineChange);
-
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
@@ -72,12 +79,9 @@ impl Component for Header {
         );
 
         html! {
-            <>
-                <Online onchange={on_online_change}/>
-                <div class={ wrapper_style }>
-                    <div class={ online_style }>{ self.online }{ " Online" }</div>
-                </div>
-            </>
+            <div class={ wrapper_style }>
+                <div class={ online_style }>{ self.online }{ " Online" }</div>
+            </div>
         }
     }
 }
