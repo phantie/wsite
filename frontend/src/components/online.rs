@@ -2,9 +2,11 @@ fn msg_stream(r: futures::stream::SplitStream<WebSocket>) -> impl Stream<Item = 
     r.map(|i| match i {
         Ok(msg) => match msg {
             Message::Text(text) => {
-                console::log!(text);
-                // TODO parse message
-                Msg::CountChanged(-1)
+                console::log!(&text);
+                match parse_online(&text) {
+                    Ok(online) => Msg::OnlineChanged(online),
+                    Err(_) => unimplemented!(),
+                }
             }
             Message::Bytes(_) => unimplemented!(),
         },
@@ -12,22 +14,28 @@ fn msg_stream(r: futures::stream::SplitStream<WebSocket>) -> impl Stream<Item = 
     })
 }
 
+fn parse_online(value: &str) -> Result<i32, anyhow::Error> {
+    let r: Result<_, nom::Err<()>> = nom::bytes::complete::tag("users_online:")(value);
+    let (num, _prefix) = r?;
+    Ok(num.parse()?)
+}
+
 type Count = i32;
 
-pub struct UsersOnlineCount {}
+pub struct Online {}
 
 #[derive(Clone, PartialEq, Properties)]
 pub struct Props {
     #[prop_or(Callback::noop())]
-    pub oninput: Callback<Count>,
+    pub onchange: Callback<Count>,
 }
 
 pub enum Msg {
-    CountChanged(Count),
+    OnlineChanged(Count),
     Nothing,
 }
 
-impl Component for UsersOnlineCount {
+impl Component for Online {
     type Message = Msg;
     type Properties = Props;
 
@@ -40,8 +48,8 @@ impl Component for UsersOnlineCount {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Self::Message::CountChanged(value) => {
-                ctx.props().oninput.emit(value);
+            Self::Message::OnlineChanged(value) => {
+                ctx.props().onchange.emit(value);
                 false
             }
             Self::Message::Nothing => false,
