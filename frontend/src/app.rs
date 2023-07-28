@@ -6,9 +6,13 @@ use yew_router::prelude::{BrowserRouter, Switch};
 
 #[function_component(App)]
 pub fn app() -> Html {
+    use crate::components::WithTheme;
+
     html! {
-        <BrowserRouter>
-            <Switch<Route> render={switch} />
-        </BrowserRouter>
+        <WithTheme>
+            <BrowserRouter>
+                <Switch<Route> render={switch} />
+            </BrowserRouter>
+        </WithTheme>
     }
 }
