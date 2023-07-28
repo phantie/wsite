@@ -20,9 +20,10 @@ Interesting implemented things:
 --------------------------------------
 - frontend in Rust
 - database self hosted with custom tooling and daily data auto backups using DigitalOcean Volumes
-- found and reported or fixed several noteworthy bugs of BonsaiDB
-- frontend supports any number of themes (I wanted to try myself in this long ago; switch the theme by pressing on a circle in the top right corner)
+- user online by keeping of open websocket connections
+- frontend support for any number of themes (button in the right top corner)
 - compile-time routes to backend api methods
 - database client tooling for its connection reliability
 - custom admin session persistent storage layer (only in memory is provided by default)
 - hosting on DigitalOcean Droplets
+- found and reported or fixed several noteworthy bugs of BonsaiDB
