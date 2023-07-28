@@ -40,7 +40,20 @@ impl Component for Online {
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let ws = WebSocket::open("ws://127.0.0.1:8000/api/users_online").unwrap();
+        let location = web_sys::window().unwrap().location();
+        let url = web_sys::Url::new("ws://127.0.0.1:8000/ws/users_online").unwrap();
+
+        let hostname = location.hostname().unwrap();
+
+        let port = location.port().unwrap();
+        // Due to Trunk Websocket proxy not working,
+        // when developing with frontend dev server, connect directly to backend
+        let port = if port == "9000" { "8000".into() } else { port };
+
+        url.set_hostname(&hostname);
+        url.set_port(&port);
+
+        let ws = WebSocket::open(&url.to_string().as_string().unwrap()).unwrap();
         let (_write, read) = ws.split();
         ctx.link().send_stream(msg_stream(read));
         Self {}

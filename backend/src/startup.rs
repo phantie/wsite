@@ -66,8 +66,7 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
-        .route("/static/:path", get(serve_static))
-        .route("/users_online", get(ws_users_online));
+        .route("/static/:path", get(serve_static));
 
     let api_router = if conf.env.features.newsletter {
         api_router
@@ -89,6 +88,8 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
     } else {
         api_router
     };
+
+    let ws_router = Router::new().route("/users_online", get(ws_users_online));
 
     let request_tracing_layer = tower::ServiceBuilder::new()
         .set_x_request_id(RequestIdProducer::default())
@@ -115,6 +116,7 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
 
     Router::new()
         .nest("/api", api_router)
+        .nest("/ws", ws_router)
         .fallback(fallback)
         .layer(CompressionLayer::new())
         .layer(AddExtensionLayer::new(db_client.clone()))
