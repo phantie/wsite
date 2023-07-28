@@ -65,14 +65,6 @@ pub fn switch(routes: Route) -> Html {
                         </DefaultStyling>
                     }
                 }
-                _ if public_id == static_articles().place.public_id => {
-                    html! {
-                        <DefaultStyling>
-                            <Header/>
-                            <Place/>
-                        </DefaultStyling>
-                    }
-                }
                 _ => html! {
                     <>
                         <Header/>
