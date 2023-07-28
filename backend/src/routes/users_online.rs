@@ -1,4 +1,3 @@
-#![allow(unused)]
 use crate::routes::imports::*;
 use crate::startup::UserConnectInfo;
 use axum::extract::connect_info::ConnectInfo;
@@ -8,18 +7,16 @@ use futures_util::{
     stream::{SplitSink, SplitStream, StreamExt},
 };
 
-#[axum_macros::debug_handler]
 pub async fn ws_users_online(
-    // ws: WebSocketUpgrade,
     maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
     ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
     headers: hyper::HeaderMap,
     State(state): State<AppState>,
 ) -> Response {
-    tracing::info!("{:?}", headers);
     let ws = match maybe_ws {
         Ok(ws) => ws,
         Err(e) => {
+            tracing::trace!("{:?}", headers);
             tracing::error!("{}", &e);
             return e.into_response();
         }
