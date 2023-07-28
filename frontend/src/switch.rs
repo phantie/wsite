@@ -13,54 +13,73 @@ pub fn switch(routes: Route) -> Html {
         Route::Home => {
             html! { <yew_router::prelude::Redirect<Route> to={Route::ArticleList}/> }
         }
-        Route::Login => html! { <WithTheme><Login/></WithTheme> },
+        Route::Login => html! { <Login/> },
         Route::AdminDashboard => {
-            html! {<WithTheme><WithSession><admin::Dashboard/></WithSession></WithTheme>}
+            html! {
+                <>
+                    <Header/>
+                    <WithSession>
+                        <admin::Dashboard/>
+                    </WithSession>
+                </>
+            }
         }
         Route::PasswordChange => {
-            html! {<WithTheme><WithSession><admin::PasswordChange/></WithSession></WithTheme>}
+            html! {<WithSession><admin::PasswordChange/></WithSession>}
         }
         Route::CreateArticle => {
-            html! {<WithTheme><WithSession><ArticleEditor mode={ ArticleEditorMode::Create }/></WithSession></WithTheme>}
+            html! {<WithSession><ArticleEditor mode={ ArticleEditorMode::Create }/></WithSession>}
         }
         Route::EditArticle { public_id } => {
-            html! {<WithTheme><WithSession><EditArticle {public_id}/></WithSession></WithTheme>}
+            html! {<WithSession><EditArticle {public_id}/></WithSession>}
         }
         Route::MarkdownPreview => {
-            html! {<WithTheme><MarkdownPreviewPage/></WithTheme>}
+            html! {<MarkdownPreviewPage/>}
         }
         Route::ArticleList => {
-            html! {<WithSession optional={true}><WithTheme><ArticleList/></WithTheme></WithSession>}
-        }
-        Route::ArticleViewer { public_id } => match public_id.as_str() {
-            _ if public_id == static_articles().md_article_editor.public_id => {
-                html! {
-                    <WithTheme>
-                        <MarkdownPreviewPage md={ include_str!("../md/md_post.md") } />
-                    </WithTheme>
-                }
+            html! {
+                <>
+                    <Header/>
+                    <WithSession optional={true}>
+                        <ArticleList/>
+                    </WithSession>
+                </>
             }
-            _ if public_id == static_articles().about.public_id => {
-                // TODO this place looks similar to ArticleViewer's
-                html! {
-                    <WithTheme>
+        }
+        Route::ArticleViewer { public_id } => {
+            match public_id.as_str() {
+                _ if public_id == static_articles().md_article_editor.public_id => {
+                    html! {
                         <DefaultStyling>
+                            <MarkdownPreviewPage md={ include_str!("../md/md_post.md") } />
+                        </DefaultStyling>
+                    }
+                }
+                _ if public_id == static_articles().about.public_id => {
+                    // TODO this place looks similar to ArticleViewer's
+                    html! {
+                        <DefaultStyling>
+                            <Header/>
                             <PageTitle title={static_articles().about.title}/>
                             <Post md={include_str!("../../README.md")}/>
                         </DefaultStyling>
-                    </WithTheme>
+                    }
                 }
-            }
-            _ if public_id == static_articles().place.public_id => {
-                html! {
-                    <WithTheme>
+                _ if public_id == static_articles().place.public_id => {
+                    html! {
                         <DefaultStyling>
+                            <Header/>
                             <Place/>
                         </DefaultStyling>
-                    </WithTheme>
+                    }
                 }
+                _ => html! {
+                    <>
+                        <Header/>
+                        <ArticleViewer {public_id}/>
+                    </>
+                },
             }
-            _ => html! {<WithTheme><ArticleViewer {public_id}/></WithTheme>},
-        },
+        }
     }
 }

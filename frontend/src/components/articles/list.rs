@@ -197,7 +197,7 @@ impl Component for ArticleList {
                     })
                     .collect::<Html>();
 
-                let title_classes = css!("text-align: center; margin-bottom: 30px;");
+                let title_classes = css!("text-align: center; margin: 1em 0;");
 
                 html! {
                     <DefaultStyling>
