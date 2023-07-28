@@ -16,6 +16,7 @@ pub async fn ws_users_online(
     headers: hyper::HeaderMap,
     State(state): State<AppState>,
 ) -> Response {
+    tracing::info!("{:?}", headers);
     let ws = match maybe_ws {
         Ok(ws) => ws,
         Err(e) => {
@@ -23,7 +24,6 @@ pub async fn ws_users_online(
             return e.into_response();
         }
     };
-    tracing::info!("{:?}", headers);
 
     ws.on_upgrade(|socket| handle_socket(socket, state, con_info))
 }
