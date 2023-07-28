@@ -1714,6 +1714,7 @@ dependencies = [
  "gloo-console",
  "gloo-net",
  "gloo-storage",
+ "nom",
  "pulldown-cmark",
  "secrecy",
  "serde",

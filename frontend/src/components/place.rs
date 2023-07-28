@@ -1,10 +1,11 @@
 #![allow(non_upper_case_globals)]
 
 use crate::components::imports::*;
-use crate::components::UsersOnlineCount;
+use crate::components::Online;
 
 pub struct Place {
     theme_ctx: ThemeCtxSub,
+    online: i32,
 }
 
 #[derive(Clone, PartialEq, Properties)]
@@ -12,6 +13,7 @@ pub struct Props {}
 
 pub enum Msg {
     ThemeContextUpdate(ThemeCtx),
+    OnlineChange(i32),
 }
 
 impl Component for Place {
@@ -22,6 +24,7 @@ impl Component for Place {
     fn create(ctx: &Context<Self>) -> Self {
         Self {
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
+            online: 0,
         }
     }
 
@@ -32,11 +35,17 @@ impl Component for Place {
                 self.theme_ctx.set(theme_ctx);
                 true
             }
+            Self::Message::OnlineChange(value) => {
+                self.online = value;
+                true
+            }
         }
     }
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let on_online_change = ctx.link().callback(Self::Message::OnlineChange);
+
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
 
@@ -57,8 +66,8 @@ impl Component for Place {
 
         html! {
             <>
-                <UsersOnlineCount/>
-                <h1 class={ header_style }>{ "Place" }</h1>
+                <Online onchange={on_online_change}/>
+                <h1 class={ header_style }>{ "Online:" }{ self.online }</h1>
                 <div class={ canvas_style }>
                     { cells }
                 </div>
