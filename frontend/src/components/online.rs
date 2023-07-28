@@ -45,6 +45,9 @@ impl Component for Online {
 
         let hostname = location.hostname().unwrap();
 
+        let protocol = location.protocol().unwrap();
+        let protocol = if protocol == "http:" { "ws:" } else { "wss:" };
+
         let port = location.port().unwrap();
         // Due to Trunk Websocket proxy not working,
         // when developing with frontend dev server, connect directly to backend
@@ -52,6 +55,7 @@ impl Component for Online {
 
         url.set_hostname(&hostname);
         url.set_port(&port);
+        url.set_protocol(protocol);
 
         let ws = WebSocket::open(&url.to_string().as_string().unwrap()).unwrap();
         let (_write, read) = ws.split();
