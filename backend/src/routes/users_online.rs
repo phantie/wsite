@@ -10,10 +10,21 @@ use futures_util::{
 
 #[axum_macros::debug_handler]
 pub async fn ws_users_online(
-    ws: WebSocketUpgrade,
+    // ws: WebSocketUpgrade,
+    maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
     ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
+    headers: hyper::HeaderMap,
     State(state): State<AppState>,
 ) -> Response {
+    let ws = match maybe_ws {
+        Ok(ws) => ws,
+        Err(e) => {
+            tracing::error!("{}", &e);
+            return e.into_response();
+        }
+    };
+    tracing::info!("{:?}", headers);
+
     ws.on_upgrade(|socket| handle_socket(socket, state, con_info))
 }
 
