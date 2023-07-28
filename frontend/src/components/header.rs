@@ -62,8 +62,8 @@ impl Component for Header {
                 display: flex;
                 align-items: center;
                 justify-content: right;
-                height: 4.5em;
-                width: 100vw;
+                height: 4em;
+                width: 100%;
                 background-color: ${bg_color};
                 border-bottom: 2px solid ${box_border_color};
             ",
@@ -74,7 +74,7 @@ impl Component for Header {
         let online_style = css!(
             "
                 font-size: 150%;
-                margin: 0 5em;
+                margin: 0 4em;
             "
         );
 
