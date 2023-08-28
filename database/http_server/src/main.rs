@@ -11,8 +11,7 @@ use bonsaidb::{
     },
     server::CustomServer,
 };
-use common::db::schema;
-use common::interfacing;
+use db::schema;
 use secrecy::ExposeSecret;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::{sync::RwLock, task::JoinHandle};
@@ -66,7 +65,7 @@ impl HostedDatabase {
     async fn restart(&mut self, backup: BackupLocation) {
         self.stop().await.unwrap();
 
-        let server = common::db::init::server(common::db::storage_location(), backup)
+        let server = db::init::server(db::storage_location(), backup)
             .await
             .unwrap();
 
@@ -114,8 +113,8 @@ impl HostedDatabase {
 
     async fn reset(&mut self) -> anyhow::Result<()> {
         self.stop().await?;
-        if std::path::Path::new(&common::db::storage_location()).exists() {
-            std::fs::remove_dir_all(&common::db::storage_location())?;
+        if std::path::Path::new(&db::storage_location()).exists() {
+            std::fs::remove_dir_all(&db::storage_location())?;
         }
         println!("database has been reset");
         Ok(())
@@ -162,7 +161,7 @@ async fn main() -> hyper::Result<()> {
         .route("/users/", post(replace_dashboard_user))
         .layer(AddExtensionLayer::new(hosted_database));
 
-    let addr = common::db::MANAGER_ADDR;
+    let addr = db::MANAGER_ADDR;
 
     let listener = std::net::TcpListener::bind(addr).unwrap();
 
@@ -213,7 +212,7 @@ async fn replace_dashboard_user(
         .unwrap();
     let user = user.into_iter().next();
 
-    let password_hash = common::auth::hash_pwd(password.as_bytes()).unwrap();
+    let password_hash = auth::hash_pwd(password.as_bytes()).unwrap();
 
     match user {
         None => {
@@ -289,8 +288,8 @@ async fn create_database_backup(
     let backup_path = PathBuf::from(form.backup_location);
     server.backup(backup_path.clone()).await.unwrap();
     std::fs::copy(
-        common::db::storage_location().join(common::db::public_certificate_name()),
-        backup_path.join(common::db::public_certificate_name()),
+        db::storage_location().join(db::public_certificate_name()),
+        backup_path.join(db::public_certificate_name()),
     )
     .unwrap();
 }

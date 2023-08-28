@@ -21,7 +21,7 @@ pub async fn subscribe(
         .record("subscriber_email", &tracing::field::display(&form.email))
         .record("subscriber_name", &tracing::field::display(&form.name));
 
-    let new_subscriber: common::domain::NewSubscriber =
+    let new_subscriber: domain::NewSubscriber =
         form.try_into().map_err(SubscribeError::ValidationError)?;
 
     let subscription_token = generate_subscription_token();
@@ -48,11 +48,11 @@ pub struct FormData {
     email: String,
 }
 
-impl TryFrom<FormData> for common::domain::NewSubscriber {
+impl TryFrom<FormData> for domain::NewSubscriber {
     type Error = String;
     fn try_from(value: FormData) -> Result<Self, Self::Error> {
-        let name = common::domain::SubscriberName::parse(value.name)?;
-        let email = common::domain::SubscriberEmail::parse(value.email)?;
+        let name = domain::SubscriberName::parse(value.name)?;
+        let email = domain::SubscriberEmail::parse(value.email)?;
         Ok(Self { email, name })
     }
 }
@@ -60,7 +60,7 @@ impl TryFrom<FormData> for common::domain::NewSubscriber {
 #[tracing::instrument(name = "Send a confirmation email to a new subscriber", skip_all)]
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
-    new_subscriber: &common::domain::NewSubscriber,
+    new_subscriber: &domain::NewSubscriber,
     base_url: &str,
     subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
@@ -93,7 +93,7 @@ pub async fn send_confirmation_email(
 #[tracing::instrument(name = "Saving new subscriber details in the database", skip_all)]
 pub async fn insert_subscriber(
     db_client: SharedDbClient,
-    new_subscriber: &common::domain::NewSubscriber,
+    new_subscriber: &domain::NewSubscriber,
     subscription_token: String,
 ) -> Result<
     CollectionDocument<schema::Subscription>,

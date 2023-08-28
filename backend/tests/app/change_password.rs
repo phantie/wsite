@@ -1,5 +1,5 @@
 use crate::helpers::{assert_is_redirect_to, spawn_app};
-use common::static_routes::*;
+use static_routes::*;
 
 use uuid::Uuid;
 

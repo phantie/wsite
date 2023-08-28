@@ -1,6 +1,6 @@
 pub mod extend {
     use axum::response::Redirect;
-    use common::static_routes::*;
+    use static_routes::*;
 
     pub trait GetExtend {
         fn redirect_to(&self) -> Redirect;

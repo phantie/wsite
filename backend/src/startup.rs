@@ -5,7 +5,7 @@ use crate::{
     error::ApiResult,
     timeout::HangingStrategy,
 };
-use common::static_routes::*;
+use static_routes::*;
 
 use axum::{
     routing::{delete, get, post, put},

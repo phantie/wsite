@@ -3,10 +3,10 @@ pub use backend::database::*;
 use backend::startup::Application;
 use backend::telemetry;
 use bonsaidb::server::BonsaiListenConfig;
-use common::static_routes::*;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
 use reqwest::{RequestBuilder, Response};
+use static_routes::*;
 use std::net::UdpSocket;
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -26,7 +26,7 @@ pub async fn spawn_app() -> TestApp {
 
     let email_server = MockServer::start().await;
 
-    let (db_server, db_storage_location) = common::db::init::test_server().await.unwrap();
+    let (db_server, db_storage_location) = db::init::test_server().await.unwrap();
 
     let db_port = UdpSocket::bind("localhost:0")
         .unwrap()
@@ -263,7 +263,7 @@ impl TestUser {
         db_client: SharedDbClient,
     ) -> Result<CollectionDocument<schema::User>, bonsaidb::core::schema::InsertError<schema::User>>
     {
-        let password_hash = common::auth::hash_pwd(self.password.as_bytes()).unwrap();
+        let password_hash = auth::hash_pwd(self.password.as_bytes()).unwrap();
 
         schema::User {
             username: self.username.clone(),

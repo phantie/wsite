@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde.workspace = true
 validator = "0.16.0"
 unicode-segmentation = "1.10.1"
+serde = { version = "1.0.183", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-claim.workspace = true
-rand.workspace = true
+claim = { package = "claims", version = "0.7.1"}
+rand = { version = "0.8.5", features = ["std_rng"] }
 fake = "2.5.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"

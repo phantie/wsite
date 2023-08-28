@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 argon2 = { version = "0.5.0", features = ["std"] }
-anyhow.workspace = true
-rand.workspace = true
+anyhow = "1.0.71"
+rand = { version = "0.8.5", features = ["std_rng"] }
