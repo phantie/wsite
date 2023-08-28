@@ -4,7 +4,7 @@ use secrecy::{ExposeSecret, SecretString};
 pub struct EmailClient {
     http_client: Client,
     base_url: String,
-    sender: common::domain::SubscriberEmail,
+    sender: domain::SubscriberEmail,
     authorization_token: SecretString,
 }
 
@@ -12,7 +12,7 @@ impl EmailClient {
     pub fn new(
         // api base url
         base_url: String,
-        sender: common::domain::SubscriberEmail,
+        sender: domain::SubscriberEmail,
         authorization_token: SecretString,
         timeout: std::time::Duration,
     ) -> Self {
@@ -28,7 +28,7 @@ impl EmailClient {
 
     pub async fn send_email(
         &self,
-        recipient: &common::domain::SubscriberEmail,
+        recipient: &domain::SubscriberEmail,
         subject: &str,
         html_content: &str,
         text_content: &str,
@@ -108,8 +108,8 @@ mod tests {
         Paragraph(1..10).fake()
     }
     /// Generate a random subscriber email
-    fn email() -> common::domain::SubscriberEmail {
-        common::domain::SubscriberEmail::parse(SafeEmail().fake()).unwrap()
+    fn email() -> domain::SubscriberEmail {
+        domain::SubscriberEmail::parse(SafeEmail().fake()).unwrap()
     }
     /// Get a test instance of `EmailClient`.
     fn email_client(base_url: String) -> EmailClient {

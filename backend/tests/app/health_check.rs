@@ -1,7 +1,7 @@
 use crate::helpers::spawn_app;
 use hyper::StatusCode;
 
-use common::static_routes::*;
+use static_routes::*;
 
 #[tokio::test]
 async fn health_check_works() {

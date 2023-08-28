@@ -1,6 +1,6 @@
 use crate::helpers::spawn_app;
 use backend::database::*;
-use common::static_routes::routes;
+use static_routes::routes;
 
 use hyper::StatusCode;
 use wiremock::matchers::{method, path};

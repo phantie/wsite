@@ -46,17 +46,14 @@ pub async fn validate_credentials(
 
     let expected_password_hash = match &user {
         // even if user does not exist, take time to compare provided pwd with invalid
-        None => common::auth::invalid_password_hash(),
+        None => auth::invalid_password_hash(),
         Some(doc) => doc.contents.password_hash.clone(),
     };
 
     let password = credentials.password.clone();
 
     spawn_blocking_with_tracing(move || {
-        common::auth::verify_password_hash(
-            expected_password_hash,
-            password.expose_secret().as_bytes(),
-        )
+        auth::verify_password_hash(expected_password_hash, password.expose_secret().as_bytes())
     })
     .await
     .context("failed to spawn a verify password hash task")
