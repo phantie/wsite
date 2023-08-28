@@ -5,6 +5,7 @@ members = [
     "database/http_server",
     "database/cli"
 ]
+resolver = "2"
 
 [workspace.dependencies]
 common = { path = "common" }
