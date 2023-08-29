@@ -12,11 +12,11 @@ Generate SSH key
 
 Add SSH key to Github
 
-> (Optional) Use ./preinstall.sh to skip until downgrade steps
-
 Get rep
 
     git clone git@github.com:phantie/wsite.git
+
+> (Optional) Use ./preinstall.sh to skip until downgrade steps
 
 Install rust
 

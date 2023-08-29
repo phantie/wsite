@@ -1,5 +1,4 @@
 # add ssh keys prior to the next steps
-git clone git@github.com:phantie/wsite.git /root/ &&
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh &&
 source "$HOME/.cargo/env" &&
 apt-get remove needrestart -y &&
