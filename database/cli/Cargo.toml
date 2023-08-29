@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 interfacing = { path = "../../common/interfacing" }
+db = { path = "../../common/db" }
 
 clap = { version = "4.2.7", features = ["cargo"] }
 rpassword = "7.2.0"

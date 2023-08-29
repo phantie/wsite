@@ -1,0 +1,18 @@
+[package]
+name = "init"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.183", default-features = false, features = ["derive"] }
+tempdir = "0.3.7"
+anyhow = "1.0.71"
+schema = { path = "../schema" }
+def = { path = "../def" }
+
+[dependencies.bonsaidb]
+rev = "c42b2f580ff6cef4854f0a2ae45e52a7743352d6" # 20.05.23
+git = "https://github.com/khonsulabs/bonsaidb/"
+features = ["server-full"]

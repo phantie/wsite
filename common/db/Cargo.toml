@@ -1,4 +1,3 @@
-# TODO optimize importing of this package
 [package]
 name = "db"
 version = "0.1.0"
@@ -8,11 +7,13 @@ edition = "2021"
 
 [dependencies]
 domain = { path = "../domain" }
-serde = { version = "1.0.183", default-features = false, features = ["derive"] }
-tempdir = "0.3.7"
-anyhow = "1.0.71"
 
-[dependencies.bonsaidb]
-rev = "c42b2f580ff6cef4854f0a2ae45e52a7743352d6" # 20.05.23
-git = "https://github.com/khonsulabs/bonsaidb/"
-features = ["server-full"]
+schema = { path = "schema", optional = true }
+init = { path = "init", optional = true }
+def = { path = "def", optional = true }
+
+[features]
+default = ["def"]
+schema = ["dep:schema"]
+init = ["schema", "dep:init"]
+def = ["dep:def"]

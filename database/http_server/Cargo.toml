@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 interfacing = { path = "../../common/interfacing" }
-db = { path = "../../common/db" }
+db = { path = "../../common/db", features = ["schema", "init"] }
 auth = { path = "../../common/auth" }
 
 axum = { version = "0.6.20", features = ["headers"] }
