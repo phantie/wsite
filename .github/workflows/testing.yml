@@ -1,0 +1,23 @@
+name: testing
+
+on:
+  pull_request:
+
+  push:
+    branches:
+      - master
+
+jobs:
+  db-cli:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      working-directory: ./database/cli
+      run: cargo build --verbose
+    - name: Run tests
+      working-directory: ./database/cli
+      run: cargo test --verbose
+
+env:
+  CARGO_TERM_COLOR: always
