@@ -1,3 +1,4 @@
+use crate::configuration::get_env;
 use crate::routes::imports::*;
 use crate::startup::UserConnectInfo;
 use axum::extract::connect_info::ConnectInfo;
@@ -26,7 +27,11 @@ pub async fn ws_users_online(
 }
 
 async fn handle_socket(socket: WebSocket, state: AppState, con_info: UserConnectInfo) {
-    tracing::info!("Client connected: {:?}", con_info.remote_addr);
+    if get_env().local() {
+        tracing::info!("Client connected: {:?}", con_info.remote_addr);
+    } else {
+        tracing::info!("Client connected");
+    }
 
     {
         let cons = &mut state.users_online.cons.lock().await;
