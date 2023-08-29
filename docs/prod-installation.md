@@ -37,14 +37,14 @@ Update system
 Install trunk
 
     rustup target add wasm32-unknown-unknown
-    cargo install --locked trunk
+    tar -xzf ~/wsite/frontend/trunk-x86_64-unknown-linux-gnu.tar.gz -C ~/wsite/frontend/
 
 
 Build libs and bins
 
     cd /root/wsite/database/cli/ && cargo build --release &&
     cd /root/wsite/database/http_server/ && cargo build --release &&
-    cd /root/wsite/frontend/ && trunk build --release &&
+    cd /root/wsite/frontend/ && ~/wsite/frontend/trunk build --release &&
     cd /root/wsite/backend/ && cargo build --release
 
 **Downgrade Droplet to the initial size**

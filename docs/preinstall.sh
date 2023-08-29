@@ -6,8 +6,8 @@ apt update &&
 apt install net-tools build-essential -y &&
 apt-get install pkg-config libssl-dev -y &&
 rustup target add wasm32-unknown-unknown &&
-cargo install --locked trunk &&
+tar -xzf ~/wsite/frontend/trunk-x86_64-unknown-linux-gnu.tar.gz -C ~/wsite/frontend/ &&
 cd /root/wsite/database/cli/ && cargo build --release &&
 cd /root/wsite/database/http_server/ && cargo build --release &&
-cd /root/wsite/frontend/ && trunk build --release &&
+cd /root/wsite/frontend/ && ~/wsite/frontend/trunk build --release &&
 cd /root/wsite/backend/ && cargo build --release
