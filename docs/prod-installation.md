@@ -18,7 +18,7 @@ Get rep
 
 > (Optional) Use the next command to skip until downgrade steps
 
-    sh ~/wsite/docs/preinstall.sh
+    chmod +x ~/wsite/docs/preinstall.sh && ~/wsite/docs/preinstall.sh
 
 Install rust
 
