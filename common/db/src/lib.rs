@@ -1,14 +1,8 @@
-use std::path::PathBuf;
+#[cfg(feature = "def")]
+pub use def::*;
 
-pub const MANAGER_ADDR: &str = "localhost:3000";
+#[cfg(feature = "schema")]
+pub use schema;
 
-pub fn storage_location() -> PathBuf {
-    PathBuf::from("server-data.bonsaidb")
-}
-
-pub fn public_certificate_name() -> PathBuf {
-    PathBuf::from("pinned-certificate.der")
-}
-
-pub mod init;
-pub mod schema;
+#[cfg(feature = "init")]
+pub use init;

@@ -14,7 +14,7 @@ name = "backend"
 interfacing = { path = "../common/interfacing" }
 static_routes = { path = "../common/static_routes" }
 domain = { path = "../common/domain" }
-db = { path = "../common/db" }
+db = { path = "../common/db", features = ["schema"] }
 auth = { path = "../common/auth" }
 
 config = { version = "0.13.3", default-features = false, features = ["yaml"] }
@@ -54,6 +54,7 @@ git = "https://github.com/khonsulabs/bonsaidb/"
 features = ["client-full", "local-full", "password-hashing"]
 
 [dev-dependencies]
+db = { path = "../common/db", features = ["init"] }
 once_cell = "1.17.1"
 wiremock = "0.5.17"
 linkify = "0.9.0"

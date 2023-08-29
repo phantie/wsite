@@ -2,7 +2,6 @@ pub use bonsaidb::core::connection::AsyncConnection;
 pub use bonsaidb::core::connection::AsyncStorageConnection;
 pub use bonsaidb::core::document::CollectionDocument;
 pub use bonsaidb::core::schema::SerializedCollection;
-// TODO optimize package import
 pub use db::schema;
 
 use crate::configuration;
