@@ -20,7 +20,7 @@ jobs:
           echo "RUSTFLAGS='--cfg profile=ephemeral-build'" >> $GITHUB_ENV
 
     - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.2
+      uses: mozilla-actions/sccache-action@v0.0.3
 
     - name: Build
       working-directory: ./database/cli
