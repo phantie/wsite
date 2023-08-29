@@ -10,16 +10,13 @@ jobs:
   db-cli:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-    - name: Configure sccache env var
-      run: 
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
-          echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+    - run: 
+        echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
 
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.3
+    - uses: mozilla-actions/sccache-action@v0.0.3
 
     - name: Run tests
       working-directory: ./database/cli
