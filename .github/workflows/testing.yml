@@ -21,12 +21,9 @@ jobs:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
 
-    - name: Test
-        working-directory: ./database/cli
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose
+    - name: Run tests
+      working-directory: ./database/cli
+      run: cargo test --verbose
 
 env:
   CARGO_TERM_COLOR: always
