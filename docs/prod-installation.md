@@ -16,7 +16,9 @@ Get rep
 
     git clone git@github.com:phantie/wsite.git
 
-> (Optional) Use ./preinstall.sh to skip until downgrade steps
+> (Optional) Use the next command to skip until downgrade steps
+
+    chmod +x ~/wsite/docs/preinstall.sh && ~/wsite/docs/preinstall.sh
 
 Install rust
 
