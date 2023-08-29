@@ -1319,7 +1319,6 @@ name = "db"
 version = "0.1.0"
 dependencies = [
  "def",
- "domain",
  "init",
  "schema",
 ]

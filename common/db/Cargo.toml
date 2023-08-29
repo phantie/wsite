@@ -6,8 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-domain = { path = "../domain" }
-
 schema = { path = "schema", optional = true }
 init = { path = "init", optional = true }
 def = { path = "def", optional = true }
