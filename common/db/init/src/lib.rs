@@ -108,19 +108,13 @@ async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
     let _: ServerDatabase = server
         .create_database::<schema::User>("users", true)
         .await?;
-    let _: ServerDatabase = server
-        .create_database::<schema::Article>("articles", true)
-        .await?;
     let _: ServerDatabase = server.create_database::<()>("sessions", true).await?;
     Ok(())
 }
 
 fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfiguration> {
     // SCHEMA TWEAK
-    Ok(conf
-        .with_schema::<schema::User>()?
-        .with_schema::<schema::Article>()?
-        .with_schema::<()>()?)
+    Ok(conf.with_schema::<schema::User>()?.with_schema::<()>()?)
 }
 
 pub async fn test_server() -> anyhow::Result<(CustomServer, tempdir::TempDir)> {

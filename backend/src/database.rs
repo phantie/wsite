@@ -144,7 +144,6 @@ impl RemoteClient {
 #[derive(Clone)]
 pub struct DbCollections {
     pub users: AsyncRemoteDatabase,
-    pub articles: AsyncRemoteDatabase,
 }
 
 impl DbCollections {
@@ -159,19 +158,6 @@ impl DbCollections {
             .query_with_collection_docs()
             .await?;
         Ok(mapped_users.into_iter().next().map(|v| v.document.clone()))
-    }
-
-    pub async fn article_by_public_id(
-        &self,
-        public_id: impl AsRef<str>,
-    ) -> ApiResult<Option<CollectionDocument<schema::Article>>> {
-        let mapped = self
-            .articles
-            .view::<schema::ArticleByPublicID>()
-            .with_key(public_id.as_ref())
-            .query_with_collection_docs()
-            .await?;
-        Ok(mapped.into_iter().next().map(|v| v.document.clone()))
     }
 }
 
@@ -223,7 +209,6 @@ impl DbClient {
 
         // SCHEMA TWEAK
         let users = client.database::<schema::User>("users").await?;
-        let articles = client.database::<schema::Article>("articles").await?;
 
         let sessions = client.database::<()>("sessions").await?;
 
@@ -234,7 +219,7 @@ impl DbClient {
             conf,
             liquid_state: DbClientLiquidState {
                 sessions,
-                collections: DbCollections { users, articles },
+                collections: DbCollections { users },
                 client,
                 reconfiguration_id,
                 ping_handle,
