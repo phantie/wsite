@@ -1,8 +1,9 @@
 ?[public_id, title, markdown, draft] <- []
 
 :ensure articles {
-    public_id: String,
+    id: Uuid default rand_uuid_v4(),
     =>
+    public_id: String,
     title: String,
     markdown: String,
     draft: Bool,
