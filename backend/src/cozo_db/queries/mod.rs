@@ -89,7 +89,7 @@ pub fn ensure_articles_table(db: &DbInstance) -> OpResult {
     op_result(result)
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Article {
     pub title: String,
     pub public_id: String,
@@ -97,7 +97,7 @@ pub struct Article {
     pub draft: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ArticleWithId {
     pub id: String,
     pub title: String,
@@ -150,4 +150,18 @@ pub fn find_article_by_public_id(
         (["id", "public_id", "title", "markdown", "draft"], []) => Ok(None),
         _ => Err(Error::ResultError(result)),
     }
+}
+
+#[tracing::instrument(name = "Update article", skip_all)]
+pub fn update_article(db: &DbInstance, article: ArticleWithId) -> OpResult {
+    let script = include_str!("articles/update.cozo");
+    let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
+        "id".into() => DataValue::Uuid(UuidWrapper(uuid::Uuid::parse_str(&article.id).unwrap())), // TODO safen
+        "title".into() => article.title.into(),
+        "public_id".into() => article.public_id.into(),
+        "markdown".into() => article.markdown.into(),
+        "draft".into() => article.draft.into(),
+    };
+    let result = db.run_script(script, params, ScriptMutability::Mutable);
+    op_result(result)
 }
