@@ -1,5 +1,5 @@
 use cozo::*;
-mod queries;
+pub mod queries;
 
 pub fn start_db() -> DbInstance {
     let db = &cozo::DbInstance::default();
@@ -15,11 +15,13 @@ pub fn start_db() -> DbInstance {
         assert!(result.is_ok());
     }
 
-    queries::put_user(db, "admin", "hA5h").unwrap();
+    let pwd_hash = auth::hash_pwd("a".as_bytes()).unwrap();
+
+    queries::put_user(db, "admin", &pwd_hash).unwrap();
 
     dbg!(queries::find_user_by_username(db, "admin").unwrap());
 
-    queries::update_user_pwd_hash(db, "admin", "hA5hssss").unwrap();
+    queries::update_user_pwd_hash(db, "admin", &pwd_hash).unwrap();
 
     dbg!(queries::find_user_by_username(db, "admin").unwrap());
 

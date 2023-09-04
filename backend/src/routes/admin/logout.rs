@@ -1,11 +1,11 @@
 use crate::routes::imports::*;
 
 pub async fn logout(mut session: WritableSession) {
-    match session.get::<u64>("user_id") {
+    match session.get::<String>("username") {
         None => {}
-        Some(user_id) => {
+        Some(username) => {
             session.destroy();
-            tracing::info!("User {user_id} successfully logged out.");
+            tracing::info!("User {username} successfully logged out.");
         }
     }
 }

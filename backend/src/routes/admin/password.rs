@@ -1,13 +1,13 @@
+use crate::cozo_db;
 use crate::routes::imports::*;
 use interfacing::PasswordChangeForm;
 
 pub async fn change_password(
     session: ReadableSession,
-    Extension(_cozo_db): Extension<cozo::DbInstance>,
-    Extension(db_client): Extension<SharedDbClient>,
+    Extension(db): Extension<cozo::DbInstance>,
     Json(form): Json<PasswordChangeForm>,
 ) -> ApiResult<impl IntoResponse> {
-    let user_id = reject_anonymous_users(&session)?;
+    let username = reject_anonymous_users(&session)?;
 
     if form.new_password.expose_secret() != form.new_password_check.expose_secret() {
         Err(ApiError::AuthError(anyhow::anyhow!(
@@ -15,34 +15,18 @@ pub async fn change_password(
         )))?
     }
 
-    HangingStrategy::long_linear()
-        .execute(
-            |db_client| async {
-                let form = form.clone();
-                async move {
-                    let users = &db_client.read().await.collections().users;
-                    let mut user = schema::User::get_async(&user_id, users)
-                        .await?
-                        .context("dangling user in session")?;
-                    let credentials = Credentials {
-                        username: user.contents.username.clone(),
-                        password: form.current_password,
-                    };
-                    let _user_id = validate_credentials(db_client.clone(), &credentials).await?;
+    let credentials = Credentials {
+        username: username.clone(),
+        password: form.current_password,
+    };
 
-                    let password_hash =
-                        auth::hash_pwd(form.new_password.expose_secret().as_bytes())?;
-                    user.contents.password_hash = password_hash;
-                    user.update_async(&db_client.read().await.collections().users)
-                        .await?;
+    validate_credentials(db.clone(), &credentials).await?;
 
-                    tracing::info!("Admin password has been changed.");
+    let pwd_hash = auth::hash_pwd(form.new_password.expose_secret().as_bytes())?;
 
-                    Ok(())
-                }
-                .await
-            },
-            db_client.clone(),
-        )
-        .await?
+    cozo_db::queries::update_user_pwd_hash(&db, &username, &pwd_hash)?;
+
+    tracing::info!("{}'s password has been changed", username);
+
+    Ok(())
 }

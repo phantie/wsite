@@ -1,8 +1,6 @@
 use crate::{
-    database::*,
     error::{ApiError, ApiResult},
     telemetry::spawn_blocking_with_tracing,
-    timeout::HangingStrategy,
 };
 use anyhow::Context;
 use axum_sessions::extractors::ReadableSession;
@@ -16,26 +14,10 @@ pub struct Credentials {
 
 #[tracing::instrument(name = "Validate credentials", skip_all)]
 pub async fn validate_credentials(
-    db_client: SharedDbClient,
+    db: cozo::DbInstance,
     credentials: &Credentials,
-) -> ApiResult<u64> {
-    let user = HangingStrategy::long_linear()
-        .execute(
-            |db_client| async {
-                async move {
-                    let user = db_client
-                        .read()
-                        .await
-                        .collections()
-                        .user_by_username(&credentials.username)
-                        .await?;
-                    ApiResult::<_>::Ok(user)
-                }
-                .await
-            },
-            db_client.clone(),
-        )
-        .await??;
+) -> ApiResult<()> {
+    let user = crate::cozo_db::queries::find_user_by_username(&db, &credentials.username)?;
 
     if let None = &user {
         tracing::info!(
@@ -47,7 +29,7 @@ pub async fn validate_credentials(
     let expected_password_hash = match &user {
         // even if user does not exist, take time to compare provided pwd with invalid
         None => auth::invalid_password_hash(),
-        Some(doc) => doc.contents.password_hash.clone(),
+        Some(user) => user.pwd_hash.clone(),
     };
 
     let password = credentials.password.clone();
@@ -61,17 +43,14 @@ pub async fn validate_credentials(
     .context("invalid password")
     .map_err(ApiError::AuthError)?;
 
-    Ok(user
-        .expect("since password verified, user exists")
-        .header
-        .id)
+    Ok(())
 }
 
-pub fn reject_anonymous_users(session: &ReadableSession) -> ApiResult<u64> {
-    let user_id: Option<u64> = session.get("user_id");
+pub fn reject_anonymous_users(session: &ReadableSession) -> ApiResult<String> {
+    let username: Option<String> = session.get("username");
 
-    match user_id {
+    match username {
         None => Err(ApiError::AuthError(anyhow::anyhow!("User not logged in"))),
-        Some(id) => Ok(id),
+        Some(username) => Ok(username),
     }
 }

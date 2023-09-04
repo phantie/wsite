@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use cozo::*;
 use itertools::Itertools;
 
-mod utils;
+pub mod utils;
 use utils::Error;
 use utils::*;
 
@@ -23,7 +23,7 @@ pub fn ensure_users_table(db: &DbInstance) -> OpResult {
 }
 
 #[tracing::instrument(name = "Find user by username", skip_all)]
-pub fn find_user_by_username(db: &DbInstance, username: &str) -> Result<User> {
+pub fn find_user_by_username(db: &DbInstance, username: &str) -> Result<Option<User>> {
     let script = include_str!("users/find_by_username.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
         "username".into() => username.into()
@@ -37,19 +37,20 @@ pub fn find_user_by_username(db: &DbInstance, username: &str) -> Result<User> {
 
     match (&headers[..], &rows[..]) {
         (["username", "pwd_hash"], [[DataValue::Str(username), DataValue::Str(pwd_hash)]]) => {
-            Ok(User {
+            Ok(Some(User {
                 username: username.to_string(),
                 pwd_hash: pwd_hash.to_string(),
-            })
+            }))
         }
+        (["username", "pwd_hash"], []) => Ok(None),
         _ => Err(Error::ResultError(result)),
     }
 }
 
 #[derive(Debug)]
 pub struct User {
-    username: String,
-    pwd_hash: String,
+    pub username: String,
+    pub pwd_hash: String,
 }
 
 #[tracing::instrument(name = "Put user", skip_all)]
