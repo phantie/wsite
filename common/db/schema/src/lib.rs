@@ -8,12 +8,6 @@ use bonsaidb::core::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Collection, Clone)]
-#[collection(name = "shapes")]
-pub struct Shape {
-    pub sides: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Collection, Clone)]
 #[collection(name = "users",  views = [UserByUsername])]
 pub struct User {
     pub username: String,

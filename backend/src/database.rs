@@ -143,7 +143,6 @@ impl RemoteClient {
 
 #[derive(Clone)]
 pub struct DbCollections {
-    pub shapes: AsyncRemoteDatabase,
     pub users: AsyncRemoteDatabase,
     pub articles: AsyncRemoteDatabase,
 }
@@ -223,7 +222,6 @@ impl DbClient {
         };
 
         // SCHEMA TWEAK
-        let shapes = client.database::<schema::Shape>("shapes").await?;
         let users = client.database::<schema::User>("users").await?;
         let articles = client.database::<schema::Article>("articles").await?;
 
@@ -236,11 +234,7 @@ impl DbClient {
             conf,
             liquid_state: DbClientLiquidState {
                 sessions,
-                collections: DbCollections {
-                    shapes,
-                    users,
-                    articles,
-                },
+                collections: DbCollections { users, articles },
                 client,
                 reconfiguration_id,
                 ping_handle,
