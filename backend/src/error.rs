@@ -18,6 +18,9 @@ pub enum ApiError {
     #[error("Database error: {0}")]
     DatabaseError(#[from] bonsaidb::core::Error),
 
+    #[error("Database error: {0}")]
+    CozoDbError(#[from] crate::cozo_db::queries::utils::Error),
+
     // #[error("Database insert error: {0}")]
     // DatabaseInsertError(#[source] anyhow::Error),
     //
@@ -45,6 +48,7 @@ impl axum::response::IntoResponse for ApiError {
             Self::BadRequest => StatusCode::BAD_REQUEST,
             Self::DatabaseHangs => StatusCode::INTERNAL_SERVER_ERROR,
             Self::DatabaseError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::CozoDbError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             // Self::DatabaseInsertError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::FutureTimeout => StatusCode::INTERNAL_SERVER_ERROR,
         }

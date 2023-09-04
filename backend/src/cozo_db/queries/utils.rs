@@ -1,10 +1,12 @@
 use cozo::*;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     // most likely query syntax error
+    #[error("Engine error")]
     EngineError(miette::ErrReport),
     // returned results don't cover expected cases
+    #[error("Result error")]
     ResultError(NamedRows),
 }
 
