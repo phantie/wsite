@@ -1,0 +1,7 @@
+?[id, value] <- []
+
+:ensure sessions {
+    id: String,
+    =>
+    value: String
+}

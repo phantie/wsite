@@ -50,7 +50,6 @@ pub struct DbClient {
 // might result with buggy consequent reconfigurations
 pub struct DbClientLiquidState {
     collections: DbCollections,
-    sessions: AsyncRemoteDatabase,
     reconfiguration_id: u32,
     ping_handle: JoinHandle<()>,
     client: AsyncClient,
@@ -210,15 +209,12 @@ impl DbClient {
         // SCHEMA TWEAK
         let users = client.database::<schema::User>("users").await?;
 
-        let sessions = client.database::<()>("sessions").await?;
-
         let reconfiguration_id = unsafe { ReconfigurationID.load(Ordering::SeqCst) };
         unsafe { ReconfigurationID.fetch_add(1, Ordering::SeqCst) };
 
         Ok(Self {
             conf,
             liquid_state: DbClientLiquidState {
-                sessions,
                 collections: DbCollections { users },
                 client,
                 reconfiguration_id,
@@ -234,10 +230,6 @@ impl DbClient {
         self.liquid_state = renewed.liquid_state;
 
         Ok(())
-    }
-
-    pub fn sessions(&self) -> AsyncRemoteDatabase {
-        self.liquid_state.sessions.clone()
     }
 
     pub fn collections(&self) -> DbCollections {

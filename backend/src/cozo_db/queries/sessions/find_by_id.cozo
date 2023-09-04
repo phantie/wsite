@@ -1,0 +1,1 @@
+?[id, value] := *sessions{ id, value }, id == $id

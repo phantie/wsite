@@ -1,0 +1,3 @@
+?[id, value] <- [[$id, $value]]
+
+:put sessions {id => value}

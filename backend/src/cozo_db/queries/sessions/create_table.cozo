@@ -1,0 +1,7 @@
+?[id, value] <- []
+
+:create sessions {
+    id: String,
+    =>
+    value: String
+}

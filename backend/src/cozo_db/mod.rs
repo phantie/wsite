@@ -47,5 +47,13 @@ pub fn start_db() -> DbInstance {
         assert_eq!(article.unwrap().public_id, "updated");
     }
 
+    {
+        // Sessions
+        if queries::ensure_sessions_table(db).is_err() {
+            let result = queries::create_sessions_table(db);
+            assert!(result.is_ok());
+        }
+    }
+
     db.clone()
 }
