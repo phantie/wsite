@@ -31,14 +31,14 @@ pub fn start_db() -> DbInstance {
             assert!(result.is_ok());
         }
 
-        let article = queries::Article::default();
+        let article = interfacing::Article::default();
         queries::put_article(db, article.clone()).unwrap();
 
         let article = queries::find_article_by_public_id(db, "").unwrap().unwrap();
         assert_eq!(article.public_id, "");
 
         let article_id = article.id;
-        let mut article = queries::ArticleWithId::default();
+        let mut article = interfacing::ArticleWithId::default();
         article.id = article_id;
         article.public_id = "updated".into();
         queries::update_article(db, article).unwrap();
