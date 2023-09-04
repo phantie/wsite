@@ -1,7 +1,6 @@
 use crate::{
     configuration::{get_env, Conf},
     database::*,
-    email_client::EmailClient,
     error::ApiResult,
     timeout::HangingStrategy,
 };
@@ -16,7 +15,6 @@ use axum_sessions::{
     SessionLayer,
 };
 use bonsaidb::core::keyvalue::AsyncKeyValue;
-use secrecy::ExposeSecret;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::{
@@ -71,19 +69,6 @@ pub fn router(
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
         .route("/static/:path", get(serve_static));
-
-    let api_router = if conf.env.features.newsletter {
-        api_router
-            .route(routes.subs.get().postfix(), get(all_subs))
-            .route(routes.subs.new.post().postfix(), post(subscribe))
-            .route(routes.subs.confirm.get().postfix(), get(sub_confirm))
-            .route(
-                routes.newsletters.post().postfix(),
-                post(publish_newsletter),
-            )
-    } else {
-        api_router
-    };
 
     let api_router = if get_env().local() {
         api_router
@@ -234,8 +219,6 @@ impl SessionStore for BonsaiDBSessionStore {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub email_client: Arc<EmailClient>,
-    pub base_url: String,
     pub users_online: UsersOnline,
 }
 
@@ -280,35 +263,11 @@ pub struct Application {
 
 impl Application {
     pub async fn build(conf: &Conf) -> Self {
-        let email_client = {
-            let sender_email = conf
-                .env
-                .email_client
-                .sender()
-                .expect("Invalid sender email address");
-            Arc::new(EmailClient::new(
-                conf.env.email_client.base_url.clone(),
-                sender_email,
-                conf.env.email_client.authorization_token.clone(),
-                conf.env.email_client.timeout(),
-            ))
-        };
-
         let address = format!("{}:{}", conf.env.host, conf.env.port);
         let listener = std::net::TcpListener::bind(&address).unwrap();
         tracing::info!("Listening on http://{}", address);
         let host = conf.env.host.clone();
         let port = listener.local_addr().unwrap().port();
-
-        {
-            let first_symbols_count = 5;
-            tracing::info!(
-                "First {} symbols of email token:{}",
-                first_symbols_count,
-                &(*conf.env.email_client.authorization_token.expose_secret())
-                    [..first_symbols_count]
-            );
-        }
 
         let db_client = Arc::new(RwLock::new(
             DbClient::configure(conf.db_client.clone())
@@ -319,8 +278,6 @@ impl Application {
         let cozo_db = crate::cozo_db::start_db();
 
         let app_state = AppState {
-            email_client,
-            base_url: conf.env.base_url.clone(),
             users_online: UsersOnline::new(),
         };
 

@@ -2,11 +2,11 @@ Source code on <a href="https://github.com/phantie/wsite">Github</a>
 
 [![CI-Tests](https://github.com/phantie/wsite/actions/workflows/testing.yml/badge.svg)](https://github.com/phantie/wsite/actions/workflows/testing.yml)
 
-Fully supports articles with a strict schema stored in a database and with a liberal schema carved in source code, and an administration panel; partially implemented email subscription.
+Supports articles CRUD and other features on admin panel.
 
-Its entirety is written in Rust: backend api, frontend and database. Core technologies for each part: backend api - Axum, frontend - Yew (Rust compiled to WebAssebly), database - Bonsaidb.
+Its entirety is written in Rust: backend api, frontend and database. Core technologies for each part: backend api - Axum, frontend - Yew (Rust compiled to WebAssebly), database - CozoDB, previously BonsaiDB.
 
-System can be horizontally scaled to the extent - backend api and frontend are stateless.
+Backend api and frontend are stateless, database only one instance.
 
 Architecture
 ---------------

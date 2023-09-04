@@ -3,7 +3,5 @@ port: 8000
 db:
     port: 5645
 
-email_client:
-    base_url: "http://127.0.0.1"
-    sender_email: "test@gmail.com"
-    timeout_milliseconds: 10000
+features:
+    no_features:

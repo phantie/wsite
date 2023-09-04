@@ -5,8 +5,6 @@ use macros::*;
 #[derive(Default)]
 pub struct Routes {
     pub health_check: HealthCheck,
-    pub subs: Subs,
-    pub newsletters: Newsletters,
     pub login: Login,
     pub admin: Admin,
     pub articles: Articles,
@@ -26,61 +24,6 @@ pub struct HealthCheck;
 impl Url for HealthCheck {
     fn postfix(&self) -> &str {
         "/health_check"
-    }
-
-    fn prefix(&self) -> &str {
-        "/api"
-    }
-}
-
-#[derive(Default, Get)]
-pub struct Subs {
-    pub confirm: SubConfirm,
-    pub new: SubNew,
-}
-
-impl Url for Subs {
-    fn postfix(&self) -> &str {
-        "/subs"
-    }
-
-    fn prefix(&self) -> &str {
-        "/api"
-    }
-}
-
-#[derive(Default, Get)]
-pub struct SubConfirm;
-
-impl Url for SubConfirm {
-    fn postfix(&self) -> &str {
-        "/subs/confirm"
-    }
-
-    fn prefix(&self) -> &str {
-        "/api"
-    }
-}
-
-#[derive(Default, Post)]
-pub struct SubNew;
-
-impl Url for SubNew {
-    fn postfix(&self) -> &str {
-        "/subs/new"
-    }
-
-    fn prefix(&self) -> &str {
-        "/api"
-    }
-}
-
-#[derive(Default, Post)]
-pub struct Newsletters;
-
-impl Url for Newsletters {
-    fn postfix(&self) -> &str {
-        "/newsletters"
     }
 
     fn prefix(&self) -> &str {
