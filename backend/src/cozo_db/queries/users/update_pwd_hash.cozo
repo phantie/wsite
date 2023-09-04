@@ -1,0 +1,3 @@
+?[username, pwd_hash] <- [[$username, $pwd_hash]]
+
+:update users {username => pwd_hash}
