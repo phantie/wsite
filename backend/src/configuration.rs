@@ -1,4 +1,3 @@
-use secrecy::SecretString;
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string; // to deserialize variables provided via env vars
 
@@ -8,18 +7,13 @@ pub struct EnvConf {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
-    // used to generate links to site included in emails
-    pub base_url: String,
 
     pub db: EnvDbClientConf,
-    pub email_client: EnvEmailClientConf,
     pub features: EnvFeatures,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct EnvFeatures {
-    pub newsletter: bool,
-}
+pub struct EnvFeatures {}
 
 #[derive(Deserialize, Clone)]
 pub struct EnvDbClientConf {
@@ -136,23 +130,5 @@ impl TryFrom<String> for Environment {
                 other
             )),
         }
-    }
-}
-
-#[derive(Deserialize)]
-pub struct EnvEmailClientConf {
-    pub base_url: String,
-    pub sender_email: String,
-    pub authorization_token: SecretString,
-    pub timeout_milliseconds: u64,
-}
-
-impl EnvEmailClientConf {
-    pub fn sender(&self) -> Result<domain::SubscriberEmail, String> {
-        domain::SubscriberEmail::parse(self.sender_email.clone())
-    }
-
-    pub fn timeout(&self) -> std::time::Duration {
-        std::time::Duration::from_millis(self.timeout_milliseconds)
     }
 }

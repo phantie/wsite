@@ -146,7 +146,6 @@ pub struct DbCollections {
     pub shapes: AsyncRemoteDatabase,
     pub users: AsyncRemoteDatabase,
     pub articles: AsyncRemoteDatabase,
-    pub subs: AsyncRemoteDatabase,
 }
 
 impl DbCollections {
@@ -227,9 +226,7 @@ impl DbClient {
         let shapes = client.database::<schema::Shape>("shapes").await?;
         let users = client.database::<schema::User>("users").await?;
         let articles = client.database::<schema::Article>("articles").await?;
-        let subs = client
-            .database::<schema::Subscription>("subscriptions")
-            .await?;
+
         let sessions = client.database::<()>("sessions").await?;
 
         let reconfiguration_id = unsafe { ReconfigurationID.load(Ordering::SeqCst) };
@@ -243,7 +240,6 @@ impl DbClient {
                     shapes,
                     users,
                     articles,
-                    subs,
                 },
                 client,
                 reconfiguration_id,

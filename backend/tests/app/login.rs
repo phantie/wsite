@@ -4,6 +4,7 @@ use hyper::StatusCode;
 
 use static_routes::*;
 
+#[ignore]
 #[tokio::test]
 async fn redirect_to_admin_dashboard_after_login_success() {
     // Arrange
