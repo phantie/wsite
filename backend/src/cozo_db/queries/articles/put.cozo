@@ -1,0 +1,3 @@
+?[public_id, title, markdown, draft] <- [[$public_id, $title, $markdown, $draft]]
+
+:put articles {public_id, title, markdown, draft}
