@@ -19,5 +19,9 @@ pub fn start_db() -> DbInstance {
 
     dbg!(queries::find_user_by_username(db, "admin").unwrap());
 
+    queries::update_user_pwd_hash(db, "admin", "hA5hssss").unwrap();
+
+    dbg!(queries::find_user_by_username(db, "admin").unwrap());
+
     db.clone()
 }

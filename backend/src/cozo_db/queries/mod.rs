@@ -63,6 +63,17 @@ pub fn put_user(db: &DbInstance, username: &str, pwd_hash: &str) -> OpResult {
     op_result(result)
 }
 
+#[tracing::instrument(name = "Update user pwd_hash", skip_all)]
+pub fn update_user_pwd_hash(db: &DbInstance, username: &str, pwd_hash: &str) -> OpResult {
+    let script = include_str!("users/update_pwd_hash.cozo");
+    let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
+        "username".into() => username.into(),
+        "pwd_hash".into() => pwd_hash.into()
+    };
+    let result = db.run_script(script, params, ScriptMutability::Mutable);
+    op_result(result)
+}
+
 #[tracing::instrument(name = "Create articles table", skip_all)]
 pub fn create_articles_table(db: &DbInstance) -> OpResult {
     let script = include_str!("articles/create_articles_table.cozo");
