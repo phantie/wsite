@@ -1,9 +1,4 @@
-use crate::{
-    configuration::{get_env, Conf},
-    database::*,
-    error::ApiResult,
-    timeout::HangingStrategy,
-};
+use crate::{configuration::Conf, database::*, error::ApiResult, timeout::HangingStrategy};
 use static_routes::*;
 
 use axum::{
@@ -69,14 +64,6 @@ pub fn router(
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
         .route("/static/:path", get(serve_static));
-
-    let api_router = if get_env().local() {
-        api_router
-            .route("/shapes", get(all_shapes))
-            .route("/shapes", post(new_shape))
-    } else {
-        api_router
-    };
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 

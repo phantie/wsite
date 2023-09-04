@@ -106,9 +106,6 @@ async fn setup_certificate(server: &CustomServer) -> anyhow::Result<()> {
 async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
     // SCHEMA TWEAK
     let _: ServerDatabase = server
-        .create_database::<schema::Shape>("shapes", true)
-        .await?;
-    let _: ServerDatabase = server
         .create_database::<schema::User>("users", true)
         .await?;
     let _: ServerDatabase = server
@@ -121,7 +118,6 @@ async fn setup_contents(server: &CustomServer) -> anyhow::Result<()> {
 fn register_schemas(conf: ServerConfiguration) -> anyhow::Result<ServerConfiguration> {
     // SCHEMA TWEAK
     Ok(conf
-        .with_schema::<schema::Shape>()?
         .with_schema::<schema::User>()?
         .with_schema::<schema::Article>()?
         .with_schema::<()>()?)
