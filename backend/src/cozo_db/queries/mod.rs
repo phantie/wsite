@@ -107,7 +107,7 @@ pub struct ArticleWithId {
 }
 
 #[tracing::instrument(name = "Put article", skip_all)]
-pub fn put_article(db: &DbInstance, article: Article) -> OpResult {
+pub fn put_article(db: &DbInstance, article: interfacing::Article) -> OpResult {
     let script = include_str!("articles/put.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
         "title".into() => article.title.into(),
@@ -124,7 +124,7 @@ pub fn put_article(db: &DbInstance, article: Article) -> OpResult {
 pub fn find_article_by_public_id(
     db: &DbInstance,
     public_id: &str,
-) -> Result<Option<ArticleWithId>> {
+) -> Result<Option<interfacing::ArticleWithId>> {
     let script = include_str!("articles/find_by_public_id.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
         "public_id".into() => public_id.into()
@@ -140,7 +140,7 @@ pub fn find_article_by_public_id(
         (
             ["id", "public_id", "title", "markdown", "draft"],
             [[DataValue::Uuid(UuidWrapper(id)), DataValue::Str(public_id), DataValue::Str(title), DataValue::Str(markdown), DataValue::Bool(draft)]],
-        ) => Ok(Some(ArticleWithId {
+        ) => Ok(Some(interfacing::ArticleWithId {
             id: id.to_string(),
             title: title.to_string(),
             public_id: public_id.to_string(),
@@ -153,7 +153,7 @@ pub fn find_article_by_public_id(
 }
 
 #[tracing::instrument(name = "Update article", skip_all)]
-pub fn update_article(db: &DbInstance, article: ArticleWithId) -> OpResult {
+pub fn update_article(db: &DbInstance, article: interfacing::ArticleWithId) -> OpResult {
     let script = include_str!("articles/update.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
         "id".into() => DataValue::Uuid(UuidWrapper(uuid::Uuid::parse_str(&article.id).unwrap())), // TODO safen
@@ -164,4 +164,40 @@ pub fn update_article(db: &DbInstance, article: ArticleWithId) -> OpResult {
     };
     let result = db.run_script(script, params, ScriptMutability::Mutable);
     op_result(result)
+}
+
+#[tracing::instrument(name = "Find articles", skip_all)]
+pub fn find_articles(db: &DbInstance) -> Result<Vec<interfacing::ArticleWithId>> {
+    let script = include_str!("articles/find.cozo");
+    let result = db
+        .run_script(script, Default::default(), ScriptMutability::Mutable)
+        .map_err(Error::EngineError)?;
+
+    let headers = result.headers.iter().map(String::as_str).collect_vec();
+    let rows = result.rows.iter().map(Vec::as_slice).collect_vec();
+
+    match &headers[..] {
+        ["id", "public_id", "title", "markdown", "draft"] => {}
+        _ => return Err(Error::ResultError(result)),
+    }
+
+    let mut res = vec![];
+    // all rows must comply to format, if any does not - return error
+    for row in rows {
+        match &row[..] {
+            [DataValue::Uuid(UuidWrapper(id)), DataValue::Str(public_id), DataValue::Str(title), DataValue::Str(markdown), DataValue::Bool(draft)] =>
+            {
+                res.push(interfacing::ArticleWithId {
+                    id: id.to_string(),
+                    title: title.to_string(),
+                    public_id: public_id.to_string(),
+                    markdown: markdown.to_string(),
+                    draft: *draft,
+                });
+            }
+            _ => return Err(Error::ResultError(result)),
+        }
+    }
+
+    Ok(res)
 }

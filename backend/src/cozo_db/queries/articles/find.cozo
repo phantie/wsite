@@ -1,0 +1,1 @@
+?[id, public_id, title, markdown, draft] := *articles{ id, public_id, title, markdown, draft }
