@@ -1,0 +1,1 @@
+?[username, pwd_hash] := *users{ username, pwd_hash }, username == $username
