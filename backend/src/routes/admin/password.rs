@@ -3,6 +3,7 @@ use interfacing::PasswordChangeForm;
 
 pub async fn change_password(
     session: ReadableSession,
+    Extension(_cozo_db): Extension<cozo::DbInstance>,
     Extension(db_client): Extension<SharedDbClient>,
     Json(form): Json<PasswordChangeForm>,
 ) -> ApiResult<impl IntoResponse> {

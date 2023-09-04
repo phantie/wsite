@@ -47,7 +47,11 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
+pub fn router(
+    conf: &Conf,
+    db_client: SharedDbClient,
+    cozo_db: cozo::DbInstance,
+) -> Router<AppState> {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -120,6 +124,7 @@ pub fn router(conf: &Conf, db_client: SharedDbClient) -> Router<AppState> {
         .fallback(fallback)
         .layer(CompressionLayer::new())
         .layer(AddExtensionLayer::new(db_client.clone()))
+        .layer(AddExtensionLayer::new(cozo_db))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
@@ -311,6 +316,8 @@ impl Application {
                 .expect("Database unavailable"),
         ));
 
+        let cozo_db = crate::cozo_db::start_db();
+
         let app_state = AppState {
             email_client,
             base_url: conf.env.base_url.clone(),
@@ -318,7 +325,7 @@ impl Application {
         };
 
         return Self {
-            server: Box::pin(run(conf, listener, app_state, db_client.clone())),
+            server: Box::pin(run(conf, listener, app_state, db_client.clone(), cozo_db)),
             port,
             host,
             db_client,
@@ -329,9 +336,10 @@ impl Application {
             listener: std::net::TcpListener,
             app_state: AppState,
             db_client: SharedDbClient,
+            cozo_db: cozo::DbInstance,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
             axum::Server::from_tcp(listener).unwrap().serve(
-                router(conf, db_client)
+                router(conf, db_client, cozo_db)
                     .with_state(app_state)
                     .into_make_service_with_connect_info::<UserConnectInfo>(),
             )

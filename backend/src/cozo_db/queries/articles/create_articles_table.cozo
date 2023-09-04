@@ -1,0 +1,9 @@
+?[public_id, title, markdown, draft] <- []
+
+:create articles {
+    public_id: String,
+    =>
+    title: String,
+    markdown: String,
+    draft: Bool,
+}

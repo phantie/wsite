@@ -1,0 +1,7 @@
+?[username, pwd_hash] <- []
+
+:create users {
+    username: String,
+    =>
+    pwd_hash: String
+}

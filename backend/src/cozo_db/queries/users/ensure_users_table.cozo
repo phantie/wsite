@@ -1,0 +1,7 @@
+?[username, pwd_hash] <- []
+
+:ensure users {
+    username: String,
+    =>
+    pwd_hash: String
+}
