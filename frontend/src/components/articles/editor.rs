@@ -3,7 +3,7 @@
 use crate::components::imports::*;
 use crate::components::MarkdownPreview;
 
-type Article = interfacing::Article;
+type Article = interfacing::ArticleWithId;
 
 #[derive(PartialEq, Clone)]
 pub enum ArticleEditorMode {
@@ -50,6 +50,9 @@ impl Component for ArticleEditor {
     fn create(ctx: &Context<Self>) -> Self {
         let initial_article = match &ctx.props().mode {
             ArticleEditorMode::Create => Article {
+                // TODO this should be type without ID, and handled everywhere properly
+                // it works fine, because server ignores this value
+                id: "".into(),
                 title: "".into(),
                 public_id: "".into(),
                 markdown: "".into(),

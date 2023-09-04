@@ -4,12 +4,14 @@ use crate::components::imports::*;
 #[allow(unused_imports)]
 use crate::components::{ArticleEditor, ArticleEditorMode};
 
+type Article = interfacing::ArticleWithId;
+
 pub struct EditArticle {
-    article: Option<interfacing::Article>,
+    article: Option<Article>,
 }
 
 pub enum Msg {
-    ArticleLoaded(interfacing::Article),
+    ArticleLoaded(Article),
     Nothing,
 }
 
@@ -64,7 +66,7 @@ impl Component for EditArticle {
     }
 }
 
-async fn fetch_article(public_id: &str) -> Result<interfacing::Article, ()> {
+async fn fetch_article(public_id: &str) -> Result<Article, ()> {
     // duplicate
     let result = Request::get(&format!("/api/articles/{}", public_id))
         .send()
@@ -73,7 +75,7 @@ async fn fetch_article(public_id: &str) -> Result<interfacing::Article, ()> {
     match result {
         Err(_) => Err(()),
         Ok(response) => match response.status() {
-            200 => Ok(response.json::<interfacing::Article>().await.unwrap()),
+            200 => Ok(response.json::<Article>().await.unwrap()),
             _ => Err(()),
         },
     }
