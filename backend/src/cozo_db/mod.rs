@@ -31,9 +31,20 @@ pub fn start_db() -> DbInstance {
             assert!(result.is_ok());
         }
 
-        queries::put_article(db, queries::Article::default()).unwrap();
+        let article = queries::Article::default();
+        queries::put_article(db, article.clone()).unwrap();
+
         let article = queries::find_article_by_public_id(db, "").unwrap().unwrap();
         assert_eq!(article.public_id, "");
+
+        let article_id = article.id;
+        let mut article = queries::ArticleWithId::default();
+        article.id = article_id;
+        article.public_id = "updated".into();
+        queries::update_article(db, article).unwrap();
+        let article = queries::find_article_by_public_id(db, "updated").unwrap();
+        assert!(article.is_some());
+        assert_eq!(article.unwrap().public_id, "updated");
     }
 
     db.clone()

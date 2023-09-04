@@ -1,0 +1,3 @@
+?[id, public_id, title, markdown, draft] <- [[$id, $public_id, $title, $markdown, $draft]]
+
+:update articles {id => public_id, title, markdown, draft}
