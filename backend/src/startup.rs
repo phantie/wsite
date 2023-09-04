@@ -1,4 +1,4 @@
-use crate::{configuration::Conf, database::*, error::ApiResult, timeout::HangingStrategy};
+use crate::{configuration::Conf, database::*};
 use static_routes::*;
 
 use axum::{
@@ -9,7 +9,6 @@ use axum_sessions::{
     async_session::{async_trait, Session, SessionStore},
     SessionLayer,
 };
-use bonsaidb::core::keyvalue::AsyncKeyValue;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::{
@@ -96,11 +95,13 @@ pub fn router(
         .fallback(fallback)
         .layer(CompressionLayer::new())
         .layer(AddExtensionLayer::new(db_client.clone()))
-        .layer(AddExtensionLayer::new(cozo_db))
+        .layer(AddExtensionLayer::new(cozo_db.clone()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
-            let store = BonsaiDBSessionStore { db_client };
+            let store = BonsaiDBSessionStore {
+                db: cozo_db.clone(),
+            };
 
             let decoded = hex::decode(conf.env.session_secret.clone())
                 .expect("Successful HEX Decoding of session secret");
@@ -114,10 +115,14 @@ pub fn router(
         })
 }
 
-#[derive(Clone, Debug)]
+#[derive(derivative::Derivative, Clone)]
+#[derivative(Debug)]
 struct BonsaiDBSessionStore {
-    db_client: SharedDbClient,
+    #[derivative(Debug = "ignore")]
+    db: cozo::DbInstance,
 }
+
+use crate::cozo_db;
 
 #[async_trait]
 impl SessionStore for BonsaiDBSessionStore {
@@ -127,74 +132,25 @@ impl SessionStore for BonsaiDBSessionStore {
     ) -> axum_sessions::async_session::Result<Option<Session>> {
         let id = Session::id_from_cookie_value(&cookie_value)?;
 
-        let session = HangingStrategy::default()
-            .execute(
-                |db_client| async {
-                    let id = id.clone();
-                    async move {
-                        let session: Option<Session> =
-                            db_client.read().await.sessions().get_key(id).into().await?;
+        let session: Option<Session> = cozo_db::queries::find_session_by_id(&self.db, &id)?
+            .map(|v| serde_json::from_str(&v).ok())
+            .flatten()
+            .and_then(Session::validate);
 
-                        ApiResult::<_>::Ok(session)
-                    }
-                    .await
-                },
-                self.db_client.clone(),
-            )
-            .await??;
-
-        Ok(session.and_then(Session::validate))
+        Ok(session)
     }
 
     async fn store_session(
         &self,
         session: Session,
     ) -> axum_sessions::async_session::Result<Option<String>> {
-        let _: () = HangingStrategy::default()
-            .execute(
-                |db_client| async {
-                    let session = session.clone();
-                    async move {
-                        db_client
-                            .read()
-                            .await
-                            .sessions()
-                            .set_key(session.id().to_string(), &session)
-                            .await?;
-
-                        ApiResult::<_>::Ok(())
-                    }
-                    .await
-                },
-                self.db_client.clone(),
-            )
-            .await??;
-
+        cozo_db::queries::put_session(&self.db, session.id(), &serde_json::to_string(&session)?)?;
         session.reset_data_changed();
         Ok(session.into_cookie_value())
     }
 
     async fn destroy_session(&self, session: Session) -> axum_sessions::async_session::Result {
-        let _: () = HangingStrategy::default()
-            .execute(
-                |db_client| async {
-                    let session = session.clone();
-                    async move {
-                        db_client
-                            .read()
-                            .await
-                            .sessions()
-                            .delete_key(session.id().to_string())
-                            .await?;
-
-                        ApiResult::<_>::Ok(())
-                    }
-                    .await
-                },
-                self.db_client.clone(),
-            )
-            .await??;
-
+        cozo_db::queries::rm_session(&self.db, session.id())?;
         Ok(())
     }
 

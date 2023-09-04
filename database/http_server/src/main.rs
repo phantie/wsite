@@ -128,7 +128,7 @@ type SharedHostedDatabase = Arc<RwLock<HostedDatabase>>;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Start DB server
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = true)]
     start: bool,
 }
 

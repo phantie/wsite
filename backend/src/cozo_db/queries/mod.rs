@@ -201,3 +201,60 @@ pub fn find_articles(db: &DbInstance) -> Result<Vec<interfacing::ArticleWithId>>
 
     Ok(res)
 }
+
+#[tracing::instrument(name = "Create sessions table", skip_all)]
+pub fn create_sessions_table(db: &DbInstance) -> OpResult {
+    let script = include_str!("sessions/create_table.cozo");
+    let result = db.run_script(script, Default::default(), ScriptMutability::Mutable);
+    op_result(result)
+}
+
+#[tracing::instrument(name = "Ensure sessions table", skip_all)]
+pub fn ensure_sessions_table(db: &DbInstance) -> OpResult {
+    let script = include_str!("sessions/ensure_table.cozo");
+    let result = db.run_script(script, Default::default(), ScriptMutability::Mutable);
+    op_result(result)
+}
+
+#[tracing::instrument(name = "Put session", ret, skip(db))]
+pub fn put_session(db: &DbInstance, id: &str, value: &str) -> OpResult {
+    let script = include_str!("sessions/put.cozo");
+    let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
+        "id".into() => id.into(),
+        "value".into() => value.into()
+    };
+    let result = db.run_script(script, params, ScriptMutability::Mutable);
+    op_result(result)
+}
+
+#[tracing::instrument(name = "Find session by id", ret, skip(db))]
+pub fn find_session_by_id<'de>(db: &DbInstance, id: &str) -> Result<Option<String>> {
+    let script = include_str!("sessions/find_by_id.cozo");
+    let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
+        "id".into() => id.into()
+    };
+    let result = db
+        .run_script(script, params, ScriptMutability::Mutable)
+        .map_err(Error::EngineError)?;
+
+    let headers = result.headers.iter().map(String::as_str).collect_vec();
+    let rows = result.rows.iter().map(Vec::as_slice).collect_vec();
+
+    match (&headers[..], &rows[..]) {
+        (["id", "value"], [[DataValue::Str(id), DataValue::Str(value)]]) => {
+            Ok(Some(value.to_string()))
+        }
+        (["id", "value"], []) => Ok(None),
+        _ => Err(Error::ResultError(result)),
+    }
+}
+
+#[tracing::instrument(name = "Remove session", skip(db))]
+pub fn rm_session(db: &DbInstance, id: &str) -> OpResult {
+    let script = include_str!("sessions/rm.cozo");
+    let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
+        "id".into() => id.into(),
+    };
+    let result = db.run_script(script, params, ScriptMutability::Mutable);
+    op_result(result)
+}
