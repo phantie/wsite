@@ -3,20 +3,80 @@
 use crate::components::imports::*;
 use crate::components::MarkdownPreview;
 
-type Article = interfacing::ArticleWithId;
-
 #[derive(PartialEq, Clone)]
 pub enum ArticleEditorMode {
     Create,
-    Edit(Article),
+    Edit(interfacing::ArticleWithId),
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum Article {
+    New(interfacing::Article),
+    Existing(interfacing::ArticleWithId),
+}
+
+impl Article {
+    fn title(&self) -> String {
+        match self {
+            Self::New(article) => article.title.clone(),
+            Self::Existing(article) => article.title.clone(),
+        }
+    }
+
+    fn set_title(&mut self, value: String) {
+        match self {
+            Self::New(article) => article.title = value,
+            Self::Existing(article) => article.title = value,
+        }
+    }
+
+    fn markdown(&self) -> String {
+        match self {
+            Self::New(article) => article.markdown.clone(),
+            Self::Existing(article) => article.markdown.clone(),
+        }
+    }
+
+    fn set_markdown(&mut self, value: String) {
+        match self {
+            Self::New(article) => article.markdown = value,
+            Self::Existing(article) => article.markdown = value,
+        }
+    }
+
+    fn public_id(&self) -> String {
+        match self {
+            Self::New(article) => article.public_id.clone(),
+            Self::Existing(article) => article.public_id.clone(),
+        }
+    }
+
+    fn set_public_id(&mut self, value: String) {
+        match self {
+            Self::New(article) => article.public_id = value,
+            Self::Existing(article) => article.public_id = value,
+        }
+    }
+
+    fn draft(&self) -> bool {
+        match self {
+            Self::New(article) => article.draft.into(),
+            Self::Existing(article) => article.draft.into(),
+        }
+    }
+
+    fn set_draft(&mut self, value: bool) {
+        match self {
+            Self::New(article) => article.draft = value,
+            Self::Existing(article) => article.draft = value,
+        }
+    }
 }
 
 pub struct ArticleEditor {
     theme_ctx: ThemeCtxSub,
     refs: Refs,
     mode: ArticleEditorMode,
-    // TODO
-    article_history: Vec<Article>,
     current_article_state: Article,
 }
 
@@ -33,7 +93,7 @@ pub enum Msg {
     PublicIDChanged(String),
     MarkdownChanged(AttrValue),
     DraftStateChanged(bool),
-    NewArticleVersion(Article),
+    NewArticleVersion(interfacing::ArticleWithId),
     Nothing,
 }
 
@@ -49,23 +109,17 @@ impl Component for ArticleEditor {
 
     fn create(ctx: &Context<Self>) -> Self {
         let initial_article = match &ctx.props().mode {
-            ArticleEditorMode::Create => Article {
-                // TODO this should be type without ID, and handled everywhere properly
-                // it works fine, because server ignores this value
-                id: "".into(),
-                title: "".into(),
-                public_id: "".into(),
-                markdown: "".into(),
+            ArticleEditorMode::Create => Article::New(interfacing::Article {
                 draft: true,
-            },
-            ArticleEditorMode::Edit(article) => article.clone(),
+                ..Default::default()
+            }),
+            ArticleEditorMode::Edit(article) => Article::Existing(article.clone()),
         };
 
         Self {
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
             refs: Refs::default(),
             mode: ctx.props().mode.clone(),
-            article_history: vec![initial_article.clone()],
             current_article_state: initial_article,
         }
     }
@@ -164,31 +218,30 @@ impl Component for ArticleEditor {
 
         let oninput = ctx.link().callback(Self::Message::MarkdownChanged);
 
-        let actions_block = match &self.mode {
-            ArticleEditorMode::Create => {
+        let actions_block = match &self.current_article_state {
+            Article::New(article) => {
                 let onclick = {
-                    let new_article = self.current_article_state.clone();
+                    let article = article.clone();
                     let navigator = ctx.link().navigator().unwrap();
 
                     ctx.link().callback_future(move |_| {
-                        let new_article = new_article.clone();
+                        let article = article.clone();
                         let navigator = navigator.clone();
 
                         async move {
-                            console::log!(format!("submitting: {:?}", new_article));
-                            let r = request_article_post(&new_article).await.unwrap();
-                            r.log_status();
+                            console::log!(format!("submitting: {:?}", article));
+                            let article = request_article_create(&article).await;
 
                             let window = web_sys::window().unwrap();
-                            match r.status() {
-                                200 => {
+                            match article {
+                                Ok(article) => {
                                     let navigator = navigator.clone();
                                     window.alert_with_message("Created!").unwrap();
                                     navigator.push(&Route::EditArticle {
-                                        public_id: new_article.public_id,
+                                        public_id: article.public_id,
                                     });
                                 }
-                                _ => {
+                                Err(_) => {
                                     window.alert_with_message("ERROR").unwrap();
                                 }
                             }
@@ -201,23 +254,23 @@ impl Component for ArticleEditor {
                     <div {onclick} class={action_classes.clone()}>{ "Save" }</div>
                 }
             }
-            ArticleEditorMode::Edit(_article) => {
+            Article::Existing(article) => {
                 let onclick = {
-                    let new_article = self.current_article_state.clone();
+                    let article = article.clone();
 
                     ctx.link().callback_future(move |_| {
-                        let new_article = new_article.clone();
+                        let article = article.clone();
 
                         async move {
-                            console::log!(format!("submitting: {:?}", new_article));
-                            let r = request_article_edit(&new_article).await.unwrap();
+                            console::log!(format!("submitting: {:?}", article));
+                            let r = request_article_update(&article).await.unwrap();
                             r.log_status();
 
                             let window = web_sys::window().unwrap();
                             match r.status() {
                                 200 => {
                                     window.alert_with_message("Updated!").unwrap();
-                                    Msg::NewArticleVersion(new_article)
+                                    Msg::NewArticleVersion(article)
                                 }
                                 _ => {
                                     window.alert_with_message("ERROR").unwrap();
@@ -263,10 +316,10 @@ impl Component for ArticleEditor {
 
         let title = match &self.mode {
             ArticleEditorMode::Create => html! {
-                <PageTitle title={format!("New: {}", self.current_article_state.title)}/>
+                <PageTitle title={format!("New: {}", self.current_article_state.title())}/>
             },
             ArticleEditorMode::Edit(_) => html! {
-                <PageTitle title={format!("Edit: {}", self.current_article_state.title)}/>
+                <PageTitle title={format!("Edit: {}", self.current_article_state.title())}/>
             },
         };
 
@@ -276,7 +329,7 @@ impl Component for ArticleEditor {
 
                 <div class={css!("display:flex;")}>
                     <div class={css!("height: 100vh; width: 100%;")}>
-                        <MarkdownPreview {oninput} md={self.current_article_state.markdown.clone()}/>
+                        <MarkdownPreview {oninput} md={self.current_article_state.markdown() }/>
                     </div>
 
                     <div class={metadata_classes}>
@@ -288,14 +341,14 @@ impl Component for ArticleEditor {
                             <label for="title_input">{ "Title" }</label>
                             <input oninput={title_oninput} name="title_input"
                                 ref={self.refs.title_ref.clone()}
-                                value={ self.current_article_state.title.clone() }
+                                value={ self.current_article_state.title() }
                             />
                         </div>
                         <div class={metadatum_classes.clone()}>
                             <label for="public_id_input">{ "Public ID" }</label>
                             <input oninput={public_id_oninput} name="public_id_input"
                                 ref={self.refs.public_id_ref.clone()}
-                                value={ self.current_article_state.public_id.clone() }
+                                value={ self.current_article_state.public_id() }
                             />
                         </div>
 
@@ -303,7 +356,7 @@ impl Component for ArticleEditor {
                             <label for="draft_input">{ "Draft" }</label>
                             <input oninput={draft_oninput} name="draft_input" type="checkbox"
                                 ref={self.refs.draft_ref.clone()}
-                                checked={ self.current_article_state.draft }
+                                checked={ self.current_article_state.draft() }
                             />
                         </div>
 
@@ -323,27 +376,26 @@ impl Component for ArticleEditor {
             }
             Self::Message::TitleChanged(value) => {
                 console::log!(format!("title changed from ArticleEditor"));
-                self.current_article_state.title = value;
+                self.current_article_state.set_title(value);
                 true
             }
             Self::Message::PublicIDChanged(value) => {
                 console::log!(format!("public ID changed from ArticleEditor"));
-                self.current_article_state.public_id = value;
+                self.current_article_state.set_public_id(value);
                 true
             }
             Self::Message::MarkdownChanged(value) => {
                 console::log!(format!("markdown changed from ArticleEditor"));
-                self.current_article_state.markdown = value.to_string();
+                self.current_article_state.set_markdown(value.to_string());
                 true
             }
             Self::Message::DraftStateChanged(value) => {
                 console::log!(format!("draft state changed from ArticleEditor"));
-                self.current_article_state.draft = value;
+                self.current_article_state.set_draft(value);
                 true
             }
-            Self::Message::NewArticleVersion(value) => {
-                console::log!(format!("new article version saved from ArticleEditor"));
-                self.article_history.push(value);
+            Self::Message::NewArticleVersion(_value) => {
+                console::log!("new article version saved from ArticleEditor");
                 false
             }
             Self::Message::Nothing => false,
@@ -351,15 +403,22 @@ impl Component for ArticleEditor {
     }
 }
 
-async fn request_article_post(article: &Article) -> request::SendResult {
-    Request::static_post(routes().api.admin.articles)
+async fn request_article_create(
+    article: &interfacing::Article,
+) -> Result<interfacing::ArticleWithId, gloo_net::Error> {
+    let response = Request::static_post(routes().api.admin.articles)
         .json(&article)
         .unwrap()
         .send()
-        .await
+        .await?;
+
+    match response.status() {
+        200 => Ok(response.json::<interfacing::ArticleWithId>().await?),
+        _ => Err(gloo_net::Error::GlooError("status".into())),
+    }
 }
 
-async fn request_article_edit(article: &Article) -> request::SendResult {
+async fn request_article_update(article: &interfacing::ArticleWithId) -> request::SendResult {
     Request::put("/api/admin/articles")
         .json(&article)
         .unwrap()

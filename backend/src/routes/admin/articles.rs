@@ -34,11 +34,11 @@ pub async fn new_article(
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
     reject_invalid_article(article.clone())?;
-    db::q::put_article(&db, article)?;
-    Ok(())
+    db::q::put_article(&db, article.clone())?;
+    let article = db::q::find_article_by_public_id(&db, &article.public_id)?.unwrap();
+    Ok(Json(article))
 }
 
-// TODO fix frontend, add id handling. now it returns 422 because of it
 #[axum_macros::debug_handler]
 pub async fn update_article(
     session: ReadableSession,
