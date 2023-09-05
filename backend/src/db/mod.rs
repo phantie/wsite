@@ -47,7 +47,8 @@ pub fn start_db(db: DbInstance) -> DbInstance {
     }
 
     {
-        // Sessions
+        // Sessions:
+        // Create missing tables: sessions
         if q::ensure_sessions_table(db).is_err() {
             let result = q::create_sessions_table(db);
             assert!(result.is_ok());
@@ -74,7 +75,7 @@ pub type OpResult = Result<()>;
 #[cfg(test)]
 mod tests {
     use super::q;
-    use claim::{assert_err, assert_ok};
+    use claim::{assert_err, assert_none, assert_ok};
 
     #[allow(unused)]
     fn db() -> cozo::DbInstance {
@@ -170,5 +171,33 @@ mod tests {
 
         assert_ok!(q::rm_article(db, &updated_article_data.id));
         assert_article_count(0);
+    }
+
+    #[test]
+    fn sessions_test() {
+        let db = &db();
+
+        assert_err!(q::ensure_sessions_table(db));
+        assert_ok!(q::create_sessions_table(db));
+        assert_ok!(q::ensure_sessions_table(db));
+
+        #[derive(Default)]
+        struct SessionData {
+            id: String,
+            value: String,
+        }
+
+        let session_data = SessionData::default();
+
+        assert_ok!(q::put_session(db, &session_data.id, &session_data.value));
+
+        let session = q::find_session_by_id(db, &session_data.id)
+            .expect("op to succeed")
+            .expect("to find the session");
+        assert_eq!(&session, &session_data.value);
+
+        assert_ok!(q::rm_session(db, &session_data.id));
+        let session = q::find_session_by_id(db, &session_data.id).expect("op to succeed");
+        assert_none!(session);
     }
 }
