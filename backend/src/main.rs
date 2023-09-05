@@ -11,18 +11,7 @@ async fn main() -> hyper::Result<()> {
 
     tracing::info!("APP_ENVIRONMENT={}", get_env().as_str());
 
-    let conf = configuration::Conf {
-        db_client: configuration::DbClientConf::Normal {
-            quic_url: format!("bonsaidb://{}:{}", env_conf.db.host, env_conf.db.port),
-            password: env_conf
-                .db
-                .password
-                .clone()
-                .expect("db password must be specified"),
-            info_server: env_conf.db.clone().into(),
-        },
-        env: env_conf,
-    };
+    let conf = configuration::Conf { env: env_conf };
 
     let application = Application::build(&conf).await;
 

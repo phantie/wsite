@@ -1,4 +1,4 @@
-use crate::{configuration::get_env, routes::imports::*};
+use crate::{configuration::get_env, db, routes::imports::*};
 use interfacing::AdminSession;
 
 #[axum_macros::debug_handler]
@@ -15,7 +15,7 @@ pub async fn admin_session(
     let session = match session.get::<String>("username") {
         None => Err(ApiError::AuthError(anyhow::anyhow!("Session missing")))?,
         Some(username) => {
-            let user = crate::cozo_db::queries::find_user_by_username(&db, &username)?.unwrap(); // TODO safen
+            let user = db::q::find_user_by_username(&db, &username)?.unwrap(); // TODO safen
             let username = user.username;
 
             AdminSession { username }

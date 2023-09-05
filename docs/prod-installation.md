@@ -42,8 +42,6 @@ Install trunk
 
 Build libs and bins
 
-    cd /root/wsite/database/cli/ && cargo build --release &&
-    cd /root/wsite/database/http_server/ && cargo build --release &&
     cd /root/wsite/frontend/ && ~/wsite/frontend/trunk build --release &&
     cd /root/wsite/backend/ && cargo build --release
 
@@ -56,26 +54,6 @@ Allow SSH connections
 Enable firewall
     
     sudo ufw enable
-
-Allow Db public server info port
-    
-    ufw allow 4000
-
-Allow Db server port
-
-    ufw allow 5645
-
-Start DB
-
-    cd /root/wsite/database/http_server/ && cargo build --release && setsid nohup cargo run --release -- --start &>server.log &
-
-Set DB password
-    
-    cd /root/wsite/database/cli/ && cargo run --release -- db admin password
-
-Create Admin dashboard password
-    
-    cd /root/wsite/database/cli/ && cargo run --release -- dashboard admin replace
 
 Start backend
 

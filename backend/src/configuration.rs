@@ -8,21 +8,11 @@ pub struct EnvConf {
     pub port: u16,
     pub host: String,
 
-    pub db: EnvDbClientConf,
     pub features: EnvFeatures,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct EnvFeatures {}
-
-#[derive(Deserialize, Clone)]
-pub struct EnvDbClientConf {
-    #[serde(deserialize_with = "deserialize_number_from_string")]
-    pub port: u16,
-
-    pub host: String,
-    pub password: Option<String>,
-}
 
 pub fn get_env() -> Environment {
     std::env::var("APP_ENVIRONMENT")
@@ -33,34 +23,6 @@ pub fn get_env() -> Environment {
 
 pub struct Conf {
     pub env: EnvConf,
-
-    pub db_client: DbClientConf,
-}
-
-#[derive(Clone)]
-pub enum DbClientConf {
-    Normal {
-        quic_url: String,
-        password: String,
-        info_server: DbInfoServer,
-    },
-    Testing {
-        quic_url: String,
-        cert: fabruic::Certificate,
-    },
-}
-
-#[derive(Clone)]
-pub struct DbInfoServer {
-    pub cert_url: String,
-}
-
-impl From<EnvDbClientConf> for DbInfoServer {
-    fn from(value: EnvDbClientConf) -> Self {
-        Self {
-            cert_url: format!("http://{}:4000/cert", value.host),
-        }
-    }
 }
 
 pub fn env_conf() -> EnvConf {

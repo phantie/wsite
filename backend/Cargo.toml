@@ -14,7 +14,6 @@ name = "backend"
 interfacing = { path = "../common/interfacing" }
 static_routes = { path = "../common/static_routes" }
 domain = { path = "../common/domain" }
-db = { path = "../common/db", features = ["schema"] }
 auth = { path = "../common/auth" }
 
 config = { version = "0.13.3", default-features = false, features = ["yaml"] }
@@ -53,12 +52,5 @@ map-macro = "0.2.6"
 uuid = { version = "1.3.0", features = ["v4"] }
 derivative = "2.2.0"
 
-[dependencies.bonsaidb]
-rev = "c42b2f580ff6cef4854f0a2ae45e52a7743352d6" # 20.05.23
-git = "https://github.com/khonsulabs/bonsaidb/"
-features = ["client-full", "local-full", "password-hashing"]
-
 [dev-dependencies]
-db = { path = "../common/db", features = ["init"] }
 once_cell = "1.17.1"
-tempdir = "0.3.7"

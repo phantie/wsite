@@ -1,4 +1,5 @@
 use crate::{
+    db,
     error::{ApiError, ApiResult},
     telemetry::spawn_blocking_with_tracing,
 };
@@ -17,7 +18,7 @@ pub async fn validate_credentials(
     db: cozo::DbInstance,
     credentials: &Credentials,
 ) -> ApiResult<()> {
-    let user = crate::cozo_db::queries::find_user_by_username(&db, &credentials.username)?;
+    let user = db::q::find_user_by_username(&db, &credentials.username)?;
 
     if let None = &user {
         tracing::info!(
