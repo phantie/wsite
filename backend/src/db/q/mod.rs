@@ -1,8 +1,13 @@
-use cozo::*;
-use itertools::Itertools;
-use std::collections::BTreeMap;
-pub mod utils;
-use utils::{Error, *};
+mod utils;
+
+use imports::*;
+
+mod imports {
+    pub use super::utils::{Error, *};
+    pub use cozo::*;
+    pub use itertools::Itertools;
+    pub use std::collections::BTreeMap;
+}
 
 #[tracing::instrument(name = "Create users table", skip_all)]
 pub fn create_users_table(db: &DbInstance) -> OpResult {
