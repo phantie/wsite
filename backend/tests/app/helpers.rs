@@ -20,13 +20,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
-    let env_conf = configuration::EnvConf {
-        host: "localhost".into(),
-        port: 0,
-        session_secret: hex::encode([0_u8; 64]),
-
-        features: configuration::EnvFeatures {},
-    };
+    let env_conf = configuration::EnvConf::test();
 
     let conf = configuration::Conf { env: env_conf };
 

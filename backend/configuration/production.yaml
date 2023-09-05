@@ -1,5 +1,9 @@
 # APP_ENVIRONMENT=production
 # REQUIRES:
 # APP__SESSION_SECRET
+# APP__DB__PATH
 
 host: 0.0.0.0
+
+db:
+  storage_engine: SQLite

@@ -203,7 +203,7 @@ impl Application {
         let port = listener.local_addr().unwrap().port();
 
         // let db = &DbInstance::new("sqlite", "testing.db", Default::default()).unwrap();
-        let db = cozo::DbInstance::default();
+        let db = conf.env.db.db_instance();
         let db = crate::db::start_db(db);
 
         let app_state = AppState {
