@@ -5,7 +5,7 @@ use crate::components::imports::*;
 use crate::static_articles::{StaticArticle, static_articles};
 
 enum Article {
-    Dynamic(interfacing::Article),
+    Dynamic(interfacing::ArticleWithId),
     Static(StaticArticle)
 }
 
@@ -32,7 +32,7 @@ pub struct ArticleList {
 }
 
 pub enum Msg {
-    ArticlesLoaded(Vec<interfacing::Article>),
+    ArticlesLoaded(Vec<interfacing::ArticleWithId>),
     ThemeContextUpdate(ThemeCtx),
     SessionContextUpdate(SessionCtx),
     ArticleRemoved(AttrValue),
@@ -99,23 +99,22 @@ impl Component for ArticleList {
                         let article_node_ref = NodeRef::default();
 
                         let delete_button = match article {
-                            Article::Static(_) => html! {},
-                            Article::Dynamic(_article) => {
+                            Article::Static(_article) => html! {},
+                            Article::Dynamic(article) => {
                                 match session {
                                     None => html! {},
                                     Some(_session) => {
-
+                                        let id = &article.id;
                                         let onclick = {
-                                            let public_id = public_id.clone();
+                                            let id = id.clone();
                                             let article_node_ref = article_node_ref.clone();
-        
+
                                             ctx.link().callback_future(move |_| {
-                                                let public_id = public_id.clone();
+                                                let id = id.clone();
                                                 let article_node_ref = article_node_ref.clone();
         
                                                 async move {
-                                                    // TODO pass ID not PUBLIC_ID, broken
-                                                    match delete_article(&public_id).await {
+                                                    match delete_article(&id).await {
                                                         Ok(_) => {
                                                             console::log!("article is removed");
                                                             article_node_ref
@@ -123,7 +122,7 @@ impl Component for ArticleList {
                                                                 .cast::<HtmlElement>()
                                                                 .unwrap()
                                                                 .remove();
-                                                            Msg::ArticleRemoved(public_id.into())
+                                                            Msg::ArticleRemoved(id.into())
                                                         }
                                                         Err(_) => {
                                                             console::log!("article is not removed");
@@ -248,19 +247,19 @@ impl Component for ArticleList {
                 self.session_ctx.set(session_ctx);
                 true
             }
-            Self::Message::ArticleRemoved(_public_id) => true,
+            Self::Message::ArticleRemoved(_id) => true,
             Self::Message::Nothing => false,
         }
     }
 }
 
-async fn fetch_article_list() -> Result<Vec<interfacing::Article>, ()> {
+async fn fetch_article_list() -> Result<Vec<interfacing::ArticleWithId>, ()> {
     let result = Request::static_get(routes().api.articles).send().await;
 
     match result {
         Err(_) => Err(()),
         Ok(response) => match response.status() {
-            200 => Ok(response.json::<Vec<interfacing::Article>>().await.unwrap()),
+            200 => Ok(response.json::<Vec<interfacing::ArticleWithId>>().await.unwrap()),
             _ => Err(()),
         },
     }
