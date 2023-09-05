@@ -15,9 +15,6 @@ Architecture
 ![](/api/static/app-system-diagram.png)
 
 
-![](https://github.com/phantie/wsite/blob/master/backend/static/db-system-diagram.png)
-![](/api/static/db-system-diagram.png)
-
 Interesting implemented things:
 --------------------------------------
 - frontend in Rust
