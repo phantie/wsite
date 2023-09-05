@@ -16,59 +16,17 @@ pub enum Article {
 }
 
 impl Article {
-    fn title(&self) -> String {
+    fn body(&self) -> &interfacing::Article {
         match self {
-            Self::New(article) => article.title.clone(),
-            Self::Existing(article) => article.title.clone(),
+            Self::New(article) => article.body(),
+            Self::Existing(article) => article.body(),
         }
     }
 
-    fn set_title(&mut self, value: String) {
+    fn body_mut(&mut self) -> &mut interfacing::Article {
         match self {
-            Self::New(article) => article.title = value,
-            Self::Existing(article) => article.title = value,
-        }
-    }
-
-    fn markdown(&self) -> String {
-        match self {
-            Self::New(article) => article.markdown.clone(),
-            Self::Existing(article) => article.markdown.clone(),
-        }
-    }
-
-    fn set_markdown(&mut self, value: String) {
-        match self {
-            Self::New(article) => article.markdown = value,
-            Self::Existing(article) => article.markdown = value,
-        }
-    }
-
-    fn public_id(&self) -> String {
-        match self {
-            Self::New(article) => article.public_id.clone(),
-            Self::Existing(article) => article.public_id.clone(),
-        }
-    }
-
-    fn set_public_id(&mut self, value: String) {
-        match self {
-            Self::New(article) => article.public_id = value,
-            Self::Existing(article) => article.public_id = value,
-        }
-    }
-
-    fn draft(&self) -> bool {
-        match self {
-            Self::New(article) => article.draft.into(),
-            Self::Existing(article) => article.draft.into(),
-        }
-    }
-
-    fn set_draft(&mut self, value: bool) {
-        match self {
-            Self::New(article) => article.draft = value,
-            Self::Existing(article) => article.draft = value,
+            Self::New(article) => article.body_mut(),
+            Self::Existing(article) => article.body_mut(),
         }
     }
 }
@@ -238,7 +196,7 @@ impl Component for ArticleEditor {
                                     let navigator = navigator.clone();
                                     window.alert_with_message("Created!").unwrap();
                                     navigator.push(&Route::EditArticle {
-                                        public_id: article.public_id,
+                                        public_id: article.body().public_id.clone(),
                                     });
                                 }
                                 Err(_) => {
@@ -316,10 +274,10 @@ impl Component for ArticleEditor {
 
         let title = match &self.mode {
             ArticleEditorMode::Create => html! {
-                <PageTitle title={format!("New: {}", self.current_article_state.title())}/>
+                <PageTitle title={format!("New: {}", self.current_article_state.body().title)}/>
             },
             ArticleEditorMode::Edit(_) => html! {
-                <PageTitle title={format!("Edit: {}", self.current_article_state.title())}/>
+                <PageTitle title={format!("Edit: {}", self.current_article_state.body().title)}/>
             },
         };
 
@@ -329,7 +287,7 @@ impl Component for ArticleEditor {
 
                 <div class={css!("display:flex;")}>
                     <div class={css!("height: 100vh; width: 100%;")}>
-                        <MarkdownPreview {oninput} md={self.current_article_state.markdown() }/>
+                        <MarkdownPreview {oninput} md={ self.current_article_state.body().markdown.clone() }/>
                     </div>
 
                     <div class={metadata_classes}>
@@ -341,14 +299,14 @@ impl Component for ArticleEditor {
                             <label for="title_input">{ "Title" }</label>
                             <input oninput={title_oninput} name="title_input"
                                 ref={self.refs.title_ref.clone()}
-                                value={ self.current_article_state.title() }
+                                value={ self.current_article_state.body().title.clone() }
                             />
                         </div>
                         <div class={metadatum_classes.clone()}>
                             <label for="public_id_input">{ "Public ID" }</label>
                             <input oninput={public_id_oninput} name="public_id_input"
                                 ref={self.refs.public_id_ref.clone()}
-                                value={ self.current_article_state.public_id() }
+                                value={ self.current_article_state.body().public_id.clone() }
                             />
                         </div>
 
@@ -356,7 +314,7 @@ impl Component for ArticleEditor {
                             <label for="draft_input">{ "Draft" }</label>
                             <input oninput={draft_oninput} name="draft_input" type="checkbox"
                                 ref={self.refs.draft_ref.clone()}
-                                checked={ self.current_article_state.draft() }
+                                checked={ self.current_article_state.body().draft }
                             />
                         </div>
 
@@ -376,22 +334,22 @@ impl Component for ArticleEditor {
             }
             Self::Message::TitleChanged(value) => {
                 console::log!(format!("title changed from ArticleEditor"));
-                self.current_article_state.set_title(value);
+                self.current_article_state.body_mut().title = value;
                 true
             }
             Self::Message::PublicIDChanged(value) => {
                 console::log!(format!("public ID changed from ArticleEditor"));
-                self.current_article_state.set_public_id(value);
+                self.current_article_state.body_mut().public_id = value;
                 true
             }
             Self::Message::MarkdownChanged(value) => {
                 console::log!(format!("markdown changed from ArticleEditor"));
-                self.current_article_state.set_markdown(value.to_string());
+                self.current_article_state.body_mut().markdown = value.to_string();
                 true
             }
             Self::Message::DraftStateChanged(value) => {
                 console::log!(format!("draft state changed from ArticleEditor"));
-                self.current_article_state.set_draft(value);
+                self.current_article_state.body_mut().draft = value;
                 true
             }
             Self::Message::NewArticleVersion(_value) => {

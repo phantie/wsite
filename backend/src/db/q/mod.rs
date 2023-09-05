@@ -5,6 +5,7 @@ use imports::*;
 mod imports {
     pub use super::utils::{Error, *};
     pub use cozo::*;
+    pub use interfacing::ArticleBody;
     pub use itertools::Itertools;
     pub use std::collections::BTreeMap;
 }
@@ -143,10 +144,12 @@ pub fn find_article_by_public_id(
             [[DataValue::Uuid(UuidWrapper(id)), DataValue::Str(public_id), DataValue::Str(title), DataValue::Str(markdown), DataValue::Bool(draft)]],
         ) => Ok(Some(interfacing::ArticleWithId {
             id: id.to_string(),
-            title: title.to_string(),
-            public_id: public_id.to_string(),
-            markdown: markdown.to_string(),
-            draft: *draft,
+            body: interfacing::Article {
+                title: title.to_string(),
+                public_id: public_id.to_string(),
+                markdown: markdown.to_string(),
+                draft: *draft,
+            },
         })),
         (["id", "public_id", "title", "markdown", "draft"], []) => Ok(None),
         _ => Err(Error::ResultError(result)),
@@ -158,10 +161,10 @@ pub fn update_article(db: &DbInstance, article: interfacing::ArticleWithId) -> O
     let script = include_str!("articles/update.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
         "id".into() => DataValue::Uuid(UuidWrapper(uuid::Uuid::parse_str(&article.id).unwrap())), // TODO safen
-        "title".into() => article.title.into(),
-        "public_id".into() => article.public_id.into(),
-        "markdown".into() => article.markdown.into(),
-        "draft".into() => article.draft.into(),
+        "title".into() => article.body().title.clone().into(),
+        "public_id".into() => article.body().public_id.clone().into(),
+        "markdown".into() => article.body().markdown.clone().into(),
+        "draft".into() => article.body().draft.into(),
     };
     let result = db.run_script(script, params, ScriptMutability::Mutable);
     op_result(result)
@@ -190,10 +193,12 @@ pub fn find_articles(db: &DbInstance) -> Result<Vec<interfacing::ArticleWithId>>
             {
                 res.push(interfacing::ArticleWithId {
                     id: id.to_string(),
-                    title: title.to_string(),
-                    public_id: public_id.to_string(),
-                    markdown: markdown.to_string(),
-                    draft: *draft,
+                    body: interfacing::Article {
+                        title: title.to_string(),
+                        public_id: public_id.to_string(),
+                        markdown: markdown.to_string(),
+                        draft: *draft,
+                    },
                 });
             }
             _ => return Err(Error::ResultError(result)),

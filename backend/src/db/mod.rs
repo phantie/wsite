@@ -76,6 +76,7 @@ pub type OpResult = Result<()>;
 mod tests {
     use super::q;
     use claim::{assert_err, assert_none, assert_ok};
+    use interfacing::trait_imports::*;
 
     #[allow(unused)]
     fn db() -> cozo::DbInstance {
@@ -145,25 +146,27 @@ mod tests {
         assert_ok!(q::put_article(db, article_data.clone()));
         assert_article_count(1);
 
-        let article = q::find_article_by_public_id(db, &article_data.public_id)
+        let article = q::find_article_by_public_id(db, &article_data.body().public_id)
             .expect("op to succeed")
             .expect("to find the article");
-        assert_eq!(&article.public_id, &article_data.public_id);
-        assert_eq!(&article.title, &article_data.title);
-        assert_eq!(&article.markdown, &article_data.markdown);
-        assert_eq!(&article.draft, &article_data.draft);
+        assert_eq!(&article.body().public_id, &article_data.public_id);
+        assert_eq!(&article.body().title, &article_data.title);
+        assert_eq!(&article.body().markdown, &article_data.markdown);
+        assert_eq!(&article.body().draft, &article_data.draft);
 
         let updated_article_data = interfacing::ArticleWithId {
             id: article.id,
-            public_id: "updated".into(),
-            markdown: "updated".into(),
-            title: "updated".into(),
-            draft: false,
+            body: interfacing::Article {
+                public_id: "updated".into(),
+                markdown: "updated".into(),
+                title: "updated".into(),
+                draft: false,
+            },
         };
 
         assert_ok!(q::update_article(db, updated_article_data.clone()));
         assert_article_count(1);
-        let article = q::find_article_by_public_id(db, &updated_article_data.public_id)
+        let article = q::find_article_by_public_id(db, &updated_article_data.body().public_id)
             .expect("op to succeed")
             .expect("to find the article");
 

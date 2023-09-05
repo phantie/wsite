@@ -46,7 +46,7 @@ pub async fn update_article(
     Json(article): Json<interfacing::ArticleWithId>,
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
-    reject_invalid_article(article.clone())?;
+    reject_invalid_article(article.body().clone())?;
     db::q::update_article(&db, article)?;
     Ok(())
 }
@@ -72,7 +72,7 @@ pub async fn article_list(
         // hide draft articles from unauthorized
         Err(_) => articles
             .into_iter()
-            .filter(|article| !article.draft)
+            .filter(|article| !article.body().draft)
             .collect(),
     };
     Ok(Json(contents))

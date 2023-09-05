@@ -11,27 +11,31 @@ pub struct Article {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct ArticleWithId {
     pub id: String,
-    pub title: String,
-    pub public_id: String,
-    pub markdown: String,
-    pub draft: bool,
+    pub body: Article,
 }
 
-impl From<ArticleWithId> for Article {
-    fn from(
-        ArticleWithId {
-            id: _,
-            public_id,
-            title,
-            markdown,
-            draft,
-        }: ArticleWithId,
-    ) -> Self {
-        Self {
-            public_id,
-            title,
-            markdown,
-            draft,
-        }
+pub trait ArticleBody {
+    fn body(&self) -> &Article;
+
+    fn body_mut(&mut self) -> &mut Article;
+}
+
+impl ArticleBody for Article {
+    fn body(&self) -> &Article {
+        self
+    }
+
+    fn body_mut(&mut self) -> &mut Article {
+        self
+    }
+}
+
+impl ArticleBody for ArticleWithId {
+    fn body(&self) -> &Article {
+        &self.body
+    }
+
+    fn body_mut(&mut self) -> &mut Article {
+        &mut self.body
     }
 }

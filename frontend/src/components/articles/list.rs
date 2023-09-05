@@ -12,15 +12,15 @@ enum Article {
 impl Article {
     pub fn title(&self) -> String {
         match self {
-            Article::Dynamic(article) => article.title.to_owned(),
-            Article::Static(article) => article.title.to_owned(),
+            Article::Dynamic(article) => article.body().title.clone(),
+            Article::Static(article) => article.title.clone(),
         }
     }
 
     pub fn public_id(&self) -> String {
         match self {
-            Article::Dynamic(article) => article.public_id.to_owned(),
-            Article::Static(article) => article.public_id.to_owned(),
+            Article::Dynamic(article) => article.body().public_id.clone(),
+            Article::Static(article) => article.public_id.clone(),
         }
     }
 }
@@ -171,7 +171,7 @@ impl Component for ArticleList {
                             Article::Dynamic(article) => {
                                 match session {
                                     Some(_session) => {
-                                        match article.draft {
+                                        match article.body().draft {
                                             true => html!{ "draft" },
                                             false => html!{},
                                         }
