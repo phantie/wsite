@@ -14,28 +14,22 @@ pub struct ArticleWithId {
     pub body: Article,
 }
 
-pub trait ArticleBody {
-    fn body(&self) -> &Article;
-
-    fn body_mut(&mut self) -> &mut Article;
-}
-
-impl ArticleBody for Article {
-    fn body(&self) -> &Article {
+impl Article {
+    pub fn body(&self) -> &Article {
         self
     }
 
-    fn body_mut(&mut self) -> &mut Article {
+    pub fn body_mut(&mut self) -> &mut Article {
         self
     }
 }
 
-impl ArticleBody for ArticleWithId {
-    fn body(&self) -> &Article {
+impl ArticleWithId {
+    pub fn body(&self) -> &Article {
         &self.body
     }
 
-    fn body_mut(&mut self) -> &mut Article {
+    pub fn body_mut(&mut self) -> &mut Article {
         &mut self.body
     }
 }

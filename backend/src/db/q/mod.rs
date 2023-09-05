@@ -5,7 +5,6 @@ use imports::*;
 mod imports {
     pub use super::utils::{Error, *};
     pub use cozo::*;
-    pub use interfacing::ArticleBody;
     pub use itertools::Itertools;
     pub use std::collections::BTreeMap;
 }

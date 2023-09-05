@@ -76,7 +76,6 @@ pub type OpResult = Result<()>;
 mod tests {
     use super::q;
     use claim::{assert_err, assert_none, assert_ok};
-    use interfacing::trait_imports::*;
 
     #[allow(unused)]
     fn db() -> cozo::DbInstance {

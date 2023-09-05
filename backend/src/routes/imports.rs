@@ -16,7 +16,6 @@ pub use axum::{
 };
 pub use axum_sessions::extractors::{ReadableSession, WritableSession};
 pub use interfacing;
-pub use interfacing::trait_imports::*;
 pub use secrecy::{ExposeSecret, SecretString};
 pub use serde::{Deserialize, Serialize};
 pub use static_routes::*;
