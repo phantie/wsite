@@ -5,7 +5,7 @@ use crate::components::Post;
 
 pub struct ArticleViewer {
     public_id: AttrValue,
-    article: Option<interfacing::Article>,
+    article: Option<interfacing::ArticleWithId>,
 }
 
 #[derive(Properties, PartialEq)]
@@ -14,7 +14,7 @@ pub struct Props {
 }
 
 pub enum Msg {
-    ArticleLoaded(interfacing::Article),
+    ArticleLoaded(interfacing::ArticleWithId),
     Nothing,
 }
 
@@ -41,8 +41,8 @@ impl Component for ArticleViewer {
                 console::log!("rendering with loaded article");
                 html! {
                     <DefaultStyling>
-                        <PageTitle title={article.title.clone()}/>
-                        <Post md={article.markdown.clone()}/>
+                        <PageTitle title={article.body().title.clone()}/>
+                        <Post md={article.body().markdown.clone()}/>
                     </DefaultStyling>
                 }
             }
@@ -72,7 +72,7 @@ impl Component for ArticleViewer {
     }
 }
 
-async fn fetch_article(public_id: &str) -> Result<interfacing::Article, ()> {
+async fn fetch_article(public_id: &str) -> Result<interfacing::ArticleWithId, ()> {
     let result = Request::get(&format!("/api/articles/{}", public_id))
         .send()
         .await;
@@ -80,7 +80,7 @@ async fn fetch_article(public_id: &str) -> Result<interfacing::Article, ()> {
     match result {
         Err(_) => Err(()),
         Ok(response) => match response.status() {
-            200 => Ok(response.json::<interfacing::Article>().await.unwrap()),
+            200 => Ok(response.json::<interfacing::ArticleWithId>().await.unwrap()),
             _ => Err(()),
         },
     }
