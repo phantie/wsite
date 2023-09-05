@@ -51,15 +51,14 @@ pub async fn update_article(
     Ok(())
 }
 
-#[allow(unused, unreachable_code)]
 #[axum_macros::debug_handler]
 pub async fn delete_article(
     session: ReadableSession,
-    Path(public_id): Path<String>,
+    Path(id): Path<String>,
     Extension(db): Extension<cozo::DbInstance>,
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
-    unimplemented!();
+    db::q::rm_article(&db, &id)?;
     Ok(())
 }
 

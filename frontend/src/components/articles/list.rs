@@ -114,6 +114,7 @@ impl Component for ArticleList {
                                                 let article_node_ref = article_node_ref.clone();
         
                                                 async move {
+                                                    // TODO pass ID not PUBLIC_ID, broken
                                                     match delete_article(&public_id).await {
                                                         Ok(_) => {
                                                             console::log!("article is removed");
@@ -265,8 +266,8 @@ async fn fetch_article_list() -> Result<Vec<interfacing::Article>, ()> {
     }
 }
 
-async fn delete_article(public_id: &str) -> Result<(), ()> {
-    let result = Request::delete(&format!("/api/articles/{}", public_id))
+async fn delete_article(id: &str) -> Result<(), ()> {
+    let result = Request::delete(&format!("/api/articles/{}", id))
         .send()
         .await;
 
