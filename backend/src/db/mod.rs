@@ -167,5 +167,8 @@ mod tests {
             .expect("to find the article");
 
         assert_eq!(&article, &updated_article_data);
+
+        assert_ok!(q::rm_article(db, &updated_article_data.id));
+        assert_article_count(0);
     }
 }

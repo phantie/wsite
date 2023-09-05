@@ -203,6 +203,16 @@ pub fn find_articles(db: &DbInstance) -> Result<Vec<interfacing::ArticleWithId>>
     Ok(res)
 }
 
+#[tracing::instrument(name = "Remove article", skip(db))]
+pub fn rm_article(db: &DbInstance, id: &str) -> OpResult {
+    let script = include_str!("articles/rm.cozo");
+    let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
+        "id".into() => id.into(),
+    };
+    let result = db.run_script(script, params, ScriptMutability::Mutable);
+    op_result(result)
+}
+
 #[tracing::instrument(name = "Create sessions table", skip_all)]
 pub fn create_sessions_table(db: &DbInstance) -> OpResult {
     let script = include_str!("sessions/create_table.cozo");
