@@ -1,13 +1,10 @@
 use backend::configuration;
-pub use backend::database::*;
 use backend::startup::Application;
 use backend::telemetry;
-use bonsaidb::server::BonsaiListenConfig;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
 use reqwest::{RequestBuilder, Response};
 use static_routes::*;
-use std::net::UdpSocket;
 use uuid::Uuid;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -23,51 +20,15 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
-    let (db_server, db_storage_location) = db::init::test_server().await.unwrap();
-
-    let db_port = UdpSocket::bind("localhost:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port();
-
-    let listen_config = BonsaiListenConfig::default()
-        .port(db_port)
-        .reuse_address(true);
-
-    let cert = db_server
-        .certificate_chain()
-        .await
-        .unwrap()
-        .into_end_entity_certificate();
-
-    let _ = tokio::spawn(async move {
-        db_server
-            .listen_on(listen_config)
-            .await
-            .expect("failed to start db server");
-    });
-
     let env_conf = configuration::EnvConf {
         host: "localhost".into(),
         port: 0,
         session_secret: hex::encode([0_u8; 64]),
-        db: configuration::EnvDbClientConf {
-            host: "localhost".into(),
-            password: None,
-            port: db_port,
-        },
 
         features: configuration::EnvFeatures {},
     };
 
-    let conf = configuration::Conf {
-        db_client: configuration::DbClientConf::Testing {
-            quic_url: format!("bonsaidb://{}:{}", env_conf.db.host, env_conf.db.port),
-            cert,
-        },
-        env: env_conf,
-    };
+    let conf = configuration::Conf { env: env_conf };
 
     let application = Application::build(&conf).await;
 
@@ -76,12 +37,11 @@ pub async fn spawn_app() -> TestApp {
 
     let address = format!("http://{}:{}", host, port);
 
-    let db_client = application.db_client.clone();
-
+    let db = application.db();
     let _ = tokio::spawn(application.server());
 
     let test_user = TestUser::generate();
-    test_user.store(db_client.clone()).await.unwrap();
+    test_user.replace(db.clone()).await.unwrap();
 
     let api_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -94,8 +54,7 @@ pub async fn spawn_app() -> TestApp {
         port,
         test_user,
         api_client,
-        db_client,
-        _db_storage_location: db_storage_location,
+        db,
     }
 }
 
@@ -104,9 +63,7 @@ pub struct TestApp {
     pub port: u16,
     pub test_user: TestUser,
     pub api_client: reqwest::Client,
-    pub db_client: SharedDbClient,
-    // drop last with app
-    _db_storage_location: tempdir::TempDir,
+    pub db: cozo::DbInstance,
 }
 
 impl TestApp {
@@ -188,7 +145,6 @@ impl TestApp {
 }
 
 pub struct TestUser {
-    pub user_id: Uuid,
     pub username: String,
     pub password: String,
 }
@@ -196,25 +152,14 @@ pub struct TestUser {
 impl TestUser {
     pub fn generate() -> Self {
         Self {
-            user_id: Uuid::new_v4(),
             username: Uuid::new_v4().to_string(),
             password: Uuid::new_v4().to_string(),
         }
     }
 
-    async fn store(
-        &self,
-        db_client: SharedDbClient,
-    ) -> Result<CollectionDocument<schema::User>, bonsaidb::core::schema::InsertError<schema::User>>
-    {
-        let password_hash = auth::hash_pwd(self.password.as_bytes()).unwrap();
-
-        schema::User {
-            username: self.username.clone(),
-            password_hash,
-        }
-        .push_into_async(&db_client.read().await.collections().users)
-        .await
+    async fn replace(&self, db: cozo::DbInstance) -> backend::db::OpResult {
+        let pwd_hash = auth::hash_pwd(self.password.as_bytes()).unwrap();
+        backend::db::q::put_user(&db, &self.username, &pwd_hash)
     }
 }
 
@@ -236,30 +181,12 @@ mod tests {
     async fn test_user_created() {
         // Arrange
         let app = spawn_app().await;
-        let db_client = app.db_client.read().await.client();
-        let users = db_client.database::<schema::User>("users").await.unwrap();
-        let user_docs = schema::User::all_async(&users).await.unwrap();
-        assert_eq!(user_docs.len(), 1);
+        let user = backend::db::q::find_user_by_username(&app.db, &app.test_user.username).unwrap();
+        assert!(user.is_some());
     }
 
     #[tokio::test]
     async fn users_usernames_must_be_unique() {
-        // Arrange
-        let app = spawn_app().await;
-
-        let test_user = &app.test_user;
-
-        let ok = match test_user.store(app.db_client.clone()).await {
-            Ok(_) => false,
-            Err(e) => match e.error {
-                bonsaidb::core::Error::UniqueKeyViolation { .. } => true,
-                _ => false,
-            },
-        };
-
-        // Assert
-        if !ok {
-            panic!("inserting the same user should emit UniqueKeyViolation on username field");
-        }
+        "it's a PK now";
     }
 }

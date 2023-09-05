@@ -4,7 +4,3 @@
 
 host: "127.0.0.1" # for no reason "localhost" has become broken TODO
 session_secret: "d51563a0e65c0645e59cb5fe2fd1970cddae21cee6e916912ee4c766928a5032c582e433195809f6adc6b1ce9dd5d21136dc6fa51a4ac099ad883118c6185109"
-
-db:
-    host: "localhost"
-    password: "1"

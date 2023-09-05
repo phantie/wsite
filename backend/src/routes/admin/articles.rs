@@ -1,4 +1,4 @@
-use crate::cozo_db;
+use crate::db;
 use crate::routes::imports::*;
 
 #[tracing::instrument(name = "Is valid article")]
@@ -34,7 +34,7 @@ pub async fn new_article(
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
     reject_invalid_article(article.clone())?;
-    cozo_db::queries::put_article(&db, article)?;
+    db::q::put_article(&db, article)?;
     Ok(())
 }
 
@@ -47,7 +47,7 @@ pub async fn update_article(
 ) -> ApiResult<impl IntoResponse> {
     reject_anonymous_users(&session)?;
     reject_invalid_article(article.clone())?;
-    cozo_db::queries::update_article(&db, article)?;
+    db::q::update_article(&db, article)?;
     Ok(())
 }
 
@@ -67,7 +67,7 @@ pub async fn article_list(
     session: ReadableSession,
     Extension(db): Extension<cozo::DbInstance>,
 ) -> ApiResult<Json<Vec<interfacing::ArticleWithId>>> {
-    let articles = cozo_db::queries::find_articles(&db)?;
+    let articles = db::q::find_articles(&db)?;
     let contents = match reject_anonymous_users(&session) {
         Ok(_) => articles,
         // hide draft articles from unauthorized
@@ -83,8 +83,8 @@ pub async fn article_by_public_id(
     Path(public_id): Path<String>,
     Extension(db): Extension<cozo::DbInstance>,
 ) -> ApiResult<impl IntoResponse> {
-    let article = cozo_db::queries::find_article_by_public_id(&db, &public_id)?
-        .ok_or(ApiError::EntryNotFound)?;
+    let article =
+        db::q::find_article_by_public_id(&db, &public_id)?.ok_or(ApiError::EntryNotFound)?;
 
     Ok(Json(article))
 }

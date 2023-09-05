@@ -1,12 +1,8 @@
-#![allow(unused)]
-use std::collections::BTreeMap;
-
 use cozo::*;
 use itertools::Itertools;
-
+use std::collections::BTreeMap;
 pub mod utils;
-use utils::Error;
-use utils::*;
+use utils::{Error, *};
 
 #[tracing::instrument(name = "Create users table", skip_all)]
 pub fn create_users_table(db: &DbInstance) -> OpResult {
@@ -241,7 +237,7 @@ pub fn find_session_by_id<'de>(db: &DbInstance, id: &str) -> Result<Option<Strin
     let rows = result.rows.iter().map(Vec::as_slice).collect_vec();
 
     match (&headers[..], &rows[..]) {
-        (["id", "value"], [[DataValue::Str(id), DataValue::Str(value)]]) => {
+        (["id", "value"], [[DataValue::Str(_id), DataValue::Str(value)]]) => {
             Ok(Some(value.to_string()))
         }
         (["id", "value"], []) => Ok(None),

@@ -1,4 +1,4 @@
-use crate::cozo_db;
+use crate::db;
 use crate::routes::imports::*;
 use interfacing::PasswordChangeForm;
 
@@ -24,7 +24,7 @@ pub async fn change_password(
 
     let pwd_hash = auth::hash_pwd(form.new_password.expose_secret().as_bytes())?;
 
-    cozo_db::queries::update_user_pwd_hash(&db, &username, &pwd_hash)?;
+    db::q::update_user_pwd_hash(&db, &username, &pwd_hash)?;
 
     tracing::info!("{}'s password has been changed", username);
 

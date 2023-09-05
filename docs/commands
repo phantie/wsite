@@ -1,43 +1,21 @@
 APP BACKEND (wsite/backend/)
 # Run locally, connecting to local db database
 cargo run
+
 # Run production when db is on the same machine
 cd /root/wsite/frontend && trunk build --release && \
 cd /root/wsite/backend && cargo build --release && \ 
 pkill backend ; \
 APP_ENVIRONMENT=production \
-APP__BASE_URL="" \
 APP__SESSION_SECRET= \
-APP__DB__HOST=localhost \
-APP__DB__PASSWORD= \
 setsid nohup cargo run --release -- --start &>server.log &
 
-# Inspect logs
-tail server.log
 
 APP FRONTEND (wsite/frontend/)
 # build assets
 trunk build --release
 # start frontend server, for development
 trunk serve
-
-
-DB HTTP_SERVER (wsite/database/http_server/)
-# Start ready Db server in prod
-cargo build --release && setsid nohup cargo run --release -- --start &>server.log &
-# Inspect logs
-tail server.log
-# Start Db server
-cargo run -- --start
-
-
-DB CLI (wsite/database/cli/)
-export BACKUP_LOCATION=/mnt/{volume}/backup/
-cargo run -- http_server status
-cargo run -- db info
-cargo run -- db backup create $BACKUP
-cargo run -- db restart $BACKUP
-cargo run -- db restart
 
 
 SYSTEM

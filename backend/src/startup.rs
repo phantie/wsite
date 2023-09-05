@@ -1,4 +1,4 @@
-use crate::{configuration::Conf, database::*};
+use crate::configuration::Conf;
 use static_routes::*;
 
 use axum::{
@@ -10,7 +10,6 @@ use axum_sessions::{
     SessionLayer,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tower_http::{
     add_extension::AddExtensionLayer,
     compression::CompressionLayer,
@@ -39,11 +38,7 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(
-    conf: &Conf,
-    db_client: SharedDbClient,
-    cozo_db: cozo::DbInstance,
-) -> Router<AppState> {
+pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -94,14 +89,11 @@ pub fn router(
         .nest("/ws", ws_router)
         .fallback(fallback)
         .layer(CompressionLayer::new())
-        .layer(AddExtensionLayer::new(db_client.clone()))
-        .layer(AddExtensionLayer::new(cozo_db.clone()))
+        .layer(AddExtensionLayer::new(db.clone()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
-            let store = BonsaiDBSessionStore {
-                db: cozo_db.clone(),
-            };
+            let store = BonsaiDBSessionStore { db: db.clone() };
 
             let decoded = hex::decode(conf.env.session_secret.clone())
                 .expect("Successful HEX Decoding of session secret");
@@ -122,7 +114,7 @@ struct BonsaiDBSessionStore {
     db: cozo::DbInstance,
 }
 
-use crate::cozo_db;
+use crate::db;
 
 #[async_trait]
 impl SessionStore for BonsaiDBSessionStore {
@@ -132,7 +124,7 @@ impl SessionStore for BonsaiDBSessionStore {
     ) -> axum_sessions::async_session::Result<Option<Session>> {
         let id = Session::id_from_cookie_value(&cookie_value)?;
 
-        let session: Option<Session> = cozo_db::queries::find_session_by_id(&self.db, &id)?
+        let session: Option<Session> = db::q::find_session_by_id(&self.db, &id)?
             .map(|v| serde_json::from_str(&v).ok())
             .flatten()
             .and_then(Session::validate);
@@ -144,13 +136,13 @@ impl SessionStore for BonsaiDBSessionStore {
         &self,
         session: Session,
     ) -> axum_sessions::async_session::Result<Option<String>> {
-        cozo_db::queries::put_session(&self.db, session.id(), &serde_json::to_string(&session)?)?;
+        db::q::put_session(&self.db, session.id(), &serde_json::to_string(&session)?)?;
         session.reset_data_changed();
         Ok(session.into_cookie_value())
     }
 
     async fn destroy_session(&self, session: Session) -> axum_sessions::async_session::Result {
-        cozo_db::queries::rm_session(&self.db, session.id())?;
+        db::q::rm_session(&self.db, session.id())?;
         Ok(())
     }
 
@@ -195,13 +187,11 @@ impl UsersOnline {
     }
 }
 
-pub type SharedDbClient = Arc<RwLock<DbClient>>;
-
 pub struct Application {
     port: u16,
     server: std::pin::Pin<Box<dyn std::future::Future<Output = hyper::Result<()>> + Send>>,
     host: String,
-    pub db_client: SharedDbClient,
+    db: cozo::DbInstance,
 }
 
 impl Application {
@@ -212,34 +202,27 @@ impl Application {
         let host = conf.env.host.clone();
         let port = listener.local_addr().unwrap().port();
 
-        let db_client = Arc::new(RwLock::new(
-            DbClient::configure(conf.db_client.clone())
-                .await
-                .expect("Database unavailable"),
-        ));
-
-        let cozo_db = crate::cozo_db::start_db();
+        let db = crate::db::start_db();
 
         let app_state = AppState {
             users_online: UsersOnline::new(),
         };
 
         return Self {
-            server: Box::pin(run(conf, listener, app_state, db_client.clone(), cozo_db)),
+            server: Box::pin(run(conf, listener, app_state, db.clone())),
             port,
             host,
-            db_client,
+            db,
         };
 
         pub fn run(
             conf: &Conf,
             listener: std::net::TcpListener,
             app_state: AppState,
-            db_client: SharedDbClient,
-            cozo_db: cozo::DbInstance,
+            db: cozo::DbInstance,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
             axum::Server::from_tcp(listener).unwrap().serve(
-                router(conf, db_client, cozo_db)
+                router(conf, db)
                     .with_state(app_state)
                     .into_make_service_with_connect_info::<UserConnectInfo>(),
             )
@@ -249,6 +232,10 @@ impl Application {
     // needs to consume to produce 1 server max, and because I don't know better
     pub fn server(self) -> impl std::future::Future<Output = hyper::Result<()>> + Send {
         self.server
+    }
+
+    pub fn db(&self) -> cozo::DbInstance {
+        self.db.clone()
     }
 
     pub fn port(&self) -> u16 {

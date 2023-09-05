@@ -1,7 +1,4 @@
 port: 8000
 
-db:
-    port: 5645
-
 features:
     no_features:

@@ -1,7 +1,5 @@
 # APP_ENVIRONMENT=production
 # REQUIRES:
 # APP__SESSION_SECRET
-# APP__DB__HOST
-# APP__DB__PASSWORD
 
 host: 0.0.0.0

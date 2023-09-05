@@ -1,18 +1,4 @@
-use cozo::*;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    // most likely query syntax error
-    #[error("Engine error")]
-    EngineError(miette::ErrReport),
-    // returned results don't cover expected cases
-    #[error("Result error")]
-    ResultError(NamedRows),
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-pub type OpResult = Result<()>;
+pub use super::super::{Error, *};
 
 pub fn op_result(result: std::result::Result<NamedRows, miette::Report>) -> OpResult {
     use itertools::Itertools;
