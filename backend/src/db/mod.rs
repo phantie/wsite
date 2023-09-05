@@ -1,27 +1,40 @@
 use cozo::*;
 pub mod q;
 
-pub fn start_db() -> DbInstance {
-    let db = &cozo::DbInstance::default();
-    // let db = &DbInstance::new("sqlite", "testing.db", Default::default()).unwrap();
-
+pub fn start_db(db: DbInstance) -> DbInstance {
+    let db = &db;
     {
-        // Users
+        // Users:
+        // Create missing tables: users
+        // Create missing user: admin
+
         if q::ensure_users_table(db).is_err() {
             let result = q::create_users_table(db);
             assert!(result.is_ok());
         }
 
-        let pwd = "a";
-        let pwd_hash = auth::hash_pwd(pwd.as_bytes()).unwrap();
+        struct UserData {
+            username: String,
+            default_pwd: String,
+        }
 
-        q::put_user(db, "admin", &pwd_hash).unwrap();
+        let admin_user_data = UserData {
+            username: "admin".into(),
+            default_pwd: "def".into(),
+        };
 
-        let user = q::find_user_by_username(db, "admin");
-        assert_eq!(user.unwrap().unwrap().username, "admin");
-
-        q::update_user_pwd_hash(db, "admin", &pwd_hash).unwrap();
-        dbg!(q::find_user_by_username(db, "admin").unwrap());
+        // if admin has not been created - create one with default password
+        if q::find_user_by_username(db, &admin_user_data.username)
+            .unwrap()
+            .is_none()
+        {
+            q::put_user(
+                db,
+                &admin_user_data.username,
+                &auth::hash_pwd(admin_user_data.default_pwd.as_bytes()).unwrap(),
+            )
+            .unwrap();
+        }
     }
 
     {
@@ -71,3 +84,60 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub type OpResult = Result<()>;
+
+#[cfg(test)]
+mod tests {
+    use super::q;
+    use claim::{assert_err, assert_ok};
+
+    #[allow(unused)]
+    fn db() -> cozo::DbInstance {
+        // in memory db
+        cozo::DbInstance::default()
+    }
+
+    #[test]
+    fn users_test() {
+        let db = &db();
+
+        assert_err!(q::ensure_users_table(db));
+        assert_ok!(q::create_users_table(db));
+        assert_ok!(q::ensure_users_table(db));
+
+        struct UserData {
+            username: String,
+            pwd_hash: String,
+        }
+
+        let user_data = UserData {
+            username: "admin".into(),
+            pwd_hash: auth::hash_pwd(String::default().as_bytes()).unwrap(),
+        };
+
+        assert_ok!(q::put_user(db, &user_data.username, &user_data.pwd_hash));
+
+        let user = q::find_user_by_username(db, &user_data.username)
+            .expect("op to succeed")
+            .expect("to find the user");
+
+        assert_eq!(&user.username, &user_data.username);
+        assert_eq!(&user.pwd_hash, &user_data.pwd_hash);
+
+        let user_data = UserData {
+            pwd_hash: auth::hash_pwd("updated-pwd".as_bytes()).unwrap(),
+            ..user_data
+        };
+
+        assert_ok!(q::update_user_pwd_hash(
+            db,
+            &user_data.username,
+            &user_data.pwd_hash
+        ));
+        let user = q::find_user_by_username(db, &user_data.username)
+            .expect("op to succeed")
+            .expect("to find the user");
+
+        assert_eq!(&user.username, &user_data.username);
+        assert_eq!(&user.pwd_hash, &user_data.pwd_hash);
+    }
+}
