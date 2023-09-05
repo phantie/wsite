@@ -8,15 +8,26 @@ on:
       - master
 
 jobs:
-  backend:
+  common_static_routes:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      working-directory: ./backend
+      working-directory: ./common/static_routes
       run: cargo build --verbose
     - name: Run tests
-      working-directory: ./backend
+      working-directory: ./common/static_routes
+      run: cargo test --verbose
+
+  common_auth:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      working-directory: ./common/auth
+      run: cargo build --verbose
+    - name: Run tests
+      working-directory: ./common/auth
       run: cargo test --verbose
 
 env:
