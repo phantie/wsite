@@ -7,8 +7,50 @@ pub struct EnvConf {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
+    pub db: DbConf,
 
     pub features: EnvFeatures,
+}
+
+impl EnvConf {
+    pub fn test() -> Self {
+        Self {
+            host: "localhost".into(),
+            port: 0,
+            session_secret: hex::encode([0_u8; 64]),
+            db: DbConf {
+                path: "".into(),
+                storage_engine: DbStorageEngine::Memory,
+            },
+            features: EnvFeatures {},
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub enum DbStorageEngine {
+    Memory,
+    SQLite,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct DbConf {
+    pub storage_engine: DbStorageEngine,
+    pub path: String,
+}
+
+impl DbConf {
+    pub fn db_instance(&self) -> cozo::DbInstance {
+        cozo::DbInstance::new(
+            match self.storage_engine {
+                DbStorageEngine::Memory => "mem",
+                DbStorageEngine::SQLite => "sqlite",
+            },
+            &self.path,
+            Default::default(),
+        )
+        .unwrap()
+    }
 }
 
 #[derive(Deserialize, Clone)]
