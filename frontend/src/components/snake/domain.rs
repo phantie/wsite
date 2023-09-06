@@ -1,7 +1,9 @@
 #![allow(unused)]
 
-const SECTION_LENGTH: u32 = 100;
-const STARTING_PARTS: u32 = 3;
+use super::common::WindowSize;
+
+const SECTION_LENGTH: i32 = 100;
+const STARTING_PARTS: i32 = 3;
 
 pub struct Snake {
     pub sections: Vec<Section>,
@@ -29,6 +31,11 @@ impl Default for Snake {
     }
 }
 
+pub enum AdvanceResult {
+    Success,
+    OutOfBounds,
+}
+
 impl Snake {
     fn rm_tail(&mut self) {
         self.sections.remove(0);
@@ -38,14 +45,25 @@ impl Snake {
         self.sections.last().unwrap()
     }
 
-    fn advance_head(&mut self) {
+    fn advance_head(&mut self, w: WindowSize) -> AdvanceResult {
         let s = self.head().next(self.direction);
-        self.sections.push(s);
+
+        if s.start.out_of_window_bounds(w) || s.end.out_of_window_bounds(w) {
+            AdvanceResult::OutOfBounds
+        } else {
+            self.sections.push(s);
+            AdvanceResult::Success
+        }
     }
 
-    pub fn advance(&mut self) {
-        self.rm_tail();
-        self.advance_head();
+    pub fn advance(&mut self, w: WindowSize) -> AdvanceResult {
+        match self.advance_head(w) {
+            AdvanceResult::Success => {
+                self.rm_tail();
+                AdvanceResult::Success
+            }
+            AdvanceResult::OutOfBounds => AdvanceResult::OutOfBounds,
+        }
     }
 
     pub fn set_direction(&mut self, direction: Direction) -> Result<(), ()> {
@@ -78,13 +96,17 @@ impl Section {
 
 #[derive(Copy, Clone)]
 pub struct Pos {
-    pub x: u32,
-    pub y: u32,
+    pub x: i32,
+    pub y: i32,
 }
 
 impl Pos {
-    fn new(x: u32, y: u32) -> Self {
+    fn new(x: i32, y: i32) -> Self {
         Self { x, y }
+    }
+
+    fn out_of_window_bounds(&self, w: WindowSize) -> bool {
+        self.x < 0 || self.y < 0 || self.x > w.width || self.y > w.height
     }
 
     fn to(&self, direction: Direction) -> Self {

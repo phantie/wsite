@@ -6,6 +6,7 @@ use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
 
+use super::common::WindowSize;
 use super::domain;
 
 #[derive(Default, Clone)]
@@ -49,11 +50,7 @@ impl Component for Snake {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let window = web_sys::window().unwrap();
 
-        let width = window.inner_width().unwrap().as_f64().unwrap() as u32;
-        let height = window.inner_height().unwrap().as_f64().unwrap() as u32;
-
-        let width = width - 15;
-        let height = height - 5;
+        let window_size = WindowSize::from(window);
 
         let restart_button_onclick = {
             let canvas_ref = self.refs.canvas_ref.clone();
@@ -89,7 +86,10 @@ impl Component for Snake {
                 </div>
 
                 <button class={ button_style } onclick={restart_button_onclick}>{ "Restart" }</button>
-                <canvas ref={self.refs.canvas_ref.clone()} width={ width.to_string() } height={ height.to_string() }></canvas>
+                <canvas
+                    ref={self.refs.canvas_ref.clone()}
+                    width={ window_size.width.to_string() }
+                    height={ window_size.height.to_string() }></canvas>
             </>
         }
     }
@@ -110,7 +110,6 @@ impl Component for Snake {
             canvas_rendering_ctx_object.unchecked_into::<CanvasRenderingContext2d>();
 
         let r = canvas_rendering_ctx;
-        // r.save();
 
         r.clear_rect(
             0f64,
@@ -120,10 +119,6 @@ impl Component for Snake {
         );
 
         self.draw_snake(&r);
-        // r.restore();
-        // r.move_to(0f64, 0f64);
-        // r.line_to(200f64, 100f64);
-        // r.stroke();
     }
 
     #[allow(unused)]
@@ -131,7 +126,15 @@ impl Component for Snake {
         match msg {
             Self::Message::Nothing => false,
             Self::Message::Advance => {
-                self.snake.advance();
+                let window = web_sys::window().unwrap();
+                match self.snake.advance(WindowSize::from(window.clone())) {
+                    domain::AdvanceResult::Success => {}
+                    domain::AdvanceResult::OutOfBounds => {
+                        window.alert_with_message("Out of bounds, game over");
+                        // when game ends - auto restart
+                        ctx.link().send_message(Self::Message::Restart);
+                    }
+                }
                 true
             }
             Self::Message::Restart => {
