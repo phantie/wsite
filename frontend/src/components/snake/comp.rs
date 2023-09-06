@@ -136,8 +136,8 @@ impl Component for Snake {
                     .advance(WindowSize::from(window.clone()), &mut self.foods)
                 {
                     domain::AdvanceResult::Success => {}
-                    domain::AdvanceResult::OutOfBounds => {
-                        window.alert_with_message("Out of bounds, game over");
+                    domain::AdvanceResult::OutOfBounds | domain::AdvanceResult::BitYaSelf => {
+                        window.alert_with_message("game over");
                         // when game ends - auto restart
                         ctx.link().send_message(Self::Message::Restart);
                     }
@@ -152,7 +152,10 @@ impl Component for Snake {
                 };
                 // drop old by replacement
                 self.advance_snake_handle = advance_snake_handle;
+                // place snake
                 self.snake = Default::default();
+                // replenish foods
+                self.foods = Default::default();
                 true
             }
             Self::Message::DirectionChange(direction) => {

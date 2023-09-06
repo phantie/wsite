@@ -45,6 +45,7 @@ impl Default for Snake {
 pub enum AdvanceResult {
     Success,
     OutOfBounds,
+    BitYaSelf,
 }
 
 impl Snake {
@@ -62,12 +63,22 @@ impl Snake {
     }
 
     fn advance_head(&mut self, w: WindowSize) -> AdvanceResult {
-        let s = self.head().next(self.direction);
+        let advanced_head = self.head().next(self.direction);
 
-        if s.start.out_of_window_bounds(w) || s.end.out_of_window_bounds(w) {
+        if advanced_head.start.out_of_window_bounds(w) || advanced_head.end.out_of_window_bounds(w)
+        {
             AdvanceResult::OutOfBounds
+        } else if self
+            .sections
+            .iter()
+            .map(|s| [s.start, s.end])
+            .flatten()
+            .find(|p| p == &advanced_head.end)
+            .is_some()
+        {
+            AdvanceResult::BitYaSelf
         } else {
-            self.sections.push(s);
+            self.sections.push(advanced_head);
             AdvanceResult::Success
         }
     }
@@ -89,6 +100,7 @@ impl Snake {
                 AdvanceResult::Success
             }
             AdvanceResult::OutOfBounds => AdvanceResult::OutOfBounds,
+            AdvanceResult::BitYaSelf => AdvanceResult::BitYaSelf,
         }
     }
 
