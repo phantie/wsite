@@ -23,6 +23,7 @@ pub struct Snake {
 pub enum SnakeMsg {
     Advance,
     Restart,
+    DirectionChange(domain::Direction),
     Nothing,
 }
 
@@ -56,10 +57,7 @@ impl Component for Snake {
 
         let restart_button_onclick = {
             let canvas_ref = self.refs.canvas_ref.clone();
-            ctx.link().callback(move |e| {
-                let canvas = canvas_ref.clone().cast::<HtmlCanvasElement>().unwrap();
-                Self::Message::Restart
-            })
+            ctx.link().callback(move |e| Self::Message::Restart)
         };
 
         #[allow(non_upper_case_globals)]
@@ -69,8 +67,27 @@ impl Component for Snake {
             top: 10px;
         "};
 
+        let direction_onlick = |d: domain::Direction| {
+            let canvas_ref = self.refs.canvas_ref.clone();
+            ctx.link()
+                .callback(move |e| Self::Message::DirectionChange(d))
+        };
+
+        #[allow(non_upper_case_globals)]
         html! {
             <>
+                <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
+                    <div>
+                        <button onclick={direction_onlick(domain::Direction::Up)}>{ "Up" }</button>
+                    </div>
+
+                    <div>
+                        <button onclick={direction_onlick(domain::Direction::Left)}>{ "Left" }</button>
+                        <button onclick={direction_onlick(domain::Direction::Bottom)}>{ "Down" }</button>
+                        <button onclick={direction_onlick(domain::Direction::Right)}>{ "Right" }</button>
+                    </div>
+                </div>
+
                 <button class={ button_style } onclick={restart_button_onclick}>{ "Restart" }</button>
                 <canvas ref={self.refs.canvas_ref.clone()} width={ width.to_string() } height={ height.to_string() }></canvas>
             </>
@@ -127,6 +144,10 @@ impl Component for Snake {
                 self.advance_snake_handle = advance_snake_handle;
                 self.snake = Default::default();
                 true
+            }
+            Self::Message::DirectionChange(direction) => {
+                self.snake.direction = direction;
+                false
             }
         }
     }
