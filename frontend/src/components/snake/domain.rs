@@ -68,8 +68,10 @@ impl Snake {
         if advanced_head.start.out_of_window_bounds(w) || advanced_head.end.out_of_window_bounds(w)
         {
             AdvanceResult::OutOfBounds
-        } else if self
-            .sections
+        } else if
+        // TODO improve
+        // all sections except tail, because it won't be here when head advances
+        self.sections.as_slice()[1..]
             .iter()
             .map(|s| [s.start, s.end])
             .flatten()
