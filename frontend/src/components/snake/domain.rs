@@ -135,7 +135,12 @@ impl AsRef<Vec<Food>> for Foods {
 
 impl Foods {
     pub fn init() -> Self {
-        let values = vec![Food::new(200, 500), Food::new(300, 600)];
+        let values = vec![
+            Food::new(200, 500),
+            Food::new(300, 600),
+            Food::new(600, 300),
+            Food::new(700, 400),
+        ];
 
         Self { values }
     }
@@ -153,6 +158,9 @@ impl Foods {
             .expect("to call only when such element exists");
         self.values.remove(i);
     }
+
+    // TODO implement
+    // fn spawn_random(&mut self) {}
 }
 
 #[derive(Clone, Copy)]
