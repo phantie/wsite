@@ -78,7 +78,8 @@ impl Snake {
     }
 
     pub fn set_direction(&mut self, direction: Direction) -> Result<(), ()> {
-        if self.direction.opposite() == direction {
+        // forbid direction opposite to the direction of the head
+        if self.head().direction().unwrap().opposite() == direction {
             Err(())
         } else {
             self.direction = direction;
