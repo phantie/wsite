@@ -5,6 +5,8 @@ const STARTING_PARTS: u32 = 3;
 
 pub struct Snake {
     pub sections: Vec<Section>,
+    // direction snake will move on advance
+    pub direction: Direction,
 }
 
 impl Default for Snake {
@@ -13,10 +15,37 @@ impl Default for Snake {
 
         let initial_section = Section::initial(initial_pos, initial_pos.to_bottom());
         let second_section = initial_section.next(Direction::Right);
-        let third_section = second_section.next(Direction::Bottom);
+        let head_section = second_section.next(Direction::Bottom);
 
-        let sections = vec![initial_section, second_section, third_section];
-        Self { sections }
+        let sections = vec![initial_section, second_section, head_section];
+        assert!(sections.len() >= 2, "snake must have at least ... sections");
+
+        // TODO auto derive initial direction for head direction
+        let direction = Direction::Bottom;
+        Self {
+            sections,
+            direction,
+        }
+    }
+}
+
+impl Snake {
+    fn rm_tail(&mut self) {
+        self.sections.remove(0);
+    }
+
+    fn head(&self) -> &Section {
+        self.sections.last().unwrap()
+    }
+
+    fn advance_head(&mut self) {
+        let s = self.head().next(self.direction);
+        self.sections.push(s);
+    }
+
+    pub fn advance(&mut self) {
+        self.rm_tail();
+        self.advance_head();
     }
 }
 
@@ -87,6 +116,7 @@ impl Pos {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum Direction {
     Up,
     Bottom,

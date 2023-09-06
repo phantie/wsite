@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::components::imports::*;
 use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
@@ -17,6 +19,7 @@ pub struct Snake {
 }
 
 pub enum SnakeMsg {
+    Advance,
     Nothing,
 }
 
@@ -89,6 +92,17 @@ impl Component for Snake {
         // r.move_to(0f64, 0f64);
         // r.line_to(200f64, 100f64);
         // r.stroke();
+    }
+
+    #[allow(unused)]
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Self::Message::Nothing => false,
+            Self::Message::Advance => {
+                self.snake.advance();
+                true
+            }
+        }
     }
 }
 
