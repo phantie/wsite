@@ -1,5 +1,4 @@
 #![allow(unused)]
-
 use crate::components::imports::*;
 use gloo_timers::callback::Interval;
 use wasm_bindgen::JsCast;
@@ -55,10 +54,7 @@ impl Component for Snake {
 
         let window_size = WindowSize::from(window);
 
-        let restart_button_onclick = {
-            let canvas_ref = self.refs.canvas_ref.clone();
-            ctx.link().callback(move |e| Self::Message::Restart)
-        };
+        let restart_button_onclick = { ctx.link().callback(move |e| Self::Message::Restart) };
 
         #[allow(non_upper_case_globals)]
         let button_style = css! {"
@@ -68,7 +64,6 @@ impl Component for Snake {
         "};
 
         let direction_onlick = |d: domain::Direction| {
-            let canvas_ref = self.refs.canvas_ref.clone();
             ctx.link()
                 .callback(move |e| Self::Message::DirectionChange(d))
         };
@@ -180,8 +175,7 @@ impl Snake {
         }
         r.stroke();
 
-        let section = self.snake.sections.last().unwrap();
-        let domain::Pos { x, y } = section.end;
+        let domain::Pos { x, y } = self.snake.mouth();
         r.begin_path();
         r.arc(x as f64, y as f64, 20 as f64, 0 as f64, 2.0 * 3.14)
             .unwrap();

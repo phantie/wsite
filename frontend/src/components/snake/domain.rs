@@ -58,15 +58,14 @@ impl Snake {
         self.sections.last().unwrap()
     }
 
-    fn mouth(&self) -> &Pos {
-        &self.head().end
+    pub fn mouth(&self) -> Pos {
+        self.head().end
     }
 
     fn advance_head(&mut self, w: WindowSize) -> AdvanceResult {
         let advanced_head = self.head().next(self.direction);
 
-        if advanced_head.start.out_of_window_bounds(w) || advanced_head.end.out_of_window_bounds(w)
-        {
+        if advanced_head.end.out_of_window_bounds(w) {
             AdvanceResult::OutOfBounds
         } else if
         // TODO improve
@@ -89,7 +88,7 @@ impl Snake {
         match self.advance_head(w) {
             AdvanceResult::Success => {
                 // TODO improve
-                let Pos { x, y } = self.mouth().clone();
+                let Pos { x, y } = self.mouth();
                 let food = Food::new(x, y);
 
                 // if on next step mouth will eat food -
