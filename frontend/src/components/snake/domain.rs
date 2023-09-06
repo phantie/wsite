@@ -87,14 +87,10 @@ impl Snake {
     pub fn advance(&mut self, w: WindowSize, foods: &mut Foods) -> AdvanceResult {
         match self.advance_head(w) {
             AdvanceResult::Success => {
-                // TODO improve
-                let Pos { x, y } = self.mouth();
-                let food = Food::new(x, y);
-
                 // if on next step mouth will eat food -
                 // remove food and don't remove tail
-                if foods.has(food) {
-                    foods.remove(food);
+                if foods.has_pos(self.mouth()) {
+                    foods.remove_with_pos(self.mouth());
                 } else {
                     self.rm_tail();
                 }
@@ -158,16 +154,20 @@ impl Foods {
         Self { values }
     }
 
-    pub fn has(&self, food: Food) -> bool {
-        self.values.contains(&food)
+    pub fn has_pos(&self, pos: Pos) -> bool {
+        self.values
+            .iter()
+            .map(|v| v.pos)
+            .collect::<Vec<_>>()
+            .contains(&pos)
     }
 
-    pub fn remove(&mut self, food: Food) {
+    pub fn remove_with_pos(&mut self, pos: Pos) {
         let (i, _food) = self
             .values
             .iter()
             .enumerate()
-            .find(|(i, f)| f == &&food)
+            .find(|(i, f)| f.pos == pos)
             .expect("to call only when such element exists");
         self.values.remove(i);
     }
