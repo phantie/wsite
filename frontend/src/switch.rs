@@ -36,6 +36,11 @@ pub fn switch(routes: Route) -> Html {
         Route::MarkdownPreview => {
             html! {<MarkdownPreviewPage/>}
         }
+        Route::Snake => {
+            html! {
+                <Snake/>
+            }
+        }
         Route::ArticleList => {
             html! {
                 <>
