@@ -19,6 +19,8 @@ pub struct Snake {
 
     advance_snake_handle: Interval,
     snake: domain::Snake,
+
+    foods: domain::Foods,
 }
 
 pub enum SnakeMsg {
@@ -42,6 +44,7 @@ impl Component for Snake {
         Self {
             refs: Default::default(),
             snake: Default::default(),
+            foods: Default::default(),
             advance_snake_handle,
         }
     }
@@ -119,6 +122,7 @@ impl Component for Snake {
         );
 
         self.draw_snake(&r);
+        self.draw_foods(&r);
     }
 
     #[allow(unused)]
@@ -127,7 +131,10 @@ impl Component for Snake {
             Self::Message::Nothing => false,
             Self::Message::Advance => {
                 let window = web_sys::window().unwrap();
-                match self.snake.advance(WindowSize::from(window.clone())) {
+                match self
+                    .snake
+                    .advance(WindowSize::from(window.clone()), &mut self.foods)
+                {
                     domain::AdvanceResult::Success => {}
                     domain::AdvanceResult::OutOfBounds => {
                         window.alert_with_message("Out of bounds, game over");
@@ -176,5 +183,15 @@ impl Snake {
         r.arc(x as f64, y as f64, 20 as f64, 0 as f64, 2.0 * 3.14)
             .unwrap();
         r.stroke();
+    }
+
+    fn draw_foods(&self, r: &CanvasRenderingContext2d) {
+        for food in self.foods.as_ref() {
+            let domain::Pos { x, y } = food.pos;
+            r.begin_path();
+            r.arc(x as f64, y as f64, 30 as f64, 0 as f64, 2.0 * 3.14)
+                .unwrap();
+            r.stroke();
+        }
     }
 }

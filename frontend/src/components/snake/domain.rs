@@ -52,8 +52,13 @@ impl Snake {
         self.sections.remove(0);
     }
 
+    // head section, see mouth
     fn head(&self) -> &Section {
         self.sections.last().unwrap()
+    }
+
+    fn mouth(&self) -> &Pos {
+        &self.head().end
     }
 
     fn advance_head(&mut self, w: WindowSize) -> AdvanceResult {
@@ -67,10 +72,20 @@ impl Snake {
         }
     }
 
-    pub fn advance(&mut self, w: WindowSize) -> AdvanceResult {
+    pub fn advance(&mut self, w: WindowSize, foods: &mut Foods) -> AdvanceResult {
         match self.advance_head(w) {
             AdvanceResult::Success => {
-                self.rm_tail();
+                // TODO improve
+                let Pos { x, y } = self.mouth().clone();
+                let food = Food::new(x, y);
+
+                // if on next step mouth will eat food -
+                // remove food and don't remove tail
+                if foods.has(food) {
+                    foods.remove(food);
+                } else {
+                    self.rm_tail();
+                }
                 AdvanceResult::Success
             }
             AdvanceResult::OutOfBounds => AdvanceResult::OutOfBounds,
@@ -85,6 +100,58 @@ impl Snake {
             self.direction = direction;
             Ok(())
         }
+    }
+}
+
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct Food {
+    pub pos: Pos,
+}
+
+impl Food {
+    pub fn new(x: i32, y: i32) -> Self {
+        Self {
+            pos: Pos::new(x, y),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Foods {
+    values: Vec<Food>,
+}
+
+impl Default for Foods {
+    fn default() -> Self {
+        Self::init()
+    }
+}
+
+impl AsRef<Vec<Food>> for Foods {
+    fn as_ref(&self) -> &Vec<Food> {
+        &self.values
+    }
+}
+
+impl Foods {
+    pub fn init() -> Self {
+        let values = vec![Food::new(200, 500), Food::new(300, 600)];
+
+        Self { values }
+    }
+
+    pub fn has(&self, food: Food) -> bool {
+        self.values.contains(&food)
+    }
+
+    pub fn remove(&mut self, food: Food) {
+        let (i, _food) = self
+            .values
+            .iter()
+            .enumerate()
+            .find(|(i, f)| f == &&food)
+            .expect("to call only when such element exists");
+        self.values.remove(i);
     }
 }
 
@@ -124,14 +191,14 @@ impl Section {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Pos {
     pub x: i32,
     pub y: i32,
 }
 
 impl Pos {
-    fn new(x: i32, y: i32) -> Self {
+    pub fn new(x: i32, y: i32) -> Self {
         Self { x, y }
     }
 
