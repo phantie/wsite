@@ -21,7 +21,7 @@ impl Default for Snake {
         assert!(sections.len() >= 2, "snake must have at least ... sections");
 
         // TODO auto derive initial direction for head direction
-        let direction = Direction::Bottom;
+        let direction = Direction::Right;
         Self {
             sections,
             direction,

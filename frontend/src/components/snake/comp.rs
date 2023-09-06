@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use crate::components::imports::*;
+use gloo_timers::callback::Interval;
 use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
@@ -15,6 +16,7 @@ pub struct Refs {
 pub struct Snake {
     refs: Refs,
 
+    advance_snake_handle: Interval,
     snake: domain::Snake,
 }
 
@@ -29,9 +31,15 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
+        let advance_snake_handle = {
+            let link = ctx.link().clone();
+            Interval::new(1000, move || link.send_message(Self::Message::Advance))
+        };
+
         Self {
             refs: Default::default(),
             snake: Default::default(),
+            advance_snake_handle,
         }
     }
 
@@ -70,6 +78,7 @@ impl Component for Snake {
         }
     }
 
+    // TODO fix double head on rerender
     #[allow(unused)]
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         let canvas_el = self
@@ -87,8 +96,17 @@ impl Component for Snake {
         console::log!(&canvas_rendering_ctx);
 
         let r = canvas_rendering_ctx;
+        // r.save();
+
+        r.clear_rect(
+            0f64,
+            0f64,
+            canvas_el.width() as f64,
+            canvas_el.height() as f64,
+        );
 
         self.draw_snake(&r);
+        // r.restore();
         // r.move_to(0f64, 0f64);
         // r.line_to(200f64, 100f64);
         // r.stroke();
