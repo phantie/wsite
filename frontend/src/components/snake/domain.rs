@@ -47,6 +47,15 @@ impl Snake {
         self.rm_tail();
         self.advance_head();
     }
+
+    pub fn set_direction(&mut self, direction: Direction) -> Result<(), ()> {
+        if self.direction.opposite() == direction {
+            Err(())
+        } else {
+            self.direction = direction;
+            Ok(())
+        }
+    }
 }
 
 pub struct Section {
@@ -116,10 +125,21 @@ impl Pos {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Direction {
     Up,
     Bottom,
     Left,
     Right,
+}
+
+impl Direction {
+    fn opposite(&self) -> Self {
+        match self {
+            Self::Up => Self::Bottom,
+            Self::Bottom => Self::Up,
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+        }
+    }
 }

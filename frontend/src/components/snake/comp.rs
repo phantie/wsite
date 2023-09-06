@@ -146,7 +146,11 @@ impl Component for Snake {
                 true
             }
             Self::Message::DirectionChange(direction) => {
-                self.snake.direction = direction;
+                if self.snake.set_direction(direction).is_err() {
+                    // TODO you can still move into the opposite direction using a bug
+                    console::log!("cannot move into the opposite direction")
+                }
+
                 false
             }
         }
