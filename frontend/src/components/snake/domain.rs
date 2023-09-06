@@ -22,8 +22,19 @@ impl Default for Snake {
         let sections = vec![initial_section, second_section, head_section];
         assert!(sections.len() >= 2, "snake must have at least ... sections");
 
-        // TODO auto derive initial direction for head direction
-        let direction = Direction::Right;
+        sections
+            .iter()
+            .map(|s| {
+                assert!(
+                    s.direction().is_ok(),
+                    "invalid section, cannot determine direction"
+                )
+            })
+            .collect::<Vec<_>>();
+
+        // continue moving in the same direction
+        let direction = head_section.direction().unwrap();
+
         Self {
             sections,
             direction,
@@ -76,6 +87,7 @@ impl Snake {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Section {
     pub start: Pos,
     pub end: Pos,
@@ -90,6 +102,23 @@ impl Section {
         Self {
             start: self.end,
             end: self.end.to(direction),
+        }
+    }
+
+    // determine section direction
+    // line formed must be parallel to the horizon or vertical
+    fn direction(&self) -> Result<Direction, ()> {
+        use std::cmp::Ordering;
+
+        let horizontal = self.start.x.cmp(&self.end.x);
+        let vertical = self.start.y.cmp(&self.end.y);
+
+        match (horizontal, vertical) {
+            (Ordering::Equal, Ordering::Greater) => Ok(Direction::Up),
+            (Ordering::Equal, Ordering::Less) => Ok(Direction::Bottom),
+            (Ordering::Greater, Ordering::Equal) => Ok(Direction::Left),
+            (Ordering::Less, Ordering::Equal) => Ok(Direction::Right),
+            _ => Err(()),
         }
     }
 }
