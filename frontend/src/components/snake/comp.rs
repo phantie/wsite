@@ -22,6 +22,7 @@ pub struct Snake {
 
 pub enum SnakeMsg {
     Advance,
+    Restart,
     Nothing,
 }
 
@@ -57,9 +58,7 @@ impl Component for Snake {
             let canvas_ref = self.refs.canvas_ref.clone();
             ctx.link().callback(move |e| {
                 let canvas = canvas_ref.clone().cast::<HtmlCanvasElement>().unwrap();
-                console::log!(&canvas);
-                console::log!("restart");
-                Self::Message::Nothing
+                Self::Message::Restart
             })
         };
 
@@ -87,13 +86,11 @@ impl Component for Snake {
             .clone()
             .cast::<HtmlCanvasElement>()
             .unwrap();
-        // console::log!(&canvas);
 
         let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
 
         let canvas_rendering_ctx =
             canvas_rendering_ctx_object.unchecked_into::<CanvasRenderingContext2d>();
-        console::log!(&canvas_rendering_ctx);
 
         let r = canvas_rendering_ctx;
         // r.save();
@@ -118,6 +115,17 @@ impl Component for Snake {
             Self::Message::Nothing => false,
             Self::Message::Advance => {
                 self.snake.advance();
+                true
+            }
+            Self::Message::Restart => {
+                // TODO duplicate code from create()
+                let advance_snake_handle = {
+                    let link = ctx.link().clone();
+                    Interval::new(1000, move || link.send_message(Self::Message::Advance))
+                };
+                // drop old by replacement
+                self.advance_snake_handle = advance_snake_handle;
+                self.snake = Default::default();
                 true
             }
         }
