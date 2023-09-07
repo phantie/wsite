@@ -1,9 +1,11 @@
 #![allow(unused)]
 use crate::components::imports::*;
+use gloo_events::EventListener;
 use gloo_timers::callback::Interval;
 use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
+use yew::virtual_dom::Key;
 
 use super::common::WindowSize;
 use super::domain;
@@ -18,6 +20,7 @@ pub struct Snake {
 
     advance_snake_handle: Interval,
     snake: domain::Snake,
+    kb_listener: Option<EventListener>,
 
     foods: domain::Foods,
 }
@@ -44,6 +47,7 @@ impl Component for Snake {
             refs: Default::default(),
             snake: Default::default(),
             foods: Default::default(),
+            kb_listener: None,
             advance_snake_handle,
         }
     }
@@ -67,6 +71,15 @@ impl Component for Snake {
             ctx.link()
                 .callback(move |e| Self::Message::DirectionChange(d))
         };
+
+        // let keyboard_handling = ctx.link().callback(move |e: KeyboardEvent| {
+        //     let q = e.key();
+
+        //     console::log!("adasd");
+        //     console::log!(q);
+
+        //     Self::Message::DirectionChange(domain::Direction::Bottom)
+        // });
 
         #[allow(non_upper_case_globals)]
         html! {
@@ -95,6 +108,31 @@ impl Component for Snake {
     // TODO fix double head on rerender
     #[allow(unused)]
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+
+        let link = ctx.link();
+        let kb_listener = {
+            let link = link.clone();
+            EventListener::new(&document, "keydown", move |event| {
+                let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
+
+                let direction = match event.key().as_str() {
+                    "ArrowUp" => Some(domain::Direction::Up),
+                    "ArrowDown" => Some(domain::Direction::Bottom),
+                    "ArrowLeft" => Some(domain::Direction::Left),
+                    "ArrowRight" => Some(domain::Direction::Right),
+                    _ => None,
+                };
+
+                match direction {
+                    Some(direction) => link.send_message(Self::Message::DirectionChange(direction)),
+                    None => {}
+                };
+            })
+        };
+        self.kb_listener.replace(kb_listener);
+
         let canvas_el = self
             .refs
             .canvas_ref
@@ -166,6 +204,7 @@ impl Component for Snake {
 
 impl Snake {
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
+        r.begin_path();
         for section in &self.snake.sections {
             let domain::Pos { x, y } = section.start;
             r.move_to(x as f64, y as f64);
@@ -174,12 +213,15 @@ impl Snake {
             r.line_to(x as f64, y as f64);
         }
         r.stroke();
+        r.close_path();
 
         let domain::Pos { x, y } = self.snake.mouth();
+
         r.begin_path();
         r.arc(x as f64, y as f64, 20 as f64, 0 as f64, 2.0 * 3.14)
             .unwrap();
         r.stroke();
+        r.close_path();
     }
 
     fn draw_foods(&self, r: &CanvasRenderingContext2d) {
@@ -189,6 +231,7 @@ impl Snake {
             r.arc(x as f64, y as f64, 30 as f64, 0 as f64, 2.0 * 3.14)
                 .unwrap();
             r.stroke();
+            r.close_path();
         }
     }
 }
