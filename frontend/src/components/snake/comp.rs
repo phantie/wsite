@@ -14,15 +14,20 @@ pub struct Refs {
     canvas_ref: NodeRef,
 }
 
+pub struct Listeners {
+    kb_listener: EventListener,
+    window_load_listener: EventListener,
+    window_resize_listener: EventListener,
+}
+
 pub struct Snake {
     snake: domain::Snake,
     foods: domain::Foods,
 
-    refs: Refs,
     advance_interval: SnakeAdvanceInterval,
-    kb_listener: Option<EventListener>,
-    window_load_listener: EventListener,
-    window_resize_listener: Option<EventListener>,
+
+    refs: Refs,
+    listeners: Listeners,
 }
 
 // in milliseconds
@@ -59,20 +64,60 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
-        let link = ctx.link().clone();
-        let window_load_listener = EventListener::new(&get_window(), "load", move |event| {
-            console::log!("event: window load");
-            link.send_message(Self::Message::WindowLoaded);
-        });
+        let listeners = {
+            let link = ctx.link().clone();
+            let window_load_listener = EventListener::new(&get_window(), "load", move |event| {
+                console::log!("event: window load");
+                link.send_message(Self::Message::WindowLoaded);
+            });
+
+            let link = ctx.link().clone();
+            let window_resize_listener =
+                EventListener::new(&get_window(), "resize", move |event| {
+                    console::log!("event: window resize");
+                    link.send_message(Self::Message::WindowResized);
+                });
+
+            let link = ctx.link().clone();
+            let kb_listener = EventListener::new_with_options(
+                &get_document(),
+                "keydown",
+                EventListenerOptions::enable_prevent_default(),
+                move |event| {
+                    let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
+
+                    let direction = match event.key().as_str() {
+                        "ArrowUp" => Some(domain::Direction::Up),
+                        "ArrowDown" => Some(domain::Direction::Bottom),
+                        "ArrowLeft" => Some(domain::Direction::Left),
+                        "ArrowRight" => Some(domain::Direction::Right),
+                        _ => None,
+                    };
+
+                    match direction {
+                        Some(direction) => {
+                            link.send_message(Self::Message::DirectionChange(direction))
+                        }
+                        None => {}
+                    };
+                },
+            );
+
+            Listeners {
+                kb_listener,
+                window_load_listener,
+                window_resize_listener,
+            }
+        };
 
         Self {
             snake: Default::default(),
             foods: Default::default(),
-            refs: Default::default(),
+
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
-            kb_listener: Default::default(),
-            window_load_listener,
-            window_resize_listener: Default::default(),
+
+            refs: Default::default(),
+            listeners,
         }
     }
 
@@ -143,44 +188,6 @@ impl Component for Snake {
 
     #[allow(unused)]
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if first_render {
-            let kb_listener = {
-                let link = ctx.link().clone();
-                let options = EventListenerOptions::enable_prevent_default();
-                EventListener::new_with_options(&get_document(), "keydown", options, move |event| {
-                    let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
-
-                    let direction = match event.key().as_str() {
-                        "ArrowUp" => Some(domain::Direction::Up),
-                        "ArrowDown" => Some(domain::Direction::Bottom),
-                        "ArrowLeft" => Some(domain::Direction::Left),
-                        "ArrowRight" => Some(domain::Direction::Right),
-                        _ => None,
-                    };
-
-                    match direction {
-                        Some(direction) => {
-                            link.send_message(Self::Message::DirectionChange(direction))
-                        }
-                        None => {}
-                    };
-                })
-            };
-            self.kb_listener.replace(kb_listener);
-        }
-
-        if first_render {
-            let window_resize_listener = {
-                let link = ctx.link().clone();
-                EventListener::new(&get_window(), "resize", move |event| {
-                    console::log!("event: window resize");
-                    link.send_message(Self::Message::WindowResized);
-                })
-            };
-
-            self.window_resize_listener.replace(window_resize_listener);
-        }
-
         let canvas_el = self
             .refs
             .canvas_ref
@@ -189,11 +196,6 @@ impl Component for Snake {
             .unwrap();
 
         let ws = WindowSize::from(get_window());
-
-        if first_render {
-            canvas_el.set_height(ws.height as u32);
-            canvas_el.set_width(ws.width as u32);
-        }
 
         let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
 
