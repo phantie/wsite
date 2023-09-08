@@ -110,7 +110,6 @@ impl Component for Snake {
         }
     }
 
-    // TODO fix double head on rerender
     #[allow(unused)]
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         let window = web_sys::window().unwrap();

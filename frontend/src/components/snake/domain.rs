@@ -62,21 +62,28 @@ impl Snake {
         self.head().end
     }
 
+    pub fn iter_vertices(&self) -> impl Iterator<Item = Pos> + '_ {
+        self.sections
+            .iter()
+            .map(|s| s.start.clone())
+            .chain(std::iter::once(self.sections.last().unwrap().end.clone()))
+    }
+
+    fn bit_ya_self(&self, advanced_head: Section) -> bool {
+        self.iter_vertices()
+            .skip(1)
+            .find(|p| p == &advanced_head.end)
+            .is_some()
+    }
+
     fn advance_head(&mut self, w: WindowSize) -> AdvanceResult {
         let advanced_head = self.head().next(self.direction);
 
         if advanced_head.end.out_of_window_bounds(w) {
             AdvanceResult::OutOfBounds
         } else if
-        // TODO improve
         // all sections except tail, because it won't be here when head advances
-        self.sections.as_slice()[1..]
-            .iter()
-            .map(|s| [s.start, s.end])
-            .flatten()
-            .find(|p| p == &advanced_head.end)
-            .is_some()
-        {
+        self.bit_ya_self(advanced_head) {
             AdvanceResult::BitYaSelf
         } else {
             self.sections.push(advanced_head);
@@ -171,9 +178,6 @@ impl Foods {
             .expect("to call only when such element exists");
         self.values.remove(i);
     }
-
-    // TODO implement
-    // fn spawn_random(&mut self) {}
 }
 
 #[derive(Clone, Copy)]
