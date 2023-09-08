@@ -65,8 +65,8 @@ impl Snake {
     pub fn iter_vertices(&self) -> impl Iterator<Item = Pos> + '_ {
         self.sections
             .iter()
-            .map(|s| s.start.clone())
-            .chain(std::iter::once(self.sections.last().unwrap().end.clone()))
+            .map(|s| s.start)
+            .chain(std::iter::once(self.sections.last().unwrap().end))
     }
 
     fn bit_ya_self(&self, advanced_head: Section) -> bool {
