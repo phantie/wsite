@@ -1,9 +1,10 @@
-#![allow(unused)]
+#![allow(unused, non_upper_case_globals)]
 use crate::components::imports::*;
 use gloo_events::EventListener;
 use gloo_events::EventListenerOptions;
 use gloo_timers::callback::Interval;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::JsValue;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
 use yew::html::Scope;
@@ -26,7 +27,7 @@ pub struct Snake {
 }
 
 // in milliseconds
-const SNAKE_ADVANCE_INTERVAL: u32 = 1000;
+const SNAKE_ADVANCE_INTERVAL: u32 = 750;
 
 struct SnakeAdvanceInterval {
     _handle: Interval,
@@ -74,35 +75,62 @@ impl Component for Snake {
 
         let restart_button_onclick = { ctx.link().callback(move |e| Self::Message::Restart) };
 
-        #[allow(non_upper_case_globals)]
-        let button_style = css! {"
-            position: absolute;
-            right: 100px;
-            top: 10px;
-        "};
-
         let direction_onlick = |d: domain::Direction| {
             ctx.link()
                 .callback(move |e| Self::Message::DirectionChange(d))
         };
 
-        #[allow(non_upper_case_globals)]
+        let button_style = css! {"
+            border: 2px solid white;
+            width: 50px; height: 20px;
+            color: white;
+            cursor: pointer;
+            display: inline-block;
+            padding: 7px 5px; margin: 2px 1px;
+            text-align: center;
+            transition: 0.3s;
+            user-select: none;
+
+            :hover {
+                opacity: 0.8;
+            }
+
+            :active {
+                transition: 0s;
+                border-color: green;
+                background-color: green;
+            }
+        "};
+
+        let restart_button_style = css! {"
+            position: absolute;
+            right: 200px;
+            top: 10px;   
+        "};
+
+        let move_button = |text: &str, d: domain::Direction| {
+            html! {
+                <div class={ button_style.clone() } onclick={direction_onlick(d)}>{ text }</div>
+            }
+        };
+
         html! {
             <>
-                <div class={css!("display: flex; position: absolute; left: 0; right: 0; align-items: center; flex-direction: column;")}>
+                <div class={css!("display: flex; margin-top: 20px; position: absolute; left: 0; right: 0; align-items: center; flex-direction: column;")}>
                     <div>
-                        <button onclick={direction_onlick(domain::Direction::Up)}>{ "Up" }</button>
+                        { move_button("▲", domain::Direction::Up) }
                     </div>
 
                     <div>
-                        <button onclick={direction_onlick(domain::Direction::Left)}>{ "Left" }</button>
-                        <button onclick={direction_onlick(domain::Direction::Bottom)}>{ "Down" }</button>
-                        <button onclick={direction_onlick(domain::Direction::Right)}>{ "Right" }</button>
+                        { move_button("◄", domain::Direction::Left) }
+                        { move_button("▼", domain::Direction::Bottom) }
+                        { move_button("►", domain::Direction::Right) }
                     </div>
                 </div>
 
-                <button class={ button_style } onclick={restart_button_onclick}>{ "Restart" }</button>
+                <div class={ vec![restart_button_style, button_style] } onclick={restart_button_onclick}>{ "Restart" }</div>
                 <canvas
+                    class={css!("position: absolute; z-index: -1;")}
                     ref={self.refs.canvas_ref.clone()}
                     width={ window_size.width.to_string() }
                     height={ window_size.height.to_string() }></canvas>
@@ -157,7 +185,15 @@ impl Component for Snake {
 
         let r = canvas_rendering_ctx;
 
-        r.clear_rect(
+        if first_render {
+            r.set_stroke_style(&JsValue::from_str("white"));
+            r.set_line_width(10f64);
+            r.set_line_join("round");
+        }
+
+        r.set_fill_style(&JsValue::from_str("black"));
+
+        r.fill_rect(
             0f64,
             0f64,
             canvas_el.width() as f64,
@@ -210,11 +246,9 @@ impl Component for Snake {
 impl Snake {
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
         r.begin_path();
-        for section in &self.snake.sections {
-            let domain::Pos { x, y } = section.start;
-            r.move_to(x as f64, y as f64);
-
-            let domain::Pos { x, y } = section.end;
+        let domain::Pos { x, y } = self.snake.iter_vertices().next().unwrap();
+        r.move_to(x as f64, y as f64);
+        for domain::Pos { x, y } in self.snake.iter_vertices().skip(1) {
             r.line_to(x as f64, y as f64);
         }
         r.stroke();
@@ -225,6 +259,8 @@ impl Snake {
         r.begin_path();
         r.arc(x as f64, y as f64, 20 as f64, 0 as f64, 2.0 * 3.14)
             .unwrap();
+        r.set_fill_style(&JsValue::from_str("white"));
+        r.fill();
         r.stroke();
         r.close_path();
     }
@@ -235,6 +271,8 @@ impl Snake {
             r.begin_path();
             r.arc(x as f64, y as f64, 30 as f64, 0 as f64, 2.0 * 3.14)
                 .unwrap();
+            r.set_fill_style(&JsValue::from_str("white"));
+            r.fill();
             r.stroke();
             r.close_path();
         }
