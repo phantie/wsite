@@ -6,7 +6,7 @@ use gloo_timers::callback::Interval;
 use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
-use yew::virtual_dom::Key;
+use yew::html::Scope;
 
 use super::common::WindowSize;
 use super::domain;
@@ -17,13 +17,31 @@ pub struct Refs {
 }
 
 pub struct Snake {
-    refs: Refs,
-
-    advance_snake_handle: Interval,
     snake: domain::Snake,
-    kb_listener: Option<EventListener>,
-
     foods: domain::Foods,
+
+    refs: Refs,
+    advance_interval: SnakeAdvanceInterval,
+    kb_listener: Option<EventListener>,
+}
+
+// in milliseconds
+const SNAKE_ADVANCE_INTERVAL: u32 = 1000;
+
+struct SnakeAdvanceInterval {
+    _handle: Interval,
+}
+
+impl SnakeAdvanceInterval {
+    fn default(link: Scope<Snake>) -> Self {
+        Self::init(SNAKE_ADVANCE_INTERVAL, link)
+    }
+
+    fn init(millis: u32, link: Scope<Snake>) -> Self {
+        Self {
+            _handle: Interval::new(millis, move || link.send_message(SnakeMsg::Advance)),
+        }
+    }
 }
 
 pub enum SnakeMsg {
@@ -39,17 +57,12 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
-        let advance_snake_handle = {
-            let link = ctx.link().clone();
-            Interval::new(1000, move || link.send_message(Self::Message::Nothing))
-        };
-
         Self {
-            refs: Default::default(),
             snake: Default::default(),
             foods: Default::default(),
-            kb_listener: None,
-            advance_snake_handle,
+            refs: Default::default(),
+            advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
+            kb_listener: Default::default(),
         }
     }
 
@@ -72,15 +85,6 @@ impl Component for Snake {
             ctx.link()
                 .callback(move |e| Self::Message::DirectionChange(d))
         };
-
-        // let keyboard_handling = ctx.link().callback(move |e: KeyboardEvent| {
-        //     let q = e.key();
-
-        //     console::log!("adasd");
-        //     console::log!(q);
-
-        //     Self::Message::DirectionChange(domain::Direction::Bottom)
-        // });
 
         #[allow(non_upper_case_globals)]
         html! {
@@ -185,13 +189,8 @@ impl Component for Snake {
                 true
             }
             Self::Message::Restart => {
-                // TODO duplicate code from create()
-                let advance_snake_handle = {
-                    let link = ctx.link().clone();
-                    Interval::new(1000, move || link.send_message(Self::Message::Advance))
-                };
                 // drop old by replacement
-                self.advance_snake_handle = advance_snake_handle;
+                self.advance_interval = SnakeAdvanceInterval::default(ctx.link().clone());
                 // place snake
                 self.snake = Default::default();
                 // replenish foods
