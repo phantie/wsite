@@ -10,8 +10,28 @@ use super::common::WindowSize;
 use super::domain;
 
 #[derive(Default, Clone)]
+pub struct CtrlBtnRefs {
+    up_btn_ref: NodeRef,
+    down_btn_ref: NodeRef,
+    left_btn_ref: NodeRef,
+    right_btn_ref: NodeRef,
+}
+
+impl CtrlBtnRefs {
+    fn from_direction(&self, direction: domain::Direction) -> NodeRef {
+        match direction {
+            domain::Direction::Up => self.up_btn_ref.clone(),
+            domain::Direction::Bottom => self.down_btn_ref.clone(),
+            domain::Direction::Left => self.left_btn_ref.clone(),
+            domain::Direction::Right => self.right_btn_ref.clone(),
+        }
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct Refs {
     canvas_ref: NodeRef,
+    ctrl_brn_refs: CtrlBtnRefs,
 }
 
 pub struct Listeners {
@@ -151,11 +171,6 @@ impl Component for Snake {
                 opacity: 0.8;
             }
 
-            :active {
-                transition: 0s;
-                border-color: green;
-                background-color: green;
-            }
         "};
 
         let restart_button_style = css! {"
@@ -166,12 +181,16 @@ impl Component for Snake {
 
         let move_button = |text: &str, d: domain::Direction| {
             html! {
-                <div class={ button_style.clone() } onclick={direction_onlick(d)}>{ text }</div>
+                <div
+                    ref={ self.refs.ctrl_brn_refs.from_direction(d) }
+                    class={ button_style.clone() }
+                    onclick={direction_onlick(d)}>{ text }</div>
             }
         };
 
         html! {
             <>
+                <Global css={".active_btn { transition: 0.2s; border-color: green; background-color: green; }"}/>
                 <div class={css!("display: flex; margin-top: 20px; position: absolute; left: 0; right: 0; align-items: center; flex-direction: column;")}>
                     <div>
                         { move_button("▲", domain::Direction::Up) }
@@ -202,6 +221,11 @@ impl Component for Snake {
             .unwrap();
 
         let ws = WindowSize::from(get_window());
+
+        if first_render {
+            canvas_el.set_height(ws.height as u32);
+            canvas_el.set_width(ws.width as u32);
+        }
 
         let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
 
@@ -274,6 +298,23 @@ impl Component for Snake {
                 if self.snake.set_direction(direction).is_err() {
                     console::log!("cannot move into the opposite direction")
                 }
+
+                let btn = self
+                    .refs
+                    .ctrl_brn_refs
+                    .from_direction(direction)
+                    .clone()
+                    .cast::<HtmlElement>()
+                    .unwrap();
+
+                if !btn.class_name().contains("active_btn") {
+                    btn.set_class_name(&format!("active_btn {}", btn.class_name()));
+                }
+
+                gloo_timers::callback::Timeout::new(200, move || {
+                    btn.set_class_name(&btn.class_name().replace("active_btn ", ""));
+                })
+                .forget();
 
                 false
             }
