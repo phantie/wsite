@@ -86,16 +86,22 @@ impl Component for Snake {
                 move |event| {
                     let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
 
-                    let direction = match event.key().as_str() {
-                        "ArrowUp" => Some(domain::Direction::Up),
-                        "ArrowDown" => Some(domain::Direction::Bottom),
-                        "ArrowLeft" => Some(domain::Direction::Left),
-                        "ArrowRight" => Some(domain::Direction::Right),
+                    enum KeyBoardEvent {
+                        DirectionChange(domain::Direction),
+                        None,
+                    }
+                    use KeyBoardEvent::*;
+
+                    let kb_event = match event.key().as_str() {
+                        "ArrowUp" => DirectionChange(domain::Direction::Up),
+                        "ArrowDown" => DirectionChange(domain::Direction::Bottom),
+                        "ArrowLeft" => DirectionChange(domain::Direction::Left),
+                        "ArrowRight" => DirectionChange(domain::Direction::Right),
                         _ => None,
                     };
 
-                    match direction {
-                        Some(direction) => {
+                    match kb_event {
+                        DirectionChange(direction) => {
                             link.send_message(Self::Message::DirectionChange(direction))
                         }
                         None => {}
