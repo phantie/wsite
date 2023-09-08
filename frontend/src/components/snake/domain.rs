@@ -3,7 +3,6 @@
 use super::common::WindowSize;
 
 const SECTION_LENGTH: i32 = 100;
-const STARTING_PARTS: i32 = 3;
 
 pub struct Snake {
     pub sections: Vec<Section>,
@@ -65,14 +64,15 @@ impl Snake {
     pub fn iter_vertices(&self) -> impl Iterator<Item = Pos> + '_ {
         self.sections
             .iter()
-            .map(|s| s.start)
+            .map(|section| section.start)
             .chain(std::iter::once(self.sections.last().unwrap().end))
     }
 
     fn bit_ya_self(&self, advanced_head: Section) -> bool {
+        // all sections except tail, because it won't be here when head advances
         self.iter_vertices()
             .skip(1)
-            .find(|p| p == &advanced_head.end)
+            .find(|pos| pos == &advanced_head.end)
             .is_some()
     }
 
@@ -81,9 +81,7 @@ impl Snake {
 
         if advanced_head.end.out_of_window_bounds(w) {
             AdvanceResult::OutOfBounds
-        } else if
-        // all sections except tail, because it won't be here when head advances
-        self.bit_ya_self(advanced_head) {
+        } else if self.bit_ya_self(advanced_head) {
             AdvanceResult::BitYaSelf
         } else {
             self.sections.push(advanced_head);
