@@ -1,6 +1,7 @@
 #![allow(unused)]
 use crate::components::imports::*;
 use gloo_events::EventListener;
+use gloo_events::EventListenerOptions;
 use gloo_timers::callback::Interval;
 use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
@@ -40,7 +41,7 @@ impl Component for Snake {
     fn create(ctx: &Context<Self>) -> Self {
         let advance_snake_handle = {
             let link = ctx.link().clone();
-            Interval::new(1000, move || link.send_message(Self::Message::Advance))
+            Interval::new(1000, move || link.send_message(Self::Message::Nothing))
         };
 
         Self {
@@ -84,7 +85,7 @@ impl Component for Snake {
         #[allow(non_upper_case_globals)]
         html! {
             <>
-                <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
+                <div class={css!("display: flex; position: absolute; left: 0; right: 0; align-items: center; flex-direction: column;")}>
                     <div>
                         <button onclick={direction_onlick(domain::Direction::Up)}>{ "Up" }</button>
                     </div>
@@ -111,27 +112,33 @@ impl Component for Snake {
         let window = web_sys::window().unwrap();
         let document = window.document().unwrap();
 
-        let link = ctx.link();
-        let kb_listener = {
-            let link = link.clone();
-            EventListener::new(&document, "keydown", move |event| {
-                let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
+        if first_render {
+            let link = ctx.link();
+            let kb_listener = {
+                let link = link.clone();
+                let options = EventListenerOptions::enable_prevent_default();
+                EventListener::new_with_options(&document, "keydown", options, move |event| {
+                    let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
+                    console::log!(event.default_prevented());
 
-                let direction = match event.key().as_str() {
-                    "ArrowUp" => Some(domain::Direction::Up),
-                    "ArrowDown" => Some(domain::Direction::Bottom),
-                    "ArrowLeft" => Some(domain::Direction::Left),
-                    "ArrowRight" => Some(domain::Direction::Right),
-                    _ => None,
-                };
+                    let direction = match event.key().as_str() {
+                        "ArrowUp" => Some(domain::Direction::Up),
+                        "ArrowDown" => Some(domain::Direction::Bottom),
+                        "ArrowLeft" => Some(domain::Direction::Left),
+                        "ArrowRight" => Some(domain::Direction::Right),
+                        _ => None,
+                    };
 
-                match direction {
-                    Some(direction) => link.send_message(Self::Message::DirectionChange(direction)),
-                    None => {}
-                };
-            })
-        };
-        self.kb_listener.replace(kb_listener);
+                    match direction {
+                        Some(direction) => {
+                            link.send_message(Self::Message::DirectionChange(direction))
+                        }
+                        None => {}
+                    };
+                })
+            };
+            self.kb_listener.replace(kb_listener);
+        }
 
         let canvas_el = self
             .refs
