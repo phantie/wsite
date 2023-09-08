@@ -1,12 +1,9 @@
 #![allow(unused, non_upper_case_globals)]
 use crate::components::imports::*;
-use gloo_events::EventListener;
-use gloo_events::EventListenerOptions;
+use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
-use web_sys::CanvasRenderingContext2d;
-use web_sys::HtmlCanvasElement;
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
 
 use super::common::WindowSize;
@@ -24,6 +21,8 @@ pub struct Snake {
     refs: Refs,
     advance_interval: SnakeAdvanceInterval,
     kb_listener: Option<EventListener>,
+    window_load_listener: EventListener,
+    window_resize_listener: Option<EventListener>,
 }
 
 // in milliseconds
@@ -40,7 +39,7 @@ impl SnakeAdvanceInterval {
 
     fn init(millis: u32, link: Scope<Snake>) -> Self {
         Self {
-            _handle: Interval::new(millis, move || link.send_message(SnakeMsg::Advance)),
+            _handle: Interval::new(millis, move || link.send_message(SnakeMsg::Nothing)),
         }
     }
 }
@@ -49,6 +48,8 @@ pub enum SnakeMsg {
     Advance,
     Restart,
     DirectionChange(domain::Direction),
+    WindowLoaded,
+    WindowResized,
     Nothing,
 }
 
@@ -58,22 +59,26 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
+        let link = ctx.link().clone();
+        let window_load_listener = EventListener::new(&get_window(), "load", move |event| {
+            console::log!("event: window load");
+            link.send_message(Self::Message::WindowLoaded);
+        });
+
         Self {
             snake: Default::default(),
             foods: Default::default(),
             refs: Default::default(),
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
             kb_listener: Default::default(),
+            window_load_listener,
+            window_resize_listener: Default::default(),
         }
     }
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let window = web_sys::window().unwrap();
-
-        let window_size = WindowSize::from(window);
-
-        let restart_button_onclick = { ctx.link().callback(move |e| Self::Message::Restart) };
+        let restart_button_onclick = ctx.link().callback(move |e| Self::Message::Restart);
 
         let direction_onlick = |d: domain::Direction| {
             ctx.link()
@@ -131,26 +136,19 @@ impl Component for Snake {
                 <div class={ vec![restart_button_style, button_style] } onclick={restart_button_onclick}>{ "Restart" }</div>
                 <canvas
                     class={css!("position: absolute; z-index: -1;")}
-                    ref={self.refs.canvas_ref.clone()}
-                    width={ window_size.width.to_string() }
-                    height={ window_size.height.to_string() }></canvas>
+                    ref={self.refs.canvas_ref.clone()}></canvas>
             </>
         }
     }
 
     #[allow(unused)]
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        let window = web_sys::window().unwrap();
-        let document = window.document().unwrap();
-
         if first_render {
-            let link = ctx.link();
             let kb_listener = {
-                let link = link.clone();
+                let link = ctx.link().clone();
                 let options = EventListenerOptions::enable_prevent_default();
-                EventListener::new_with_options(&document, "keydown", options, move |event| {
+                EventListener::new_with_options(&get_document(), "keydown", options, move |event| {
                     let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
-                    console::log!(event.default_prevented());
 
                     let direction = match event.key().as_str() {
                         "ArrowUp" => Some(domain::Direction::Up),
@@ -171,12 +169,31 @@ impl Component for Snake {
             self.kb_listener.replace(kb_listener);
         }
 
+        if first_render {
+            let window_resize_listener = {
+                let link = ctx.link().clone();
+                EventListener::new(&get_window(), "resize", move |event| {
+                    console::log!("event: window resize");
+                    link.send_message(Self::Message::WindowResized);
+                })
+            };
+
+            self.window_resize_listener.replace(window_resize_listener);
+        }
+
         let canvas_el = self
             .refs
             .canvas_ref
             .clone()
             .cast::<HtmlCanvasElement>()
             .unwrap();
+
+        let ws = WindowSize::from(get_window());
+
+        if first_render {
+            canvas_el.set_height(ws.height as u32);
+            canvas_el.set_width(ws.width as u32);
+        }
 
         let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
 
@@ -193,12 +210,7 @@ impl Component for Snake {
 
         r.set_fill_style(&JsValue::from_str("black"));
 
-        r.fill_rect(
-            0f64,
-            0f64,
-            canvas_el.width() as f64,
-            canvas_el.height() as f64,
-        );
+        r.fill_rect(0f64, 0f64, ws.width as f64, ws.height as f64);
 
         self.draw_snake(&r);
         self.draw_foods(&r);
@@ -208,8 +220,30 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
+            Self::Message::WindowResized => {
+                ctx.link().send_message(Self::Message::WindowLoaded);
+                false
+            }
+            Self::Message::WindowLoaded => {
+                let canvas_el = self
+                    .refs
+                    .canvas_ref
+                    .clone()
+                    .cast::<HtmlCanvasElement>()
+                    .unwrap();
+
+                let window = get_window();
+                let ws = WindowSize::from(window);
+
+                canvas_el.set_height(ws.height as u32);
+                canvas_el.set_width(ws.width as u32);
+
+                console::log!("set new window size:", ws.height, ws.width);
+
+                true
+            }
             Self::Message::Advance => {
-                let window = web_sys::window().unwrap();
+                let window = get_window();
                 match self
                     .snake
                     .advance(WindowSize::from(window.clone()), &mut self.foods)
@@ -277,4 +311,13 @@ impl Snake {
             r.close_path();
         }
     }
+}
+
+fn get_window() -> Window {
+    web_sys::window().unwrap()
+}
+
+fn get_document() -> Document {
+    let window = get_window();
+    window.document().unwrap()
 }
