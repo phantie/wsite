@@ -39,7 +39,7 @@ impl SnakeAdvanceInterval {
 
     fn init(millis: u32, link: Scope<Snake>) -> Self {
         Self {
-            _handle: Interval::new(millis, move || link.send_message(SnakeMsg::Nothing)),
+            _handle: Interval::new(millis, move || link.send_message(SnakeMsg::Advance)),
         }
     }
 }
@@ -204,12 +204,11 @@ impl Component for Snake {
 
         if first_render {
             r.set_stroke_style(&JsValue::from_str("white"));
-            r.set_line_width(10f64);
             r.set_line_join("round");
         }
 
+        r.set_line_width(10f64);
         r.set_fill_style(&JsValue::from_str("black"));
-
         r.fill_rect(0f64, 0f64, ws.width as f64, ws.height as f64);
 
         self.draw_snake(&r);
