@@ -202,11 +202,8 @@ impl Component for Snake {
 
         let r = canvas_rendering_ctx;
 
-        if first_render {
-            r.set_stroke_style(&JsValue::from_str("white"));
-            r.set_line_join("round");
-        }
-
+        r.set_stroke_style(&JsValue::from_str("white"));
+        r.set_line_join("round");
         r.set_line_width(10f64);
         r.set_fill_style(&JsValue::from_str("black"));
         r.fill_rect(0f64, 0f64, ws.width as f64, ws.height as f64);
