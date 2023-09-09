@@ -206,12 +206,6 @@ impl Section {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub struct ScaledPos {
-    pub x: f64,
-    pub y: f64,
-}
-
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Pos {
     pub x: i32,
@@ -221,13 +215,6 @@ pub struct Pos {
 impl Pos {
     pub fn new(x: i32, y: i32) -> Self {
         Self { x, y }
-    }
-
-    pub fn scale(&self, scale: f64) -> ScaledPos {
-        ScaledPos {
-            x: f64::from(self.x) * scale,
-            y: f64::from(self.y) * scale,
-        }
     }
 
     fn to(&self, direction: Direction) -> Self {
