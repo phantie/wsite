@@ -66,8 +66,10 @@ pub struct Domain {
     foods: domain::Foods,
 }
 
-impl Domain {
-    fn default_snake() -> domain::Snake {
+struct DomainDefaults;
+
+impl DomainDefaults {
+    fn snake() -> domain::Snake {
         let initial_pos = domain::Pos::new(1, 1);
 
         let initial_section =
@@ -97,7 +99,7 @@ impl Domain {
         }
     }
 
-    fn default_foods() -> domain::Foods {
+    fn foods() -> domain::Foods {
         let values = vec![
             domain::Food::new(2, 5),
             domain::Food::new(3, 6),
@@ -112,8 +114,8 @@ impl Domain {
 impl Default for Domain {
     fn default() -> Self {
         Self {
-            snake: Self::default_snake(),
-            foods: Self::default_foods(),
+            snake: DomainDefaults::snake(),
+            foods: DomainDefaults::foods(),
         }
     }
 }
