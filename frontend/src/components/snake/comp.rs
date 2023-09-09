@@ -6,7 +6,6 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
 
-use super::common::WindowSize;
 use super::domain;
 
 pub const PX_SCALE: f64 = 100.0;
@@ -34,6 +33,26 @@ impl CtrlBtnRefs {
 pub struct Refs {
     canvas_ref: NodeRef,
     ctrl_brn_refs: CtrlBtnRefs,
+}
+
+impl Refs {
+    fn canvas_el(&self) -> HtmlCanvasElement {
+        self.canvas_ref.clone().cast::<HtmlCanvasElement>().unwrap()
+    }
+
+    fn set_canvas_size(&self, dims: Dimentions) {
+        let canvas = self.canvas_el();
+        canvas.set_height(dims.height);
+        canvas.set_width(dims.width);
+    }
+
+    fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
+        self.ctrl_brn_refs
+            .from_direction(direction)
+            .clone()
+            .cast::<HtmlElement>()
+            .unwrap()
+    }
 }
 
 pub struct Listeners {
@@ -154,9 +173,9 @@ impl Component for Snake {
     fn view(&self, ctx: &Context<Self>) -> Html {
         let restart_button_onclick = ctx.link().callback(move |e| Self::Message::Restart);
 
-        let direction_onlick = |d: domain::Direction| {
+        let direction_onlick = |direction| {
             ctx.link()
-                .callback(move |e| Self::Message::DirectionChange(d))
+                .callback(move |_| Self::Message::DirectionChange(direction))
         };
 
         let button_style = css! {"
@@ -182,12 +201,12 @@ impl Component for Snake {
             top: 10px;   
         "};
 
-        let move_button = |text: &str, d: domain::Direction| {
+        let move_button = |text: &str, direction| {
             html! {
                 <div
-                    ref={ self.refs.ctrl_brn_refs.from_direction(d) }
+                    ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
                     class={ button_style.clone() }
-                    onclick={direction_onlick(d)}>{ text }</div>
+                    onclick={ direction_onlick(direction) }>{ text }</div>
             }
         };
 
@@ -216,18 +235,12 @@ impl Component for Snake {
 
     #[allow(unused)]
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        let canvas_el = self
-            .refs
-            .canvas_ref
-            .clone()
-            .cast::<HtmlCanvasElement>()
-            .unwrap();
+        let canvas_el = self.refs.canvas_el();
 
-        let ws = WindowSize::from(get_window());
+        let ws = Dimentions::from(get_window());
 
         if first_render {
-            canvas_el.set_height(ws.height);
-            canvas_el.set_width(ws.width);
+            self.refs.set_canvas_size(ws);
         }
 
         let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
@@ -262,23 +275,15 @@ impl Component for Snake {
                 false
             }
             Self::Message::FitCanvasToWindowSize => {
-                let canvas_el = self
-                    .refs
-                    .canvas_ref
-                    .clone()
-                    .cast::<HtmlCanvasElement>()
-                    .unwrap();
-
-                let ws = WindowSize::from(get_window());
-                canvas_el.set_height(ws.height);
-                canvas_el.set_width(ws.width);
+                let ws = Dimentions::from(get_window());
+                self.refs.set_canvas_size(ws);
 
                 console::log!("resized canvas to:", ws.height, ws.width);
 
                 true
             }
             Self::Message::Advance => {
-                fn out_of_window_bounds(snake: &domain::Snake, ws: WindowSize) -> bool {
+                fn out_of_window_bounds(snake: &domain::Snake, ws: Dimentions) -> bool {
                     let mouth = snake.mouth().scale(PX_SCALE);
                     mouth.x < 0f64
                         || mouth.y < 0f64
@@ -294,7 +299,7 @@ impl Component for Snake {
 
                 match self.snake.advance(&mut self.foods) {
                     domain::AdvanceResult::Success => {
-                        if out_of_window_bounds(&self.snake, WindowSize::from(get_window())) {
+                        if out_of_window_bounds(&self.snake, Dimentions::from(get_window())) {
                             game_over();
                         }
                     }
@@ -316,13 +321,7 @@ impl Component for Snake {
                     console::log!("cannot move into the opposite direction")
                 }
 
-                let btn = self
-                    .refs
-                    .ctrl_brn_refs
-                    .from_direction(direction)
-                    .clone()
-                    .cast::<HtmlElement>()
-                    .unwrap();
+                let btn = self.refs.ctrl_btn_el(direction);
 
                 if !btn.class_name().contains("active_btn") {
                     btn.set_class_name(&format!("active_btn {}", btn.class_name()));
@@ -385,4 +384,18 @@ fn get_window() -> Window {
 fn get_document() -> Document {
     let window = get_window();
     window.document().unwrap()
+}
+
+#[derive(Clone, Copy)]
+pub struct Dimentions {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl From<web_sys::Window> for Dimentions {
+    fn from(value: web_sys::Window) -> Self {
+        let width = value.inner_width().unwrap().as_f64().unwrap() as u32;
+        let height = value.inner_height().unwrap().as_f64().unwrap() as u32;
+        Self { width, height }
+    }
 }
