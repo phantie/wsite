@@ -6,37 +6,6 @@ pub struct Snake {
     pub direction: Direction,
 }
 
-impl Default for Snake {
-    fn default() -> Self {
-        let initial_pos = Pos::new(1, 1);
-
-        let initial_section = Section::initial(initial_pos, initial_pos.to(Direction::Bottom));
-        let second_section = initial_section.next(Direction::Right);
-        let head_section = second_section.next(Direction::Bottom);
-
-        let sections = vec![initial_section, second_section, head_section];
-        assert!(sections.len() >= 2, "snake must have at least ... sections");
-
-        sections
-            .iter()
-            .map(|s| {
-                assert!(
-                    s.direction().is_ok(),
-                    "invalid section, cannot determine direction"
-                )
-            })
-            .collect::<Vec<_>>();
-
-        // continue moving in the same direction
-        let direction = head_section.direction().unwrap();
-
-        Self {
-            sections,
-            direction,
-        }
-    }
-}
-
 pub enum AdvanceResult {
     Success,
     BitYaSelf,
@@ -124,20 +93,7 @@ impl Food {
 
 #[derive(Debug)]
 pub struct Foods {
-    values: Vec<Food>,
-}
-
-impl Default for Foods {
-    fn default() -> Self {
-        let values = vec![
-            Food::new(2, 5),
-            Food::new(3, 6),
-            Food::new(6, 3),
-            Food::new(7, 4),
-        ];
-
-        Self { values }
-    }
+    pub values: Vec<Food>,
 }
 
 impl AsRef<Vec<Food>> for Foods {
@@ -173,11 +129,11 @@ pub struct Section {
 }
 
 impl Section {
-    fn initial(start: Pos, end: Pos) -> Self {
+    pub fn initial(start: Pos, end: Pos) -> Self {
         Self { start, end }
     }
 
-    fn next(&self, direction: Direction) -> Self {
+    pub fn next(&self, direction: Direction) -> Self {
         Self {
             start: self.end,
             end: self.end.to(direction),
@@ -186,7 +142,7 @@ impl Section {
 
     // determine section direction
     // line formed must be parallel to the horizon or vertical
-    fn direction(&self) -> Result<Direction, ()> {
+    pub fn direction(&self) -> Result<Direction, ()> {
         use std::cmp::Ordering;
 
         let horizontal = self.start.x.cmp(&self.end.x);
@@ -213,7 +169,7 @@ impl Pos {
         Self { x, y }
     }
 
-    fn to(&self, direction: Direction) -> Self {
+    pub fn to(&self, direction: Direction) -> Self {
         let (x_diff, y_diff) = match direction {
             Direction::Right => (1, 0),
             Direction::Left => (-1, 0),

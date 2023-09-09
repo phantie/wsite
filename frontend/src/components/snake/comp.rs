@@ -61,9 +61,65 @@ pub struct Listeners {
     window_resize_listener: EventListener,
 }
 
-pub struct Snake {
+pub struct Domain {
     snake: domain::Snake,
     foods: domain::Foods,
+}
+
+impl Domain {
+    fn default_snake() -> domain::Snake {
+        let initial_pos = domain::Pos::new(1, 1);
+
+        let initial_section =
+            domain::Section::initial(initial_pos, initial_pos.to(domain::Direction::Bottom));
+        let second_section = initial_section.next(domain::Direction::Right);
+        let head_section = second_section.next(domain::Direction::Bottom);
+
+        let sections = vec![initial_section, second_section, head_section];
+        assert!(sections.len() >= 2, "snake must have at least ... sections");
+
+        sections
+            .iter()
+            .map(|s| {
+                assert!(
+                    s.direction().is_ok(),
+                    "invalid section, cannot determine direction"
+                )
+            })
+            .collect::<Vec<_>>();
+
+        // continue moving in the same direction
+        let direction = head_section.direction().unwrap();
+
+        domain::Snake {
+            sections,
+            direction,
+        }
+    }
+
+    fn default_foods() -> domain::Foods {
+        let values = vec![
+            domain::Food::new(2, 5),
+            domain::Food::new(3, 6),
+            domain::Food::new(6, 3),
+            domain::Food::new(7, 4),
+        ];
+
+        domain::Foods { values }
+    }
+}
+
+impl Default for Domain {
+    fn default() -> Self {
+        Self {
+            snake: Self::default_snake(),
+            foods: Self::default_foods(),
+        }
+    }
+}
+
+pub struct Snake {
+    domain: Domain,
 
     advance_interval: SnakeAdvanceInterval,
 
@@ -159,8 +215,7 @@ impl Component for Snake {
         };
 
         Self {
-            snake: Default::default(),
-            foods: Default::default(),
+            domain: Default::default(),
 
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
 
@@ -297,9 +352,10 @@ impl Component for Snake {
                     ctx.link().send_message(Self::Message::Restart);
                 };
 
-                match self.snake.advance(&mut self.foods) {
+                match self.domain.snake.advance(&mut self.domain.foods) {
                     domain::AdvanceResult::Success => {
-                        if out_of_window_bounds(&self.snake, Dimentions::from(get_window())) {
+                        if out_of_window_bounds(&self.domain.snake, Dimentions::from(get_window()))
+                        {
                             game_over();
                         }
                     }
@@ -310,14 +366,12 @@ impl Component for Snake {
             Self::Message::Restart => {
                 // drop old by replacement
                 self.advance_interval = SnakeAdvanceInterval::default(ctx.link().clone());
-                // place snake
-                self.snake = Default::default();
-                // replenish foods
-                self.foods = Default::default();
+                // reset domain items
+                self.domain = Domain::default();
                 true
             }
             Self::Message::DirectionChange(direction) => {
-                if self.snake.set_direction(direction).is_err() {
+                if self.domain.snake.set_direction(direction).is_err() {
                     console::log!("cannot move into the opposite direction")
                 }
 
@@ -341,10 +395,11 @@ impl Component for Snake {
 impl Snake {
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
         let ScaledPos { x, y } =
-            ScaledPos::from(self.snake.iter_vertices().next().unwrap(), PX_SCALE);
+            ScaledPos::from(self.domain.snake.iter_vertices().next().unwrap(), PX_SCALE);
         r.begin_path();
         r.move_to(x, y);
         for ScaledPos { x, y } in self
+            .domain
             .snake
             .iter_vertices()
             .skip(1)
@@ -355,7 +410,7 @@ impl Snake {
         r.stroke();
         r.close_path();
 
-        let ScaledPos { x, y } = ScaledPos::from(self.snake.mouth(), PX_SCALE);
+        let ScaledPos { x, y } = ScaledPos::from(self.domain.snake.mouth(), PX_SCALE);
         r.begin_path();
         r.arc(x, y, 20f64, 0f64, 2.0 * std::f64::consts::PI)
             .unwrap();
@@ -366,7 +421,7 @@ impl Snake {
     }
 
     fn draw_foods(&self, r: &CanvasRenderingContext2d) {
-        for food in self.foods.as_ref() {
+        for food in self.domain.foods.as_ref() {
             let ScaledPos { x, y } = ScaledPos::from(food.pos, PX_SCALE);
             r.begin_path();
             r.arc(x, y, 30f64, 0f64, 2.0 * 3.14).unwrap();
