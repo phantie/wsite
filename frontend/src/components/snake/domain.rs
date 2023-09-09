@@ -129,7 +129,14 @@ pub struct Foods {
 
 impl Default for Foods {
     fn default() -> Self {
-        Self::init()
+        let values = vec![
+            Food::new(2, 5),
+            Food::new(3, 6),
+            Food::new(6, 3),
+            Food::new(7, 4),
+        ];
+
+        Self { values }
     }
 }
 
@@ -140,17 +147,6 @@ impl AsRef<Vec<Food>> for Foods {
 }
 
 impl Foods {
-    pub fn init() -> Self {
-        let values = vec![
-            Food::new(2, 5),
-            Food::new(3, 6),
-            Food::new(6, 3),
-            Food::new(7, 4),
-        ];
-
-        Self { values }
-    }
-
     pub fn has_pos(&self, pos: Pos) -> bool {
         self.values
             .iter()
