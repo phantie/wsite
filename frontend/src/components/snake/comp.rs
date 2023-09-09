@@ -269,8 +269,7 @@ impl Component for Snake {
                     .cast::<HtmlCanvasElement>()
                     .unwrap();
 
-                let window = get_window();
-                let ws = WindowSize::from(window);
+                let ws = WindowSize::from(get_window());
 
                 canvas_el.set_height(ws.height as u32);
                 canvas_el.set_width(ws.width as u32);
@@ -280,17 +279,27 @@ impl Component for Snake {
                 true
             }
             Self::Message::Advance => {
-                let window = get_window();
-                match self
-                    .snake
-                    .advance(WindowSize::from(window.clone()), &mut self.foods)
-                {
-                    domain::AdvanceResult::Success => {}
-                    domain::AdvanceResult::OutOfBounds | domain::AdvanceResult::BitYaSelf => {
-                        window.alert_with_message("game over");
-                        // when game ends - auto restart
-                        ctx.link().send_message(Self::Message::Restart);
+                fn out_of_window_bounds(snake: &domain::Snake, w: WindowSize) -> bool {
+                    let mouth = snake.mouth().scale(PX_SCALE);
+                    mouth.x < 0f64
+                        || mouth.y < 0f64
+                        || mouth.x > w.width as f64
+                        || mouth.y > w.height as f64
+                }
+
+                let game_over = || {
+                    get_window().alert_with_message("game over");
+                    // when game ends - auto restart
+                    ctx.link().send_message(Self::Message::Restart);
+                };
+
+                match self.snake.advance(&mut self.foods) {
+                    domain::AdvanceResult::Success => {
+                        if out_of_window_bounds(&self.snake, WindowSize::from(get_window())) {
+                            game_over();
+                        }
                     }
+                    domain::AdvanceResult::BitYaSelf => game_over(),
                 }
                 true
             }

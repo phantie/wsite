@@ -1,7 +1,5 @@
 #![allow(unused)]
 
-use super::common::WindowSize;
-
 pub struct Snake {
     pub sections: Vec<Section>,
     // direction snake will move on advance
@@ -41,7 +39,6 @@ impl Default for Snake {
 
 pub enum AdvanceResult {
     Success,
-    OutOfBounds,
     BitYaSelf,
 }
 
@@ -74,12 +71,10 @@ impl Snake {
             .is_some()
     }
 
-    fn advance_head(&mut self, w: WindowSize) -> AdvanceResult {
+    fn advance_head(&mut self) -> AdvanceResult {
         let advanced_head = self.head().next(self.direction);
 
-        if advanced_head.end.out_of_window_bounds(w) {
-            AdvanceResult::OutOfBounds
-        } else if self.bit_ya_self(advanced_head) {
+        if self.bit_ya_self(advanced_head) {
             AdvanceResult::BitYaSelf
         } else {
             self.sections.push(advanced_head);
@@ -87,8 +82,8 @@ impl Snake {
         }
     }
 
-    pub fn advance(&mut self, w: WindowSize, foods: &mut Foods) -> AdvanceResult {
-        match self.advance_head(w) {
+    pub fn advance(&mut self, foods: &mut Foods) -> AdvanceResult {
+        match self.advance_head() {
             AdvanceResult::Success => {
                 // if on next step mouth will eat food -
                 // remove food and don't remove tail
@@ -99,7 +94,6 @@ impl Snake {
                 }
                 AdvanceResult::Success
             }
-            AdvanceResult::OutOfBounds => AdvanceResult::OutOfBounds,
             AdvanceResult::BitYaSelf => AdvanceResult::BitYaSelf,
         }
     }
@@ -234,10 +228,6 @@ impl Pos {
             x: f64::from(self.x) * scale,
             y: f64::from(self.y) * scale,
         }
-    }
-
-    fn out_of_window_bounds(&self, w: WindowSize) -> bool {
-        self.x < 0 || self.y < 0 || self.x > w.width || self.y > w.height
     }
 
     fn to(&self, direction: Direction) -> Self {
