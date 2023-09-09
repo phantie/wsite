@@ -2,8 +2,6 @@
 
 use super::common::WindowSize;
 
-const SECTION_LENGTH: i32 = 100;
-
 pub struct Snake {
     pub sections: Vec<Section>,
     // direction snake will move on advance
@@ -12,9 +10,9 @@ pub struct Snake {
 
 impl Default for Snake {
     fn default() -> Self {
-        let initial_pos = Pos::new(100, 100);
+        let initial_pos = Pos::new(1, 1);
 
-        let initial_section = Section::initial(initial_pos, initial_pos.to_bottom());
+        let initial_section = Section::initial(initial_pos, initial_pos.to(Direction::Bottom));
         let second_section = initial_section.next(Direction::Right);
         let head_section = second_section.next(Direction::Bottom);
 
@@ -150,10 +148,10 @@ impl AsRef<Vec<Food>> for Foods {
 impl Foods {
     pub fn init() -> Self {
         let values = vec![
-            Food::new(200, 500),
-            Food::new(300, 600),
-            Food::new(600, 300),
-            Food::new(700, 400),
+            Food::new(2, 5),
+            Food::new(3, 6),
+            Food::new(6, 3),
+            Food::new(7, 4),
         ];
 
         Self { values }
@@ -225,44 +223,28 @@ impl Pos {
         Self { x, y }
     }
 
+    pub fn scale(&self, scale: i32) -> Self {
+        Self {
+            x: self.x * scale,
+            y: self.y * scale,
+        }
+    }
+
     fn out_of_window_bounds(&self, w: WindowSize) -> bool {
         self.x < 0 || self.y < 0 || self.x > w.width || self.y > w.height
     }
 
     fn to(&self, direction: Direction) -> Self {
-        match direction {
-            Direction::Right => self.to_right(),
-            Direction::Left => self.to_left(),
-            Direction::Bottom => self.to_bottom(),
-            Direction::Up => self.to_up(),
-        }
-    }
+        let (x_diff, y_diff) = match direction {
+            Direction::Right => (1, 0),
+            Direction::Left => (-1, 0),
+            Direction::Bottom => (0, 1),
+            Direction::Up => (0, -1),
+        };
 
-    fn to_right(&self) -> Self {
         Self {
-            x: self.x + SECTION_LENGTH,
-            y: self.y,
-        }
-    }
-
-    fn to_left(&self) -> Self {
-        Self {
-            x: self.x - SECTION_LENGTH,
-            y: self.y,
-        }
-    }
-
-    fn to_bottom(&self) -> Self {
-        Self {
-            x: self.x,
-            y: self.y + SECTION_LENGTH,
-        }
-    }
-
-    fn to_up(&self) -> Self {
-        Self {
-            x: self.x,
-            y: self.y - SECTION_LENGTH,
+            x: self.x + x_diff,
+            y: self.y + y_diff,
         }
     }
 }

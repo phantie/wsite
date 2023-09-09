@@ -9,6 +9,8 @@ use yew::html::Scope;
 use super::common::WindowSize;
 use super::domain;
 
+pub const PX_SCALE: i32 = 100;
+
 #[derive(Default, Clone)]
 pub struct CtrlBtnRefs {
     up_btn_ref: NodeRef,
@@ -324,19 +326,23 @@ impl Component for Snake {
 
 impl Snake {
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
+        let domain::Pos { x, y } = self.snake.iter_vertices().next().unwrap().scale(PX_SCALE);
         r.begin_path();
-        let domain::Pos { x, y } = self.snake.iter_vertices().next().unwrap();
         r.move_to(x as f64, y as f64);
-        for domain::Pos { x, y } in self.snake.iter_vertices().skip(1) {
+        for domain::Pos { x, y } in self
+            .snake
+            .iter_vertices()
+            .skip(1)
+            .map(|v| v.scale(PX_SCALE))
+        {
             r.line_to(x as f64, y as f64);
         }
         r.stroke();
         r.close_path();
 
-        let domain::Pos { x, y } = self.snake.mouth();
-
+        let domain::Pos { x, y } = self.snake.mouth().scale(PX_SCALE);
         r.begin_path();
-        r.arc(x as f64, y as f64, 20 as f64, 0 as f64, 2.0 * 3.14)
+        r.arc(x as f64, y as f64, 20f64, 0f64, 2.0 * std::f64::consts::PI)
             .unwrap();
         r.set_fill_style(&JsValue::from_str("white"));
         r.fill();
@@ -346,10 +352,9 @@ impl Snake {
 
     fn draw_foods(&self, r: &CanvasRenderingContext2d) {
         for food in self.foods.as_ref() {
-            let domain::Pos { x, y } = food.pos;
+            let domain::Pos { x, y } = food.pos.scale(PX_SCALE);
             r.begin_path();
-            r.arc(x as f64, y as f64, 30 as f64, 0 as f64, 2.0 * 3.14)
-                .unwrap();
+            r.arc(x as f64, y as f64, 30f64, 0f64, 2.0 * 3.14).unwrap();
             r.set_fill_style(&JsValue::from_str("white"));
             r.fill();
             r.stroke();
