@@ -77,6 +77,7 @@ pub enum SnakeMsg {
     DirectionChange(domain::Direction),
     WindowLoaded,
     WindowResized,
+    FitCanvasToWindowSize,
     Nothing,
 }
 
@@ -250,11 +251,17 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
-            Self::Message::WindowResized => {
-                ctx.link().send_message(Self::Message::WindowLoaded);
+            Self::Message::WindowLoaded => {
+                ctx.link()
+                    .send_message(Self::Message::FitCanvasToWindowSize);
                 false
             }
-            Self::Message::WindowLoaded => {
+            Self::Message::WindowResized => {
+                ctx.link()
+                    .send_message(Self::Message::FitCanvasToWindowSize);
+                false
+            }
+            Self::Message::FitCanvasToWindowSize => {
                 let canvas_el = self
                     .refs
                     .canvas_ref
@@ -268,7 +275,7 @@ impl Component for Snake {
                 canvas_el.set_height(ws.height as u32);
                 canvas_el.set_width(ws.width as u32);
 
-                console::log!("set new window size:", ws.height, ws.width);
+                console::log!("resized canvas to:", ws.height, ws.width);
 
                 true
             }
