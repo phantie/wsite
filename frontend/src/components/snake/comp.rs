@@ -226,8 +226,8 @@ impl Component for Snake {
         let ws = WindowSize::from(get_window());
 
         if first_render {
-            canvas_el.set_height(ws.height as u32);
-            canvas_el.set_width(ws.width as u32);
+            canvas_el.set_height(ws.height);
+            canvas_el.set_width(ws.width);
         }
 
         let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
@@ -241,7 +241,7 @@ impl Component for Snake {
         r.set_line_join("round");
         r.set_line_width(10f64);
         r.set_fill_style(&JsValue::from_str("black"));
-        r.fill_rect(0f64, 0f64, ws.width as f64, ws.height as f64);
+        r.fill_rect(0f64, 0f64, f64::from(ws.width), f64::from(ws.height));
 
         self.draw_snake(&r);
         self.draw_foods(&r);
@@ -270,21 +270,20 @@ impl Component for Snake {
                     .unwrap();
 
                 let ws = WindowSize::from(get_window());
-
-                canvas_el.set_height(ws.height as u32);
-                canvas_el.set_width(ws.width as u32);
+                canvas_el.set_height(ws.height);
+                canvas_el.set_width(ws.width);
 
                 console::log!("resized canvas to:", ws.height, ws.width);
 
                 true
             }
             Self::Message::Advance => {
-                fn out_of_window_bounds(snake: &domain::Snake, w: WindowSize) -> bool {
+                fn out_of_window_bounds(snake: &domain::Snake, ws: WindowSize) -> bool {
                     let mouth = snake.mouth().scale(PX_SCALE);
                     mouth.x < 0f64
                         || mouth.y < 0f64
-                        || mouth.x > w.width as f64
-                        || mouth.y > w.height as f64
+                        || mouth.x > f64::from(ws.width)
+                        || mouth.y > f64::from(ws.height)
                 }
 
                 let game_over = || {
