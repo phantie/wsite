@@ -142,6 +142,11 @@ impl Section {
         let mut sections = vec![initial_section];
 
         for direction in directions {
+            assert_ne!(
+                sections.last().unwrap().direction().unwrap().opposite(),
+                direction,
+                "forbidden two subsequent sections with opposite directions"
+            );
             sections.push(sections.last().unwrap().next(direction));
         }
 
@@ -206,7 +211,7 @@ impl Pos {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Direction {
     Up,
     Bottom,
