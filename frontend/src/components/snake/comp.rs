@@ -72,8 +72,7 @@ impl DomainDefaults {
     fn snake() -> domain::Snake {
         let initial_pos = domain::Pos::new(1, 1);
 
-        let initial_section =
-            domain::Section::initial(initial_pos, initial_pos.to(domain::Direction::Bottom));
+        let initial_section = domain::Section::initial(initial_pos, domain::Direction::Bottom);
         let second_section = initial_section.next(domain::Direction::Right);
         let head_section = second_section.next(domain::Direction::Bottom);
 

@@ -129,8 +129,11 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn initial(start: Pos, end: Pos) -> Self {
-        Self { start, end }
+    pub fn initial(start: Pos, direction: Direction) -> Self {
+        Self {
+            start,
+            end: start.to(direction),
+        }
     }
 
     pub fn next(&self, direction: Direction) -> Self {
