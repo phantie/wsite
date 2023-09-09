@@ -1,8 +1,8 @@
 #![allow(unused)]
 
 pub struct Snake {
-    pub sections: Vec<Section>,
-    // direction snake will move on advance
+    pub sections: Sections,
+    // direction snake will move on advance, always valid
     pub direction: Direction,
 }
 
@@ -13,40 +13,41 @@ pub enum AdvanceResult {
 
 impl Snake {
     fn rm_tail(&mut self) {
-        self.sections.remove(0);
+        self.sections.rm_tail();
     }
 
     // head section, see mouth
-    fn head(&self) -> &Section {
-        self.sections.last().unwrap()
+    fn head(&self) -> Section {
+        self.sections.head()
     }
 
     pub fn mouth(&self) -> Pos {
-        self.head().end
+        self.head().end()
     }
 
     pub fn iter_vertices(&self) -> impl Iterator<Item = Pos> + '_ {
         self.sections
+            .as_ref()
             .iter()
-            .map(|section| section.start)
-            .chain(std::iter::once(self.sections.last().unwrap().end))
+            .map(|section| section.start())
+            .chain(std::iter::once(self.head().end()))
     }
 
     fn bit_ya_self(&self, advanced_head: Section) -> bool {
         // all sections except tail, because it won't be here when head advances
         self.iter_vertices()
             .skip(1)
-            .find(|pos| pos == &advanced_head.end)
+            .find(|pos| pos == &advanced_head.end())
             .is_some()
     }
 
     fn advance_head(&mut self) -> AdvanceResult {
-        let advanced_head = self.head().next(self.direction);
+        let advanced_head = self.head().next(self.direction).unwrap();
 
         if self.bit_ya_self(advanced_head) {
             AdvanceResult::BitYaSelf
         } else {
-            self.sections.push(advanced_head);
+            self.sections.push_head(self.direction).unwrap();
             AdvanceResult::Success
         }
     }
@@ -69,7 +70,7 @@ impl Snake {
 
     pub fn set_direction(&mut self, direction: Direction) -> Result<(), ()> {
         // forbid direction opposite to the direction of the head
-        if self.head().direction().unwrap().opposite() == direction {
+        if self.head().is_opposite_direction(direction) {
             Err(())
         } else {
             self.direction = direction;
@@ -116,57 +117,19 @@ impl Foods {
             .values
             .iter()
             .enumerate()
-            .find(|(i, f)| f.pos == pos)
+            .find(|(_i, f)| f.pos == pos)
             .expect("to call only when such element exists");
         self.values.remove(i);
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct Section {
+pub struct Vector {
     pub start: Pos,
     pub end: Pos,
 }
 
-impl Section {
-    pub fn from_directions(
-        initial_pos: Pos,
-        directions: impl IntoIterator<Item = Direction>,
-    ) -> Vec<Section> {
-        let mut directions = directions.into_iter();
-
-        let initial_section = Section::initial(
-            initial_pos,
-            directions.next().expect("to form at least one section"),
-        );
-        let mut sections = vec![initial_section];
-
-        for direction in directions {
-            assert_ne!(
-                sections.last().unwrap().direction().unwrap().opposite(),
-                direction,
-                "forbidden two subsequent sections with opposite directions"
-            );
-            sections.push(sections.last().unwrap().next(direction));
-        }
-
-        sections
-    }
-
-    pub fn initial(start: Pos, direction: Direction) -> Self {
-        Self {
-            start,
-            end: start.to(direction),
-        }
-    }
-
-    pub fn next(&self, direction: Direction) -> Self {
-        Self {
-            start: self.end,
-            end: self.end.to(direction),
-        }
-    }
-
+impl Vector {
     // determine section direction
     // line formed must be parallel to the horizon or vertical
     pub fn direction(&self) -> Result<Direction, ()> {
@@ -181,6 +144,114 @@ impl Section {
             (Ordering::Greater, Ordering::Equal) => Ok(Direction::Left),
             (Ordering::Less, Ordering::Equal) => Ok(Direction::Right),
             _ => Err(()),
+        }
+    }
+}
+
+pub struct Sections {
+    sections: Vec<Section>,
+}
+
+impl Sections {
+    pub fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+
+    pub fn head(&self) -> Section {
+        self.as_ref().last().unwrap().clone()
+    }
+
+    fn rm_tail(&mut self) {
+        self.as_mut().remove(0);
+    }
+
+    fn push_head(&mut self, direction: Direction) -> Result<(), ()> {
+        let advanced_head = self.head().next(direction);
+
+        match advanced_head {
+            Ok(advanced_head) => {
+                self.as_mut().push(advanced_head);
+                Ok(())
+            }
+            Err(()) => Err(()),
+        }
+    }
+
+    pub fn from_directions(
+        initial_pos: Pos,
+        directions: impl IntoIterator<Item = Direction>,
+    ) -> Self {
+        let mut directions = directions.into_iter();
+
+        let initial_section = Section::initial(
+            initial_pos,
+            directions.next().expect("to form at least one section"),
+        );
+        let mut sections = vec![initial_section];
+
+        for direction in directions {
+            sections.push(
+                sections
+                    .last()
+                    .unwrap()
+                    .next(direction)
+                    .expect("two subsequent directions not to opposite"),
+            );
+        }
+
+        Self { sections }
+    }
+}
+
+impl AsRef<Vec<Section>> for Sections {
+    fn as_ref(&self) -> &Vec<Section> {
+        &self.sections
+    }
+}
+
+impl AsMut<Vec<Section>> for Sections {
+    fn as_mut(&mut self) -> &mut Vec<Section> {
+        &mut self.sections
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Section {
+    vector: Vector,
+}
+
+impl Section {
+    fn new(start: Pos, end: Pos) -> Self {
+        Self {
+            vector: Vector { start, end },
+        }
+    }
+
+    pub fn start(&self) -> Pos {
+        self.vector.start
+    }
+
+    pub fn end(&self) -> Pos {
+        self.vector.end
+    }
+
+    pub fn initial(start: Pos, direction: Direction) -> Self {
+        Self::new(start, start.to(direction))
+    }
+
+    pub fn direction(&self) -> Direction {
+        self.vector.direction().unwrap()
+    }
+
+    pub fn is_opposite_direction(&self, direction: Direction) -> bool {
+        self.direction().opposite() == direction
+    }
+
+    pub fn next(&self, direction: Direction) -> Result<Self, ()> {
+        if self.is_opposite_direction(direction) {
+            Err(())
+        } else {
+            Ok(Self::new(self.end(), self.end().to(direction)))
         }
     }
 }

@@ -72,7 +72,7 @@ impl DomainDefaults {
     fn snake() -> domain::Snake {
         let initial_pos = domain::Pos::new(1, 1);
 
-        let sections = domain::Section::from_directions(
+        let sections = domain::Sections::from_directions(
             initial_pos,
             [
                 domain::Direction::Bottom,
@@ -82,18 +82,8 @@ impl DomainDefaults {
         );
         assert!(sections.len() >= 2, "snake must have at least ... sections");
 
-        sections
-            .iter()
-            .map(|s| {
-                assert!(
-                    s.direction().is_ok(),
-                    "invalid section, cannot determine direction"
-                )
-            })
-            .collect::<Vec<_>>();
-
         // continue moving in the same direction
-        let direction = sections.last().unwrap().direction().unwrap();
+        let direction = sections.head().direction();
 
         domain::Snake {
             sections,
