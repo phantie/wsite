@@ -129,6 +129,25 @@ pub struct Section {
 }
 
 impl Section {
+    pub fn from_directions(
+        initial_pos: Pos,
+        directions: impl IntoIterator<Item = Direction>,
+    ) -> Vec<Section> {
+        let mut directions = directions.into_iter();
+
+        let initial_section = Section::initial(
+            initial_pos,
+            directions.next().expect("to form at least one section"),
+        );
+        let mut sections = vec![initial_section];
+
+        for direction in directions {
+            sections.push(sections.last().unwrap().next(direction));
+        }
+
+        sections
+    }
+
     pub fn initial(start: Pos, direction: Direction) -> Self {
         Self {
             start,

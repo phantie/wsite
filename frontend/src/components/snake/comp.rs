@@ -72,11 +72,14 @@ impl DomainDefaults {
     fn snake() -> domain::Snake {
         let initial_pos = domain::Pos::new(1, 1);
 
-        let initial_section = domain::Section::initial(initial_pos, domain::Direction::Bottom);
-        let second_section = initial_section.next(domain::Direction::Right);
-        let head_section = second_section.next(domain::Direction::Bottom);
-
-        let sections = vec![initial_section, second_section, head_section];
+        let sections = domain::Section::from_directions(
+            initial_pos,
+            [
+                domain::Direction::Bottom,
+                domain::Direction::Right,
+                domain::Direction::Bottom,
+            ],
+        );
         assert!(sections.len() >= 2, "snake must have at least ... sections");
 
         sections
@@ -90,7 +93,7 @@ impl DomainDefaults {
             .collect::<Vec<_>>();
 
         // continue moving in the same direction
-        let direction = head_section.direction().unwrap();
+        let direction = sections.last().unwrap().direction().unwrap();
 
         domain::Snake {
             sections,
