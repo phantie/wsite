@@ -49,6 +49,12 @@ impl Refs {
         canvas.set_width(dims.width);
     }
 
+    fn fit_canvas_to_window_size(&self) {
+        let ws = Dimentions::from(get_window());
+        self.set_canvas_size(ws);
+        console::log!("resized canvas to:", ws.height, ws.width);
+    }
+
     fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
         self.ctrl_brn_refs
             .from_direction(direction)
@@ -295,10 +301,8 @@ impl Component for Snake {
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         let canvas_el = self.refs.canvas_el();
 
-        let ws = Dimentions::from(get_window());
-
         if first_render {
-            self.refs.set_canvas_size(ws);
+            self.refs.fit_canvas_to_window_size();
         }
 
         let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
@@ -312,6 +316,7 @@ impl Component for Snake {
         r.set_line_join("round");
         r.set_line_width(10f64);
         r.set_fill_style(&JsValue::from_str("black"));
+        let ws = Dimentions::from(get_window());
         r.fill_rect(0f64, 0f64, f64::from(ws.width), f64::from(ws.height));
 
         self.draw_snake(&r);
@@ -336,11 +341,7 @@ impl Component for Snake {
                 false
             }
             Self::Message::FitCanvasToWindowSize => {
-                let ws = Dimentions::from(get_window());
-                self.refs.set_canvas_size(ws);
-
-                console::log!("resized canvas to:", ws.height, ws.width);
-
+                self.refs.fit_canvas_to_window_size();
                 true
             }
             Self::Message::Advance => {
