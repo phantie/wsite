@@ -366,6 +366,7 @@ impl Component for Snake {
         html! {
             <>
                 <Global css={".active_btn { transition: 0.2s; border-color: green; background-color: green; }"}/>
+                <PageTitle title={"Snake"}/>
                 <div class={css!("display: flex; margin-top: 20px; position: absolute; left: 0; right: 0; align-items: center; flex-direction: column;")}>
                     <div>
                         { move_button("▲", domain::Direction::Up) }
