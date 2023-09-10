@@ -340,9 +340,9 @@ impl Boundaries {
         ys: impl Iterator<Item = i32> + Clone,
     ) -> Boundaries {
         let max_x = xs.clone().max().unwrap();
-        let min_x = xs.into_iter().min().unwrap();
-        let max_y = ys.clone().into_iter().max().unwrap();
-        let min_y = ys.into_iter().min().unwrap();
+        let min_x = xs.min().unwrap();
+        let max_y = ys.clone().max().unwrap();
+        let min_y = ys.min().unwrap();
 
         Boundaries {
             min: Pos { x: min_x, y: min_y },
