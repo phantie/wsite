@@ -12,18 +12,26 @@ const PAUSED: bool = false;
 
 const PX_SCALE: f64 = 100.0;
 
-const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::WindowBound;
+const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::For4thQuadrant;
 
 enum AdjustAlgoChoice {
-    Default,
-    // almost the same as Default, but supports negative domain coordinates
-    WindowBound,
+    None,
+    For4thQuadrant,
 }
 
 #[derive(Clone, Copy)]
 enum AdjustAlgo {
-    Default,
-    WindowBound { init_neg_adjust: domain::Pos },
+    None,
+    For4thQuadrant { initial_adjustment: domain::Pos },
+}
+
+impl AdjustAlgo {
+    fn apply(&self, pos: domain::Pos) -> domain::Pos {
+        match self {
+            Self::None => pos,
+            Self::For4thQuadrant { initial_adjustment } => pos + initial_adjustment.clone(),
+        }
+    }
 }
 
 #[derive(Default, Clone)]
@@ -93,9 +101,9 @@ struct DomainDefaults;
 impl DomainDefaults {
     fn snake(adjust_algo: AdjustAlgoChoice) -> domain::Snake {
         let initial_pos = match adjust_algo {
-            AdjustAlgoChoice::Default => domain::Pos::new(1, 1),
+            AdjustAlgoChoice::None => domain::Pos::new(1, 1),
             // test with negative coords
-            AdjustAlgoChoice::WindowBound => domain::Pos::new(-2, 2),
+            AdjustAlgoChoice::For4thQuadrant => domain::Pos::new(-2, 2),
         };
 
         let sections = domain::Sections::from_directions(
@@ -244,9 +252,9 @@ impl Component for Snake {
         let domain = Domain::default(ADJUST_ALGO);
 
         let adjust_algo = match ADJUST_ALGO {
-            AdjustAlgoChoice::Default => AdjustAlgo::Default,
-            AdjustAlgoChoice::WindowBound => {
-                let init_neg_adjust = {
+            AdjustAlgoChoice::None => AdjustAlgo::None,
+            AdjustAlgoChoice::For4thQuadrant => {
+                let initial_adjustment = {
                     let snake_boundaries = domain.snake.boundaries();
                     let foods_boundaries = domain.foods.boundaries();
                     let total_boundaries = snake_boundaries.join_option(foods_boundaries);
@@ -268,7 +276,7 @@ impl Component for Snake {
                     }
                 };
 
-                AdjustAlgo::WindowBound { init_neg_adjust }
+                AdjustAlgo::For4thQuadrant { initial_adjustment }
             }
         };
 
@@ -447,10 +455,7 @@ impl Component for Snake {
 
 impl Snake {
     pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
-        let pos = match self.adjust_algo {
-            AdjustAlgo::Default => pos,
-            AdjustAlgo::WindowBound { init_neg_adjust } => pos + init_neg_adjust,
-        };
+        let pos = self.adjust_algo.apply(pos);
 
         let pos = TransformedPos::from(pos);
         let scale = PX_SCALE;
