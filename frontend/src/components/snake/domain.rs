@@ -328,7 +328,7 @@ impl Direction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Boundaries {
     min: Pos,
     max: Pos,
@@ -347,6 +347,19 @@ impl Boundaries {
         Boundaries {
             min: Pos { x: min_x, y: min_y },
             max: Pos { x: max_x, y: max_y },
+        }
+    }
+
+    pub fn join(self, other: Self) -> Self {
+        Self {
+            min: Pos {
+                x: self.min.x.min(other.min.x),
+                y: self.min.y.min(other.min.y),
+            },
+            max: Pos {
+                x: self.max.x.max(other.max.x),
+                y: self.max.y.max(other.max.y),
+            },
         }
     }
 }

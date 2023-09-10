@@ -324,6 +324,13 @@ impl Component for Snake {
 
         console::log!(format!("Snake: {:?}", self.domain.snake.boundaries()));
         console::log!(format!("Foods: {:?}", self.domain.foods.boundaries()));
+        console::log!(format!(
+            "Joined: {:?}",
+            self.domain
+                .snake
+                .boundaries()
+                .join(self.domain.foods.boundaries())
+        ));
     }
 
     #[allow(unused)]
