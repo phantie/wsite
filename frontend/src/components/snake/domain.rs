@@ -281,6 +281,17 @@ pub struct Pos {
     pub y: i32,
 }
 
+impl std::ops::Add for Pos {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
 impl Pos {
     pub fn new(x: i32, y: i32) -> Self {
         Self { x, y }

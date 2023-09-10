@@ -449,10 +449,7 @@ impl Snake {
     pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
         let pos = match self.adjust_algo {
             AdjustAlgo::Default => pos,
-            AdjustAlgo::WindowBound { init_neg_adjust } => domain::Pos {
-                x: pos.x + init_neg_adjust.x,
-                y: pos.y + init_neg_adjust.y,
-            },
+            AdjustAlgo::WindowBound { init_neg_adjust } => pos + init_neg_adjust,
         };
 
         let pos = TransformedPos::from(pos);
