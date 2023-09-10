@@ -333,7 +333,7 @@ impl Component for Snake {
             }
             Self::Message::Advance => {
                 fn out_of_window_bounds(snake: &domain::Snake, ws: Dimentions) -> bool {
-                    let mouth = ScaledPos::from(snake.mouth(), PX_SCALE);
+                    let mouth = TransformedPos::from(snake.mouth()).scale(PX_SCALE);
                     mouth.x < 0f64
                         || mouth.y < 0f64
                         || mouth.x > f64::from(ws.width)
@@ -388,23 +388,24 @@ impl Component for Snake {
 
 impl Snake {
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
-        let ScaledPos { x, y } =
-            ScaledPos::from(self.domain.snake.iter_vertices().next().unwrap(), PX_SCALE);
+        let TransformedPos { x, y } =
+            TransformedPos::from(self.domain.snake.iter_vertices().next().unwrap()).scale(PX_SCALE);
         r.begin_path();
         r.move_to(x, y);
-        for ScaledPos { x, y } in self
+        for TransformedPos { x, y } in self
             .domain
             .snake
             .iter_vertices()
             .skip(1)
-            .map(|v| ScaledPos::from(v, PX_SCALE))
+            .map(|v| TransformedPos::from(v).scale(PX_SCALE))
         {
             r.line_to(x, y);
         }
         r.stroke();
         r.close_path();
 
-        let ScaledPos { x, y } = ScaledPos::from(self.domain.snake.mouth(), PX_SCALE);
+        let TransformedPos { x, y } =
+            TransformedPos::from(self.domain.snake.mouth()).scale(PX_SCALE);
         r.begin_path();
         r.arc(x, y, 20f64, 0f64, 2.0 * std::f64::consts::PI)
             .unwrap();
@@ -416,7 +417,7 @@ impl Snake {
 
     fn draw_foods(&self, r: &CanvasRenderingContext2d) {
         for food in self.domain.foods.as_ref() {
-            let ScaledPos { x, y } = ScaledPos::from(food.pos, PX_SCALE);
+            let TransformedPos { x, y } = TransformedPos::from(food.pos).scale(PX_SCALE);
             r.begin_path();
             r.arc(x, y, 30f64, 0f64, 2.0 * 3.14).unwrap();
             r.set_fill_style(&JsValue::from_str("white"));
@@ -451,16 +452,25 @@ impl From<web_sys::Window> for Dimentions {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct ScaledPos {
+pub struct TransformedPos {
     pub x: f64,
     pub y: f64,
 }
 
-impl ScaledPos {
-    fn from(value: domain::Pos, scale: f64) -> Self {
+impl From<domain::Pos> for TransformedPos {
+    fn from(value: domain::Pos) -> Self {
         Self {
-            x: f64::from(value.x) * scale,
-            y: f64::from(value.y) * scale,
+            x: f64::from(value.x),
+            y: f64::from(value.y),
+        }
+    }
+}
+
+impl TransformedPos {
+    fn scale(&self, scale: f64) -> Self {
+        Self {
+            x: self.x * scale,
+            y: self.y * scale,
         }
     }
 }
