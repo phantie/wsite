@@ -64,16 +64,16 @@ impl Refs {
         self.canvas_ref.clone().cast::<HtmlCanvasElement>().unwrap()
     }
 
-    fn set_canvas_size(&self, dims: Dimentions) {
+    fn set_canvas_size(&self, dims: Dimensions) {
         let canvas = self.canvas_el();
         canvas.set_height(dims.height);
         canvas.set_width(dims.width);
     }
 
     fn fit_canvas_to_window_size(&self) {
-        let ws = Dimentions::from(get_window());
-        self.set_canvas_size(ws);
-        console::log!("resized canvas to:", ws.height, ws.width);
+        let wd = window_dimensions();
+        self.set_canvas_size(wd);
+        console::log!("resized canvas to:", wd.height, wd.width);
     }
 
     fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
@@ -373,8 +373,8 @@ impl Component for Snake {
         r.set_line_join("round");
         r.set_line_width(10f64);
         r.set_fill_style(&JsValue::from_str("black"));
-        let ws = Dimentions::from(get_window());
-        r.fill_rect(0f64, 0f64, f64::from(ws.width), f64::from(ws.height));
+        let wd = window_dimensions();
+        r.fill_rect(0f64, 0f64, f64::from(wd.width), f64::from(wd.height));
 
         self.draw_snake(&r);
         self.draw_foods(&r);
@@ -416,7 +416,7 @@ impl Component for Snake {
 
                 match self.domain.snake.advance(&mut self.domain.foods) {
                     domain::AdvanceResult::Success => {
-                        if self.out_of_window_bounds(Dimentions::from(get_window())) {
+                        if self.out_of_window_bounds(window_dimensions()) {
                             game_over();
                         }
                     }
@@ -458,16 +458,15 @@ impl Snake {
         let pos = self.adjust_algo.apply(pos);
 
         let pos = TransformedPos::from(pos);
-        let scale = PX_SCALE;
-        pos * scale
+        pos * PX_SCALE
     }
 
-    pub fn out_of_window_bounds(&self, ws: Dimentions) -> bool {
+    pub fn out_of_window_bounds(&self, wd: Dimensions) -> bool {
         let mouth = self.transform_pos(self.domain.snake.mouth());
         mouth.x < 0f64
             || mouth.y < 0f64
-            || mouth.x > f64::from(ws.width)
-            || mouth.y > f64::from(ws.height)
+            || mouth.x > f64::from(wd.width)
+            || mouth.y > f64::from(wd.height)
     }
 
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
@@ -513,18 +512,22 @@ fn get_window() -> Window {
     web_sys::window().unwrap()
 }
 
+fn window_dimensions() -> Dimensions {
+    Dimensions::from(get_window())
+}
+
 fn get_document() -> Document {
     let window = get_window();
     window.document().unwrap()
 }
 
 #[derive(Clone, Copy)]
-pub struct Dimentions {
+pub struct Dimensions {
     pub width: u32,
     pub height: u32,
 }
 
-impl From<web_sys::Window> for Dimentions {
+impl From<web_sys::Window> for Dimensions {
     fn from(value: web_sys::Window) -> Self {
         let width = value.inner_width().unwrap().as_f64().unwrap() as u32;
         let height = value.inner_height().unwrap().as_f64().unwrap() as u32;
