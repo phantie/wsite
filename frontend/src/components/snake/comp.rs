@@ -8,7 +8,7 @@ use yew::html::Scope;
 
 use super::domain;
 
-const PAUSED: bool = true;
+const PAUSED: bool = false;
 
 // greater value - closer camera
 const PX_SCALE: f64 = 95.0;
@@ -103,19 +103,19 @@ struct DomainDefaults;
 impl DomainDefaults {
     fn snake(adjust_algo: AdjustAlgoChoice) -> domain::Snake {
         let initial_pos = match adjust_algo {
-            AdjustAlgoChoice::None => domain::Pos::new(1, 1),
+            AdjustAlgoChoice::None => domain::Pos::new(5, 5),
             // test with negative coords
             AdjustAlgoChoice::For4thQuadrant => domain::Pos::new(-2, 2),
         };
 
-        let sections = domain::Sections::from_directions(
-            initial_pos,
-            [
-                domain::Direction::Bottom,
-                domain::Direction::Right,
-                domain::Direction::Bottom,
-            ],
-        );
+        let mut directions = vec![];
+        for _ in 0..rand_section_len() {
+            directions.push(rand_direction(
+                directions.last().map(domain::Direction::opposite),
+            ));
+        }
+
+        let sections = domain::Sections::from_directions(initial_pos, directions);
         assert!(sections.len() >= 2, "snake must have at least ... sections");
 
         // continue moving in the same direction
@@ -624,4 +624,32 @@ where
         .find(|(i, v)| i == &idx)
         .map(|(_, v)| v)
         .expect("iterator not to be empty")
+}
+
+fn rand_section_len() -> i32 {
+    rand_from_iterator(3..5)
+}
+
+fn rand_direction(except: Option<domain::Direction>) -> domain::Direction {
+    let mut directions = vec![
+        domain::Direction::Up,
+        domain::Direction::Bottom,
+        domain::Direction::Left,
+        domain::Direction::Right,
+    ];
+
+    match except {
+        None => {}
+        Some(except) => {
+            let i = directions
+                .iter()
+                .enumerate()
+                .find(|(i, d)| d == &&except)
+                .map(|(i, _)| i)
+                .unwrap();
+            directions.remove(i);
+        }
+    }
+
+    rand_from_iterator(directions.into_iter())
 }
