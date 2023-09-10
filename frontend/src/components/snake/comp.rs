@@ -614,8 +614,10 @@ where
 {
     let zero_to_one_float = js_sys::Math::random();
     let part = 1.0 / rng.len() as f64;
+    let idx = (zero_to_one_float / part) as usize;
+
     rng.enumerate()
-        .find(|(i, v)| (i + 1) as f64 * part >= zero_to_one_float)
+        .find(|(i, v)| i == &idx)
         .map(|(_, v)| v)
         .expect("iterator not to be empty")
 }
