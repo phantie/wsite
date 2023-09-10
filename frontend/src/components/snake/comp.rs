@@ -68,12 +68,12 @@ impl Refs {
         let canvas = self.canvas_el();
         canvas.set_height(dims.height);
         canvas.set_width(dims.width);
+        console::log!("canvas resized to:", format!("{:?}", dims));
     }
 
     fn fit_canvas_to_window_size(&self) {
         let wd = window_dimensions();
         self.set_canvas_size(wd);
-        console::log!("resized canvas to:", wd.height, wd.width);
     }
 
     fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
@@ -521,7 +521,7 @@ fn get_document() -> Document {
     window.document().unwrap()
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Dimensions {
     pub width: u32,
     pub height: u32,
