@@ -332,14 +332,6 @@ impl Component for Snake {
                 true
             }
             Self::Message::Advance => {
-                fn out_of_window_bounds(snake: &domain::Snake, ws: Dimentions) -> bool {
-                    let mouth = TransformedPos::from(snake.mouth()).scale(PX_SCALE);
-                    mouth.x < 0f64
-                        || mouth.y < 0f64
-                        || mouth.x > f64::from(ws.width)
-                        || mouth.y > f64::from(ws.height)
-                }
-
                 let game_over = || {
                     get_window().alert_with_message("game over");
                     // when game ends - auto restart
@@ -348,8 +340,7 @@ impl Component for Snake {
 
                 match self.domain.snake.advance(&mut self.domain.foods) {
                     domain::AdvanceResult::Success => {
-                        if out_of_window_bounds(&self.domain.snake, Dimentions::from(get_window()))
-                        {
+                        if self.out_of_window_bounds(Dimentions::from(get_window())) {
                             game_over();
                         }
                     }
@@ -387,9 +378,27 @@ impl Component for Snake {
 }
 
 impl Snake {
+    pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
+        let scale = PX_SCALE;
+
+        let pos = TransformedPos::from(pos);
+        TransformedPos {
+            x: pos.x * scale,
+            y: pos.y * scale,
+        }
+    }
+
+    pub fn out_of_window_bounds(&self, ws: Dimentions) -> bool {
+        let mouth = self.transform_pos(self.domain.snake.mouth());
+        mouth.x < 0f64
+            || mouth.y < 0f64
+            || mouth.x > f64::from(ws.width)
+            || mouth.y > f64::from(ws.height)
+    }
+
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
         let TransformedPos { x, y } =
-            TransformedPos::from(self.domain.snake.iter_vertices().next().unwrap()).scale(PX_SCALE);
+            self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
         r.begin_path();
         r.move_to(x, y);
         for TransformedPos { x, y } in self
@@ -397,15 +406,14 @@ impl Snake {
             .snake
             .iter_vertices()
             .skip(1)
-            .map(|v| TransformedPos::from(v).scale(PX_SCALE))
+            .map(|v| self.transform_pos(v))
         {
             r.line_to(x, y);
         }
         r.stroke();
         r.close_path();
 
-        let TransformedPos { x, y } =
-            TransformedPos::from(self.domain.snake.mouth()).scale(PX_SCALE);
+        let TransformedPos { x, y } = self.transform_pos(self.domain.snake.mouth());
         r.begin_path();
         r.cirle(x, y, 20f64);
         r.set_fill_style(&JsValue::from_str("white"));
@@ -416,7 +424,7 @@ impl Snake {
 
     fn draw_foods(&self, r: &CanvasRenderingContext2d) {
         for food in self.domain.foods.as_ref() {
-            let TransformedPos { x, y } = TransformedPos::from(food.pos).scale(PX_SCALE);
+            let TransformedPos { x, y } = self.transform_pos(food.pos);
             r.begin_path();
             r.cirle(x, y, 30f64);
             r.set_fill_style(&JsValue::from_str("white"));
@@ -461,15 +469,6 @@ impl From<domain::Pos> for TransformedPos {
         Self {
             x: f64::from(value.x),
             y: f64::from(value.y),
-        }
-    }
-}
-
-impl TransformedPos {
-    fn scale(&self, scale: f64) -> Self {
-        Self {
-            x: self.x * scale,
-            y: self.y * scale,
         }
     }
 }
