@@ -106,6 +106,12 @@ impl Food {
     }
 }
 
+impl From<Pos> for Food {
+    fn from(pos: Pos) -> Self {
+        Self { pos }
+    }
+}
+
 #[derive(Debug)]
 pub struct Foods {
     pub values: Vec<Food>,
@@ -275,7 +281,7 @@ impl Section {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
 pub struct Pos {
     pub x: i32,
     pub y: i32,

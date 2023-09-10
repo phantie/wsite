@@ -1,4 +1,6 @@
 #![allow(unused, non_upper_case_globals)]
+use std::collections::HashSet;
+
 use crate::components::imports::*;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
@@ -102,6 +104,8 @@ struct DomainDefaults;
 
 impl DomainDefaults {
     fn snake(adjust_algo: AdjustAlgoChoice) -> domain::Snake {
+        let rand_section_len = || rand_from_iterator(3..5);
+
         let initial_pos = match adjust_algo {
             AdjustAlgoChoice::None => domain::Pos::new(5, 5),
             // test with negative coords
@@ -127,23 +131,46 @@ impl DomainDefaults {
         }
     }
 
-    fn foods() -> domain::Foods {
-        let values = vec![
-            domain::Food::new(2, 5),
-            domain::Food::new(3, 6),
-            domain::Food::new(6, 3),
-            domain::Food::new(7, 4),
-        ];
+    fn foods(snake: &domain::Snake) -> domain::Foods {
+        let m = snake.mouth();
+        let radius = 7;
+        let b = domain::Boundaries {
+            min: domain::Pos::new(m.x - radius, m.y - radius),
+            max: domain::Pos::new(m.x + radius, m.y + radius),
+        };
 
+        let mut positions = HashSet::new();
+        for x in (b.min.x)..(b.max.x) {
+            for y in (b.min.y)..(b.max.y) {
+                positions.insert(domain::Pos::new(x, y));
+            }
+        }
+
+        let snake_vertices = snake.iter_vertices().collect::<HashSet<_>>();
+        let mut vacant_food_positions = positions
+            .difference(&snake_vertices)
+            .collect::<HashSet<_>>();
+
+        let mut values = vec![];
+        let rand_food_count = || rand_from_iterator(10..15);
+        let foods_count = rand_food_count();
+        for _ in 0..foods_count {
+            let food_pos = rand_from_iterator(vacant_food_positions.iter());
+            values.push(**food_pos);
+            let _removed = vacant_food_positions.remove(*food_pos);
+        }
+
+        let values = values.into_iter().map(domain::Food::from).collect();
         domain::Foods { values }
     }
 }
 
 impl Domain {
     fn default(adjust_algo: AdjustAlgoChoice) -> Self {
+        let snake = DomainDefaults::snake(adjust_algo);
         Self {
-            snake: DomainDefaults::snake(adjust_algo),
-            foods: DomainDefaults::foods(),
+            foods: DomainDefaults::foods(&snake),
+            snake,
         }
     }
 }
@@ -626,10 +653,6 @@ where
         .find(|(i, v)| i == &idx)
         .map(|(_, v)| v)
         .expect("iterator not to be empty")
-}
-
-fn rand_section_len() -> i32 {
-    rand_from_iterator(3..5)
 }
 
 fn rand_direction(except: Option<domain::Direction>) -> domain::Direction {
