@@ -10,7 +10,8 @@ use super::domain;
 
 const PAUSED: bool = false;
 
-const PX_SCALE: f64 = 100.0;
+// greater value - closer camera
+const PX_SCALE: f64 = 95.0;
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
@@ -372,7 +373,7 @@ impl Component for Snake {
 
         r.set_stroke_style(&JsValue::from_str("white"));
         r.set_line_join("round");
-        r.set_line_width(10f64);
+        r.set_line_width(px_scale(0.1));
         r.set_fill_style(&JsValue::from_str("black"));
         let wd = window_dimensions();
         r.fill_rect(0f64, 0f64, f64::from(wd.width), f64::from(wd.height));
@@ -498,7 +499,7 @@ impl Snake {
 
         let TransformedPos { x, y } = self.transform_pos(self.domain.snake.mouth());
         r.begin_path();
-        r.cirle(x, y, 20f64);
+        r.cirle(x, y, px_scale(0.2));
         r.set_fill_style(&JsValue::from_str("white"));
         r.fill();
         r.stroke();
@@ -509,7 +510,7 @@ impl Snake {
         for food in self.domain.foods.as_ref() {
             let TransformedPos { x, y } = self.transform_pos(food.pos);
             r.begin_path();
-            r.cirle(x, y, 30f64);
+            r.cirle(x, y, px_scale(0.3));
             r.set_fill_style(&JsValue::from_str("white"));
             r.fill();
             r.stroke();
@@ -608,4 +609,9 @@ impl CanvasRenderingContext2dExtend for CanvasRenderingContext2d {
         self.arc(x, y, radius, 0f64, 2.0 * std::f64::consts::PI)
             .unwrap();
     }
+}
+
+// use in drawing to preserve aspect ratio with differing camera distances
+fn px_scale(value: f64) -> f64 {
+    value * PX_SCALE
 }
