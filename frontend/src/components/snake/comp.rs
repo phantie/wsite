@@ -407,8 +407,7 @@ impl Snake {
         let TransformedPos { x, y } =
             TransformedPos::from(self.domain.snake.mouth()).scale(PX_SCALE);
         r.begin_path();
-        r.arc(x, y, 20f64, 0f64, 2.0 * std::f64::consts::PI)
-            .unwrap();
+        r.cirle(x, y, 20f64);
         r.set_fill_style(&JsValue::from_str("white"));
         r.fill();
         r.stroke();
@@ -419,7 +418,7 @@ impl Snake {
         for food in self.domain.foods.as_ref() {
             let TransformedPos { x, y } = TransformedPos::from(food.pos).scale(PX_SCALE);
             r.begin_path();
-            r.arc(x, y, 30f64, 0f64, 2.0 * 3.14).unwrap();
+            r.cirle(x, y, 30f64);
             r.set_fill_style(&JsValue::from_str("white"));
             r.fill();
             r.stroke();
@@ -472,5 +471,16 @@ impl TransformedPos {
             x: self.x * scale,
             y: self.y * scale,
         }
+    }
+}
+
+trait CanvasRenderingContext2dExtend {
+    fn cirle(&self, x: f64, y: f64, radius: f64);
+}
+
+impl CanvasRenderingContext2dExtend for CanvasRenderingContext2d {
+    fn cirle(&self, x: f64, y: f64, radius: f64) {
+        self.arc(x, y, radius, 0f64, 2.0 * std::f64::consts::PI)
+            .unwrap();
     }
 }
