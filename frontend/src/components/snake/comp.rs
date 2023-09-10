@@ -8,7 +8,7 @@ use yew::html::Scope;
 
 use super::domain;
 
-const PAUSED: bool = false;
+const PAUSED: bool = true;
 
 // greater value - closer camera
 const PX_SCALE: f64 = 95.0;
@@ -381,15 +381,7 @@ impl Component for Snake {
         self.draw_snake(&r);
         self.draw_foods(&r);
 
-        console::log!(format!("Snake: {:?}", self.domain.snake.boundaries()));
-        console::log!(format!("Foods: {:?}", self.domain.foods.boundaries()));
-        console::log!(format!(
-            "Joined: {:?}",
-            self.domain
-                .snake
-                .boundaries()
-                .join_option(self.domain.foods.boundaries())
-        ));
+        console::log!("random int", rand_from_iterator(-100..100));
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -614,4 +606,20 @@ impl CanvasRenderingContext2dExtend for CanvasRenderingContext2d {
 // use in drawing to preserve aspect ratio with differing camera distances
 fn px_scale(value: f64) -> f64 {
     value * PX_SCALE
+}
+
+fn rand_from_iterator<Iter, I>(rng: Iter) -> <Iter as std::iter::Iterator>::Item
+where
+    Iter: IntoIterator<Item = I> + ExactSizeIterator,
+{
+    let random_float = js_sys::Math::random();
+
+    let part = 1.0 / rng.len() as f64;
+
+    let (_, found) = rng
+        .enumerate()
+        .find(|(i, v)| *i as f64 * part >= random_float) //  && n < (i + 1) as f64 * part
+        .unwrap();
+
+    found
 }
