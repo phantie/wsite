@@ -381,7 +381,7 @@ impl Component for Snake {
         self.draw_snake(&r);
         self.draw_foods(&r);
 
-        console::log!("random int", rand_from_iterator(-100..100));
+        console::log!("random int", rand_from_iterator(0..2));
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -612,14 +612,10 @@ fn rand_from_iterator<Iter, I>(rng: Iter) -> <Iter as std::iter::Iterator>::Item
 where
     Iter: IntoIterator<Item = I> + ExactSizeIterator,
 {
-    let random_float = js_sys::Math::random();
-
+    let zero_to_one_float = js_sys::Math::random();
     let part = 1.0 / rng.len() as f64;
-
-    let (_, found) = rng
-        .enumerate()
-        .find(|(i, v)| *i as f64 * part >= random_float) //  && n < (i + 1) as f64 * part
-        .unwrap();
-
-    found
+    rng.enumerate()
+        .find(|(i, v)| (i + 1) as f64 * part >= zero_to_one_float)
+        .map(|(_, v)| v)
+        .expect("iterator not to be empty")
 }
