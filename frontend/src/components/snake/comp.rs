@@ -1,4 +1,4 @@
-#![allow(unused, non_upper_case_globals)]
+#![allow(non_upper_case_globals)]
 use crate::components::imports::*;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
@@ -8,10 +8,17 @@ use yew::html::Scope;
 
 use super::domain;
 
-// for debugging
-pub const PAUSED: bool = false;
+const PAUSED: bool = false;
 
-pub const PX_SCALE: f64 = 100.0;
+const ADJUST_ALGO: AdjustAlgo = AdjustAlgo::New;
+
+const PX_SCALE: f64 = 100.0;
+
+#[allow(unused)]
+enum AdjustAlgo {
+    Default,
+    New,
+}
 
 #[derive(Default, Clone)]
 pub struct CtrlBtnRefs {
@@ -64,6 +71,7 @@ impl Refs {
     }
 }
 
+#[allow(unused)]
 pub struct Listeners {
     kb_listener: EventListener,
     window_load_listener: EventListener,
@@ -79,7 +87,11 @@ struct DomainDefaults;
 
 impl DomainDefaults {
     fn snake() -> domain::Snake {
-        let initial_pos = domain::Pos::new(1, 1);
+        let initial_pos = match ADJUST_ALGO {
+            AdjustAlgo::Default => domain::Pos::new(1, 1),
+            // test with negative coords
+            AdjustAlgo::New => domain::Pos::new(-2, 2),
+        };
 
         let sections = domain::Sections::from_directions(
             initial_pos,
@@ -127,6 +139,7 @@ pub struct Snake {
     advance_interval: SnakeAdvanceInterval,
 
     refs: Refs,
+    #[allow(unused)]
     listeners: Listeners,
 }
 
@@ -329,7 +342,7 @@ impl Component for Snake {
             self.domain
                 .snake
                 .boundaries()
-                .join(self.domain.foods.boundaries())
+                .join_option(self.domain.foods.boundaries())
         ));
     }
 
@@ -399,9 +412,33 @@ impl Component for Snake {
 
 impl Snake {
     pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
-        let scale = PX_SCALE;
+        let pos = match ADJUST_ALGO {
+            AdjustAlgo::Default => pos,
+            AdjustAlgo::New => {
+                let snake_boundaries = self.domain.snake.boundaries();
+                let foods_boundaries = self.domain.foods.boundaries();
+                let total_boundaries = snake_boundaries.join_option(foods_boundaries);
+
+                fn adjust_for_negative(coord: i32) -> i32 {
+                    if coord < 0 {
+                        -coord
+                    } else {
+                        0
+                    }
+                }
+
+                let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
+                let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
+
+                domain::Pos {
+                    x: pos.x + x_adjust_for_negative,
+                    y: pos.y + y_adjust_for_negative,
+                }
+            }
+        };
 
         let pos = TransformedPos::from(pos);
+        let scale = PX_SCALE;
         TransformedPos {
             x: pos.x * scale,
             y: pos.y * scale,

@@ -85,7 +85,7 @@ impl Snake {
             .iter()
             .map(|section| [section.start(), section.end()])
             .flatten();
-        Boundaries::from_iterators(snake.clone().map(Pos::x), snake.map(Pos::y))
+        Boundaries::from_iterators(snake.clone().map(Pos::x), snake.map(Pos::y)).unwrap()
     }
 }
 
@@ -136,7 +136,7 @@ impl Foods {
         self.values.remove(i);
     }
 
-    pub fn boundaries(&self) -> Boundaries {
+    pub fn boundaries(&self) -> Option<Boundaries> {
         let foods = self.as_ref().iter().map(Food::pos);
         Boundaries::from_iterators(foods.clone().map(Pos::x), foods.map(Pos::y))
     }
@@ -330,24 +330,24 @@ impl Direction {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Boundaries {
-    min: Pos,
-    max: Pos,
+    pub min: Pos,
+    pub max: Pos,
 }
 
 impl Boundaries {
     fn from_iterators(
         xs: impl Iterator<Item = i32> + Clone,
         ys: impl Iterator<Item = i32> + Clone,
-    ) -> Boundaries {
-        let max_x = xs.clone().max().unwrap();
+    ) -> Option<Boundaries> {
+        let max_x = xs.clone().max()?;
         let min_x = xs.min().unwrap();
-        let max_y = ys.clone().max().unwrap();
+        let max_y = ys.clone().max()?;
         let min_y = ys.min().unwrap();
 
-        Boundaries {
+        Some(Boundaries {
             min: Pos { x: min_x, y: min_y },
             max: Pos { x: max_x, y: max_y },
-        }
+        })
     }
 
     pub fn join(self, other: Self) -> Self {
@@ -360,6 +360,13 @@ impl Boundaries {
                 x: self.max.x.max(other.max.x),
                 y: self.max.y.max(other.max.y),
             },
+        }
+    }
+
+    pub fn join_option(self, other: Option<Self>) -> Self {
+        match other {
+            Some(other) => self.join(other),
+            None => self,
         }
     }
 }
