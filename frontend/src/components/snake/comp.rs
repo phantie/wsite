@@ -8,7 +8,7 @@ use yew::html::Scope;
 
 use super::domain;
 
-const PAUSED: bool = false;
+const PAUSED: bool = true;
 
 const PX_SCALE: f64 = 100.0;
 
@@ -459,10 +459,7 @@ impl Snake {
 
         let pos = TransformedPos::from(pos);
         let scale = PX_SCALE;
-        TransformedPos {
-            x: pos.x * scale,
-            y: pos.y * scale,
-        }
+        pos * scale
     }
 
     pub fn out_of_window_bounds(&self, ws: Dimentions) -> bool {
@@ -539,6 +536,16 @@ impl From<web_sys::Window> for Dimentions {
 pub struct TransformedPos {
     pub x: f64,
     pub y: f64,
+}
+
+impl std::ops::Mul<f64> for TransformedPos {
+    type Output = Self;
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
 }
 
 impl From<domain::Pos> for TransformedPos {
