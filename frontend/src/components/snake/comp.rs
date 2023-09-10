@@ -8,14 +8,15 @@ use yew::html::Scope;
 
 use super::domain;
 
-const PAUSED: bool = true;
+const PAUSED: bool = false;
 
 const PX_SCALE: f64 = 100.0;
 
-const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::For4thQuadrant;
+const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
 enum AdjustAlgoChoice {
     None,
+    // redundant at least when "camera" is centered to the mouth
     For4thQuadrant,
 }
 
@@ -455,10 +456,19 @@ impl Component for Snake {
 
 impl Snake {
     pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
-        let pos = self.adjust_algo.apply(pos);
+        let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * PX_SCALE;
 
-        let pos = TransformedPos::from(pos);
-        pos * PX_SCALE
+        // center camera to the mouth
+        //
+        // position of the mouth after the same transformations as of 'pos'
+        let adjusted_mouth =
+            TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth())) * PX_SCALE;
+        // target position - center of the window
+        let wd = window_dimensions() / 2.0;
+        let center_x = wd.width - adjusted_mouth.x;
+        let center_y = wd.height - adjusted_mouth.y;
+
+        TransformedPos::new(pos.x + center_x, pos.y + center_y)
     }
 
     pub fn out_of_window_bounds(&self, wd: Dimensions) -> bool {
@@ -527,6 +537,22 @@ pub struct Dimensions {
     pub height: u32,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct FracDimensions {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl std::ops::Div<f64> for Dimensions {
+    type Output = FracDimensions;
+    fn div(self, rhs: f64) -> Self::Output {
+        Self::Output {
+            width: f64::from(self.width) / rhs,
+            height: f64::from(self.height) / rhs,
+        }
+    }
+}
+
 impl From<web_sys::Window> for Dimensions {
     fn from(value: web_sys::Window) -> Self {
         let width = value.inner_width().unwrap().as_f64().unwrap() as u32;
@@ -541,6 +567,22 @@ pub struct TransformedPos {
     pub y: f64,
 }
 
+impl TransformedPos {
+    fn new(x: f64, y: f64) -> Self {
+        Self { x, y }
+    }
+}
+
+impl std::ops::Add for TransformedPos {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
 impl std::ops::Mul<f64> for TransformedPos {
     type Output = Self;
     fn mul(self, rhs: f64) -> Self::Output {
@@ -553,10 +595,7 @@ impl std::ops::Mul<f64> for TransformedPos {
 
 impl From<domain::Pos> for TransformedPos {
     fn from(value: domain::Pos) -> Self {
-        Self {
-            x: f64::from(value.x),
-            y: f64::from(value.y),
-        }
+        Self::new(f64::from(value.x), f64::from(value.y))
     }
 }
 
