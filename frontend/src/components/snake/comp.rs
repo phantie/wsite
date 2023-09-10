@@ -8,6 +8,9 @@ use yew::html::Scope;
 
 use super::domain;
 
+// for debugging
+pub const PAUSED: bool = false;
+
 pub const PX_SCALE: f64 = 100.0;
 
 #[derive(Default, Clone)]
@@ -135,7 +138,13 @@ impl SnakeAdvanceInterval {
 
     fn init(millis: u32, link: Scope<Snake>) -> Self {
         Self {
-            _handle: Interval::new(millis, move || link.send_message(SnakeMsg::Advance)),
+            _handle: Interval::new(millis, move || {
+                link.send_message(if PAUSED {
+                    SnakeMsg::Nothing
+                } else {
+                    SnakeMsg::Advance
+                })
+            }),
         }
     }
 }
@@ -307,6 +316,9 @@ impl Component for Snake {
 
         self.draw_snake(&r);
         self.draw_foods(&r);
+
+        console::log!(format!("Snake: {:?}", self.domain.snake.boundaries()));
+        console::log!(format!("Foods: {:?}", self.domain.foods.boundaries()));
     }
 
     #[allow(unused)]

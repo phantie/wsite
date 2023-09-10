@@ -77,6 +77,16 @@ impl Snake {
             Ok(())
         }
     }
+
+    pub fn boundaries(&self) -> Boundaries {
+        let snake = self
+            .sections
+            .as_ref()
+            .iter()
+            .map(|section| [section.start(), section.end()])
+            .flatten();
+        Boundaries::from_iterators(snake.clone().map(Pos::x), snake.map(Pos::y))
+    }
 }
 
 #[derive(PartialEq, Clone, Copy, Debug)]
@@ -89,6 +99,10 @@ impl Food {
         Self {
             pos: Pos::new(x, y),
         }
+    }
+
+    pub fn pos(&self) -> Pos {
+        self.pos
     }
 }
 
@@ -120,6 +134,11 @@ impl Foods {
             .find(|(_i, f)| f.pos == pos)
             .expect("to call only when such element exists");
         self.values.remove(i);
+    }
+
+    pub fn boundaries(&self) -> Boundaries {
+        let foods = self.as_ref().iter().map(Food::pos);
+        Boundaries::from_iterators(foods.clone().map(Pos::x), foods.map(Pos::y))
     }
 }
 
@@ -280,6 +299,14 @@ impl Pos {
             y: self.y + y_diff,
         }
     }
+
+    pub fn x(self) -> i32 {
+        self.x
+    }
+
+    pub fn y(self) -> i32 {
+        self.y
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -297,6 +324,29 @@ impl Direction {
             Self::Bottom => Self::Up,
             Self::Left => Self::Right,
             Self::Right => Self::Left,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Boundaries {
+    min: Pos,
+    max: Pos,
+}
+
+impl Boundaries {
+    fn from_iterators(
+        xs: impl Iterator<Item = i32> + Clone,
+        ys: impl Iterator<Item = i32> + Clone,
+    ) -> Boundaries {
+        let max_x = xs.clone().max().unwrap();
+        let min_x = xs.into_iter().min().unwrap();
+        let max_y = ys.clone().into_iter().max().unwrap();
+        let min_y = ys.into_iter().min().unwrap();
+
+        Boundaries {
+            min: Pos { x: min_x, y: min_y },
+            max: Pos { x: max_x, y: max_y },
         }
     }
 }
