@@ -223,6 +223,7 @@ impl Component for Snake {
 
                     enum KeyBoardEvent {
                         DirectionChange(domain::Direction),
+                        Restart,
                         None,
                     }
                     use KeyBoardEvent::*;
@@ -232,15 +233,16 @@ impl Component for Snake {
                         "ArrowDown" => DirectionChange(domain::Direction::Bottom),
                         "ArrowLeft" => DirectionChange(domain::Direction::Left),
                         "ArrowRight" => DirectionChange(domain::Direction::Right),
+                        "r" => Restart,
                         _ => None,
                     };
 
-                    match kb_event {
-                        DirectionChange(direction) => {
-                            link.send_message(Self::Message::DirectionChange(direction))
-                        }
-                        None => {}
+                    let message = match kb_event {
+                        DirectionChange(direction) => Self::Message::DirectionChange(direction),
+                        Restart => Self::Message::Restart,
+                        None => Self::Message::Nothing,
                     };
+                    link.send_message(message)
                 },
             );
 
