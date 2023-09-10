@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals)]
+#![allow(unused, non_upper_case_globals)]
 use crate::components::imports::*;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
@@ -10,14 +10,20 @@ use super::domain;
 
 const PAUSED: bool = false;
 
-const ADJUST_ALGO: AdjustAlgo = AdjustAlgo::New;
-
 const PX_SCALE: f64 = 100.0;
 
-#[allow(unused)]
+const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::WindowBound;
+
+enum AdjustAlgoChoice {
+    Default,
+    // almost the same as Default, but supports negative domain coordinates
+    WindowBound,
+}
+
+#[derive(Clone, Copy)]
 enum AdjustAlgo {
     Default,
-    New,
+    WindowBound { init_neg_adjust: domain::Pos },
 }
 
 #[derive(Default, Clone)]
@@ -71,7 +77,6 @@ impl Refs {
     }
 }
 
-#[allow(unused)]
 pub struct Listeners {
     kb_listener: EventListener,
     window_load_listener: EventListener,
@@ -86,11 +91,11 @@ pub struct Domain {
 struct DomainDefaults;
 
 impl DomainDefaults {
-    fn snake() -> domain::Snake {
-        let initial_pos = match ADJUST_ALGO {
-            AdjustAlgo::Default => domain::Pos::new(1, 1),
+    fn snake(adjust_algo: AdjustAlgoChoice) -> domain::Snake {
+        let initial_pos = match adjust_algo {
+            AdjustAlgoChoice::Default => domain::Pos::new(1, 1),
             // test with negative coords
-            AdjustAlgo::New => domain::Pos::new(-2, 2),
+            AdjustAlgoChoice::WindowBound => domain::Pos::new(-2, 2),
         };
 
         let sections = domain::Sections::from_directions(
@@ -124,10 +129,10 @@ impl DomainDefaults {
     }
 }
 
-impl Default for Domain {
-    fn default() -> Self {
+impl Domain {
+    fn default(adjust_algo: AdjustAlgoChoice) -> Self {
         Self {
-            snake: DomainDefaults::snake(),
+            snake: DomainDefaults::snake(adjust_algo),
             foods: DomainDefaults::foods(),
         }
     }
@@ -135,11 +140,11 @@ impl Default for Domain {
 
 pub struct Snake {
     domain: Domain,
+    adjust_algo: AdjustAlgo,
 
     advance_interval: SnakeAdvanceInterval,
 
     refs: Refs,
-    #[allow(unused)]
     listeners: Listeners,
 }
 
@@ -236,11 +241,43 @@ impl Component for Snake {
             }
         };
 
+        let domain = Domain::default(ADJUST_ALGO);
+
+        let adjust_algo = match ADJUST_ALGO {
+            AdjustAlgoChoice::Default => AdjustAlgo::Default,
+            AdjustAlgoChoice::WindowBound => {
+                let init_neg_adjust = {
+                    let snake_boundaries = domain.snake.boundaries();
+                    let foods_boundaries = domain.foods.boundaries();
+                    let total_boundaries = snake_boundaries.join_option(foods_boundaries);
+
+                    fn adjust_for_negative(coord: i32) -> i32 {
+                        if coord < 0 {
+                            -coord
+                        } else {
+                            0
+                        }
+                    }
+
+                    let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
+                    let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
+
+                    domain::Pos {
+                        x: x_adjust_for_negative,
+                        y: y_adjust_for_negative,
+                    }
+                };
+
+                AdjustAlgo::WindowBound { init_neg_adjust }
+            }
+        };
+
         Self {
-            domain: Default::default(),
+            domain,
 
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
 
+            adjust_algo,
             refs: Default::default(),
             listeners,
         }
@@ -310,7 +347,6 @@ impl Component for Snake {
         }
     }
 
-    #[allow(unused)]
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         let canvas_el = self.refs.canvas_el();
 
@@ -346,7 +382,6 @@ impl Component for Snake {
         ));
     }
 
-    #[allow(unused)]
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
@@ -385,7 +420,7 @@ impl Component for Snake {
                 // drop old by replacement
                 self.advance_interval = SnakeAdvanceInterval::default(ctx.link().clone());
                 // reset domain items
-                self.domain = Domain::default();
+                self.domain = Domain::default(ADJUST_ALGO);
                 true
             }
             Self::Message::DirectionChange(direction) => {
@@ -412,29 +447,12 @@ impl Component for Snake {
 
 impl Snake {
     pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
-        let pos = match ADJUST_ALGO {
+        let pos = match self.adjust_algo {
             AdjustAlgo::Default => pos,
-            AdjustAlgo::New => {
-                let snake_boundaries = self.domain.snake.boundaries();
-                let foods_boundaries = self.domain.foods.boundaries();
-                let total_boundaries = snake_boundaries.join_option(foods_boundaries);
-
-                fn adjust_for_negative(coord: i32) -> i32 {
-                    if coord < 0 {
-                        -coord
-                    } else {
-                        0
-                    }
-                }
-
-                let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
-                let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
-
-                domain::Pos {
-                    x: pos.x + x_adjust_for_negative,
-                    y: pos.y + y_adjust_for_negative,
-                }
-            }
+            AdjustAlgo::WindowBound { init_neg_adjust } => domain::Pos {
+                x: pos.x + init_neg_adjust.x,
+                y: pos.y + init_neg_adjust.y,
+            },
         };
 
         let pos = TransformedPos::from(pos);
