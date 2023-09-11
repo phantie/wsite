@@ -455,7 +455,7 @@ impl Component for Snake {
 
                 match self.domain.snake.advance(&mut self.domain.foods) {
                     domain::AdvanceResult::Success => {
-                        if self.out_of_window_bounds(window_dimensions()) {
+                        if self.out_of_bounds() {
                             game_over();
                         }
                     }
@@ -509,12 +509,11 @@ impl Snake {
         TransformedPos::new(pos.x + center_x, pos.y + center_y)
     }
 
-    pub fn out_of_window_bounds(&self, wd: Dimensions) -> bool {
-        let mouth = self.transform_pos(self.domain.snake.mouth());
-        mouth.x < 0f64
-            || mouth.y < 0f64
-            || mouth.x > f64::from(wd.width)
-            || mouth.y > f64::from(wd.height)
+    pub fn out_of_bounds(&self) -> bool {
+        let mouth = self.domain.snake.mouth();
+        let b = self.domain.boundaries;
+
+        mouth.x <= b.min.x || mouth.y <= b.min.y || mouth.x >= b.max.x || mouth.y >= b.max.y
     }
 
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {
