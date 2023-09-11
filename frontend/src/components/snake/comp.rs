@@ -502,7 +502,11 @@ impl Snake {
 
     pub fn out_of_bounds(&self) -> bool {
         let mouth = self.domain.snake.mouth();
-        self.domain.boundaries.out_of(mouth)
+        match self.domain.boundaries.relation(mouth) {
+            domain::RelationToBoundaries::Inside => false,
+            domain::RelationToBoundaries::Touching => true,
+            domain::RelationToBoundaries::Outside => true,
+        }
     }
 
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {

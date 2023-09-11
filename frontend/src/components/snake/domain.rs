@@ -410,7 +410,25 @@ impl Boundaries {
         self.max
     }
 
-    pub fn out_of(&self, pos: Pos) -> bool {
-        pos.x <= self.min.x || pos.y <= self.min.y || pos.x >= self.max.x || pos.y >= self.max.y
+    pub fn relation(&self, pos: Pos) -> RelationToBoundaries {
+        use std::cmp::Ordering::*;
+        use RelationToBoundaries::*;
+
+        match [
+            pos.x.cmp(&self.min.x),
+            pos.y.cmp(&self.min.y),
+            pos.x.cmp(&self.max.x),
+            pos.y.cmp(&self.max.y),
+        ] {
+            [Greater, Greater, Less, Less] => Inside,
+            arr if arr.iter().any(|r| r == &Equal) => Touching,
+            _ => Outside,
+        }
     }
+}
+
+pub enum RelationToBoundaries {
+    Inside,
+    Touching,
+    Outside,
 }
