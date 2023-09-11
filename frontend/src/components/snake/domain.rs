@@ -324,6 +324,13 @@ impl Pos {
     pub fn y(self) -> i32 {
         self.y
     }
+
+    pub fn boundaries_in_radius(self, radius: i32) -> Boundaries {
+        Boundaries {
+            min: Pos::new(self.x - radius, self.y - radius),
+            max: Pos::new(self.x + radius, self.y + radius),
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]

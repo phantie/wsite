@@ -133,12 +133,8 @@ impl DomainDefaults {
     }
 
     fn foods(snake: &domain::Snake) -> domain::Foods {
-        let m = snake.mouth();
         let radius = 7;
-        let b = domain::Boundaries {
-            min: domain::Pos::new(m.x - radius, m.y - radius),
-            max: domain::Pos::new(m.x + radius, m.y + radius),
-        };
+        let b = snake.mouth().boundaries_in_radius(radius);
 
         let mut positions = HashSet::new();
         for x in (b.min.x)..(b.max.x) {
@@ -166,13 +162,8 @@ impl DomainDefaults {
     }
 
     fn boundaries(snake: &domain::Snake) -> domain::Boundaries {
-        let m = snake.mouth();
         let radius = 8;
-        let b = domain::Boundaries {
-            min: domain::Pos::new(m.x - radius, m.y - radius),
-            max: domain::Pos::new(m.x + radius, m.y + radius),
-        };
-        b
+        snake.mouth().boundaries_in_radius(radius)
     }
 }
 
