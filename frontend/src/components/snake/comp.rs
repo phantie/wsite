@@ -22,7 +22,7 @@ const CAMERA: Camera = Camera::BoundariesCentered;
 const MAP_BOUNDARIES_X: i32 = 10;
 const MAP_BOUNDARIES_Y: i32 = 4;
 
-enum Camera {
+pub enum Camera {
     MouthCentered,
     BoundariesCentered,
 }
@@ -234,6 +234,8 @@ pub enum SnakeMsg {
     WindowLoaded,
     WindowResized,
     FitCanvasToWindowSize,
+    CameraChange(Camera),
+    CameraToggle,
     Nothing,
 }
 
@@ -269,6 +271,7 @@ impl Component for Snake {
                         DirectionChange(domain::Direction),
                         Restart,
                         None,
+                        CameraToggle,
                     }
                     use KeyBoardEvent::*;
 
@@ -278,6 +281,7 @@ impl Component for Snake {
                         "ArrowLeft" => DirectionChange(domain::Direction::Left),
                         "ArrowRight" => DirectionChange(domain::Direction::Right),
                         "r" => Restart,
+                        "c" => CameraToggle,
                         _ => None,
                     };
 
@@ -285,6 +289,7 @@ impl Component for Snake {
                         DirectionChange(direction) => Self::Message::DirectionChange(direction),
                         Restart => Self::Message::Restart,
                         None => Self::Message::Nothing,
+                        CameraToggle => Self::Message::CameraToggle,
                     };
                     link.send_message(message)
                 },
@@ -352,7 +357,7 @@ impl Component for Snake {
 
         let button_style = css! {"
             border: 2px solid white;
-            width: 50px; height: 20px;
+            width: 80px; height: 20px;
             color: white;
             cursor: pointer;
             display: inline-block;
@@ -364,13 +369,18 @@ impl Component for Snake {
             :hover {
                 opacity: 0.8;
             }
+        "};
 
+        let camera_button_style = css! {"
+            position: absolute;
+            right: 350px;
+            top: 10px;
         "};
 
         let restart_button_style = css! {"
             position: absolute;
             right: 200px;
-            top: 10px;   
+            top: 10px;
         "};
 
         let move_button = |text: &str, direction| {
@@ -381,6 +391,8 @@ impl Component for Snake {
                     onclick={ direction_onlick(direction) }>{ text }</div>
             }
         };
+
+        let camera_button_onclick = ctx.link().callback(move |e| Self::Message::CameraToggle);
 
         html! {
             <>
@@ -398,7 +410,8 @@ impl Component for Snake {
                     </div>
                 </div>
 
-                <div class={ vec![restart_button_style, button_style] } onclick={restart_button_onclick}>{ "Restart" }</div>
+                <div class={ vec![camera_button_style, button_style.clone()] } onclick={camera_button_onclick}>{ "Camera (C)" }</div>
+                <div class={ vec![restart_button_style, button_style] } onclick={restart_button_onclick}>{ "Restart (R)" }</div>
                 <canvas
                     class={css!("position: absolute; z-index: -1;")}
                     ref={self.refs.canvas_ref.clone()}></canvas>
@@ -492,6 +505,19 @@ impl Component for Snake {
                 })
                 .forget();
 
+                false
+            }
+            Self::Message::CameraChange(camera) => {
+                self.camera = camera;
+                true
+            }
+            Self::Message::CameraToggle => {
+                let next_camera = match self.camera {
+                    Camera::MouthCentered => Camera::BoundariesCentered,
+                    Camera::BoundariesCentered => Camera::MouthCentered,
+                };
+                ctx.link()
+                    .send_message(Self::Message::CameraChange(next_camera));
                 false
             }
         }
