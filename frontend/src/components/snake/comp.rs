@@ -98,6 +98,7 @@ pub struct Listeners {
 pub struct Domain {
     snake: domain::Snake,
     foods: domain::Foods,
+    boundaries: domain::Boundaries,
 }
 
 struct DomainDefaults;
@@ -163,6 +164,16 @@ impl DomainDefaults {
         let values = values.into_iter().map(domain::Food::from).collect();
         domain::Foods { values }
     }
+
+    fn boundaries(snake: &domain::Snake) -> domain::Boundaries {
+        let m = snake.mouth();
+        let radius = 8;
+        let b = domain::Boundaries {
+            min: domain::Pos::new(m.x - radius, m.y - radius),
+            max: domain::Pos::new(m.x + radius, m.y + radius),
+        };
+        b
+    }
 }
 
 impl Domain {
@@ -170,6 +181,7 @@ impl Domain {
         let snake = DomainDefaults::snake(adjust_algo);
         Self {
             foods: DomainDefaults::foods(&snake),
+            boundaries: DomainDefaults::boundaries(&snake),
             snake,
         }
     }
@@ -177,9 +189,10 @@ impl Domain {
 
 pub struct Snake {
     domain: Domain,
-    adjust_algo: AdjustAlgo,
 
     advance_interval: SnakeAdvanceInterval,
+
+    adjust_algo: AdjustAlgo,
 
     refs: Refs,
     listeners: Listeners,
@@ -410,6 +423,7 @@ impl Component for Snake {
 
         self.draw_snake(&r);
         self.draw_foods(&r);
+        self.draw_boundaries(&r);
 
         console::log!("random int (0..1)", rand_from_iterator(0..1));
         console::log!("random int (0..2)", rand_from_iterator(0..2));
@@ -539,6 +553,20 @@ impl Snake {
             r.stroke();
             r.close_path();
         }
+    }
+
+    fn draw_boundaries(&self, r: &CanvasRenderingContext2d) {
+        let TransformedPos { x, y } = self.transform_pos(self.domain.boundaries.left_top());
+
+        r.begin_path();
+        r.move_to(x, y);
+
+        for pos in self.domain.boundaries.iter_pos_clockwise() {
+            let TransformedPos { x, y } = self.transform_pos(pos);
+            r.line_to(x, y);
+        }
+        r.stroke();
+        r.close_path();
     }
 }
 

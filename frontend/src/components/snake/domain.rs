@@ -386,4 +386,29 @@ impl Boundaries {
             None => self,
         }
     }
+
+    pub fn right_top(&self) -> Pos {
+        Pos::new(self.max.x, self.min.y)
+    }
+
+    pub fn left_top(&self) -> Pos {
+        self.min
+    }
+
+    pub fn left_bottom(&self) -> Pos {
+        Pos::new(self.min.x, self.max.y)
+    }
+
+    pub fn right_bottom(&self) -> Pos {
+        self.max
+    }
+
+    pub fn iter_pos_clockwise(&self) -> impl IntoIterator<Item = Pos> {
+        [
+            self.left_top(),
+            self.right_top(),
+            self.right_bottom(),
+            self.left_bottom(),
+        ]
+    }
 }
