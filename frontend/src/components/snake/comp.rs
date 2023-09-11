@@ -511,9 +511,7 @@ impl Snake {
 
     pub fn out_of_bounds(&self) -> bool {
         let mouth = self.domain.snake.mouth();
-        let b = self.domain.boundaries;
-
-        mouth.x <= b.min.x || mouth.y <= b.min.y || mouth.x >= b.max.x || mouth.y >= b.max.y
+        self.domain.boundaries.out_of(mouth)
     }
 
     fn draw_snake(&self, r: &CanvasRenderingContext2d) {

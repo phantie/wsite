@@ -402,4 +402,8 @@ impl Boundaries {
     pub fn right_bottom(&self) -> Pos {
         self.max
     }
+
+    pub fn out_of(&self, pos: Pos) -> bool {
+        pos.x <= self.min.x || pos.y <= self.min.y || pos.x >= self.max.x || pos.y >= self.max.y
+    }
 }
