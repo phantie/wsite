@@ -402,13 +402,4 @@ impl Boundaries {
     pub fn right_bottom(&self) -> Pos {
         self.max
     }
-
-    pub fn iter_pos_clockwise(&self) -> impl IntoIterator<Item = Pos> {
-        [
-            self.left_top(),
-            self.right_top(),
-            self.right_bottom(),
-            self.left_bottom(),
-        ]
-    }
 }

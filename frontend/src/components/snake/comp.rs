@@ -561,7 +561,12 @@ impl Snake {
         r.begin_path();
         r.move_to(x, y);
 
-        for pos in self.domain.boundaries.iter_pos_clockwise() {
+        for pos in [
+            self.domain.boundaries.right_top(),
+            self.domain.boundaries.right_bottom(),
+            self.domain.boundaries.left_bottom(),
+            self.domain.boundaries.left_top(),
+        ] {
             let TransformedPos { x, y } = self.transform_pos(pos);
             r.line_to(x, y);
         }
