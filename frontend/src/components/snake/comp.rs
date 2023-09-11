@@ -294,8 +294,8 @@ impl Component for Snake {
                         "ArrowDown" => DirectionChange(domain::Direction::Bottom),
                         "ArrowLeft" => DirectionChange(domain::Direction::Left),
                         "ArrowRight" => DirectionChange(domain::Direction::Right),
-                        "r" => Restart,
-                        "c" => CameraToggle,
+                        "r" | "R" => Restart,
+                        "c" | "C" => CameraToggle,
                         _ => None,
                     };
 
