@@ -142,10 +142,16 @@ impl DomainDefaults {
         }
     }
 
-    fn foods(snake: &domain::Snake) -> domain::Foods {
-        let b = snake
-            .mouth()
-            .boundaries_in_radius(MAP_BOUNDARIES_X - 1, MAP_BOUNDARIES_Y - 1);
+    fn foods(
+        food_count: i32,
+        boundaries: domain::Boundaries,
+        taken_positions: impl Iterator<Item = domain::Pos>,
+    ) -> domain::Foods {
+        let b = boundaries;
+        let b = domain::Boundaries {
+            min: domain::Pos::new(b.min.x + 1, b.min.y + 1),
+            max: domain::Pos::new(b.max.x - 1, b.max.y - 1),
+        };
 
         let mut positions = HashSet::new();
         for x in (b.min.x)..(b.max.x) {
@@ -154,18 +160,21 @@ impl DomainDefaults {
             }
         }
 
-        let snake_vertices = snake.iter_vertices().collect::<HashSet<_>>();
+        // let snake_vertices = snake.iter_vertices().collect::<HashSet<_>>();
+        let taken_positions = taken_positions.collect::<HashSet<_>>();
         let mut vacant_food_positions = positions
-            .difference(&snake_vertices)
+            .difference(&taken_positions)
             .collect::<HashSet<_>>();
 
         let mut values = vec![];
-        let rand_food_count = || rand_from_iterator(10..15);
-        let foods_count = rand_food_count();
-        for _ in 0..foods_count {
-            let food_pos = rand_from_iterator(vacant_food_positions.iter());
-            values.push(**food_pos);
-            let _removed = vacant_food_positions.remove(*food_pos);
+        for _ in 0..food_count {
+            if vacant_food_positions.len() > 0 {
+                let food_pos = rand_from_iterator(vacant_food_positions.iter());
+                values.push(**food_pos);
+                let _removed = vacant_food_positions.remove(*food_pos);
+            } else {
+                break;
+            }
         }
 
         let values = values.into_iter().map(domain::Food::from).collect();
@@ -182,9 +191,14 @@ impl DomainDefaults {
 impl Domain {
     fn default(adjust_algo: AdjustAlgoChoice) -> Self {
         let snake = DomainDefaults::snake(adjust_algo);
+        let boundaries = DomainDefaults::boundaries(&snake);
         Self {
-            foods: DomainDefaults::foods(&snake),
-            boundaries: DomainDefaults::boundaries(&snake),
+            foods: DomainDefaults::foods(
+                rand_from_iterator(10..15),
+                boundaries,
+                snake.iter_vertices(),
+            ),
+            boundaries,
             snake,
         }
     }
@@ -444,8 +458,8 @@ impl Component for Snake {
         self.draw_foods(&r);
         self.draw_boundaries(&r);
 
-        console::log!("random int (0..1)", rand_from_iterator(0..1));
-        console::log!("random int (0..2)", rand_from_iterator(0..2));
+        // console::log!("random int (0..1)", rand_from_iterator(0..1));
+        // console::log!("random int (0..2)", rand_from_iterator(0..2));
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -476,6 +490,15 @@ impl Component for Snake {
                     domain::AdvanceResult::Success => {
                         if self.out_of_bounds() {
                             game_over();
+                        }
+
+                        // when no food, replenish
+                        if self.domain.foods.empty() {
+                            self.domain.foods = DomainDefaults::foods(
+                                rand_from_iterator(10..15),
+                                self.domain.boundaries,
+                                self.domain.snake.iter_vertices(),
+                            );
                         }
                     }
                     domain::AdvanceResult::BitYaSelf => game_over(),

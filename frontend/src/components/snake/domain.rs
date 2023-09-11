@@ -146,6 +146,10 @@ impl Foods {
         let foods = self.as_ref().iter().map(Food::pos);
         Boundaries::from_iterators(foods.clone().map(Pos::x), foods.map(Pos::y))
     }
+
+    pub fn empty(&self) -> bool {
+        self.as_ref().is_empty()
+    }
 }
 
 #[derive(Clone, Copy)]
