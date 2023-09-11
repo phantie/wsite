@@ -13,9 +13,19 @@ use super::domain;
 const PAUSED: bool = false;
 
 // greater value - closer camera
-const PX_SCALE: f64 = 95.0;
+const PX_SCALE: f64 = 70.0;
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
+
+const CAMERA: Camera = Camera::BoundariesCentered;
+
+const MAP_BOUNDARIES_X: i32 = 10;
+const MAP_BOUNDARIES_Y: i32 = 4;
+
+enum Camera {
+    MouthCentered,
+    BoundariesCentered,
+}
 
 enum AdjustAlgoChoice {
     None,
@@ -133,8 +143,9 @@ impl DomainDefaults {
     }
 
     fn foods(snake: &domain::Snake) -> domain::Foods {
-        let radius = 7;
-        let b = snake.mouth().boundaries_in_radius(radius);
+        let b = snake
+            .mouth()
+            .boundaries_in_radius(MAP_BOUNDARIES_X - 1, MAP_BOUNDARIES_Y - 1);
 
         let mut positions = HashSet::new();
         for x in (b.min.x)..(b.max.x) {
@@ -162,8 +173,9 @@ impl DomainDefaults {
     }
 
     fn boundaries(snake: &domain::Snake) -> domain::Boundaries {
-        let radius = 8;
-        snake.mouth().boundaries_in_radius(radius)
+        snake
+            .mouth()
+            .boundaries_in_radius(MAP_BOUNDARIES_X, MAP_BOUNDARIES_Y)
     }
 }
 
@@ -183,6 +195,7 @@ pub struct Snake {
 
     advance_interval: SnakeAdvanceInterval,
 
+    camera: Camera,
     adjust_algo: AdjustAlgo,
 
     refs: Refs,
@@ -321,6 +334,8 @@ impl Component for Snake {
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
 
             adjust_algo,
+            camera: CAMERA,
+
             refs: Default::default(),
             listeners,
         }
@@ -487,17 +502,38 @@ impl Snake {
     pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
         let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * PX_SCALE;
 
-        // center camera to the mouth
-        //
-        // position of the mouth after the same transformations as of 'pos'
-        let adjusted_mouth =
-            TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth())) * PX_SCALE;
-        // target position - center of the window
-        let wd = window_dimensions() / 2.0;
-        let center_x = wd.width - adjusted_mouth.x;
-        let center_y = wd.height - adjusted_mouth.y;
+        match self.camera {
+            Camera::MouthCentered => {
+                // center camera to the mouth
+                //
+                // position of the mouth after the same transformations as of 'pos'
+                let adjusted_mouth =
+                    TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth()))
+                        * PX_SCALE;
+                // target position - center of the window
+                let wd = window_dimensions() / 2.0;
+                let to_center_x = wd.width - adjusted_mouth.x;
+                let to_center_y = wd.height - adjusted_mouth.y;
 
-        TransformedPos::new(pos.x + center_x, pos.y + center_y)
+                TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
+            }
+            Camera::BoundariesCentered => {
+                // center camera to the boundaries center
+                //
+                let b = self.domain.boundaries;
+                let b_max = self.adjust_algo.apply(b.max);
+                let b_min = self.adjust_algo.apply(b.min);
+                let adjusted_boundaries_center = TransformedPos::new(
+                    (b_min.x + b_max.x) as f64 / 2.0,
+                    (b_min.y + b_max.y) as f64 / 2.0,
+                ) * PX_SCALE;
+                let wd = window_dimensions() / 2.0;
+                let to_center_x = wd.width - adjusted_boundaries_center.x;
+                let to_center_y = wd.height - adjusted_boundaries_center.y;
+
+                TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
+            }
+        }
     }
 
     pub fn out_of_bounds(&self) -> bool {

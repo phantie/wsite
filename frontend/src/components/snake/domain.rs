@@ -325,10 +325,10 @@ impl Pos {
         self.y
     }
 
-    pub fn boundaries_in_radius(self, radius: i32) -> Boundaries {
+    pub fn boundaries_in_radius(self, x_radius: i32, y_radius: i32) -> Boundaries {
         Boundaries {
-            min: Pos::new(self.x - radius, self.y - radius),
-            max: Pos::new(self.x + radius, self.y + radius),
+            min: Pos::new(self.x - x_radius, self.y - y_radius),
+            max: Pos::new(self.x + x_radius, self.y + y_radius),
         }
     }
 }
