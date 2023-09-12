@@ -12,10 +12,6 @@ use super::domain;
 
 const PAUSED: bool = false;
 
-// greater value - closer camera
-// TODO does not matter now
-const PX_SCALE: f64 = 50.0;
-
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
 const CAMERA: Camera = Camera::BoundariesCentered;
@@ -240,6 +236,7 @@ pub struct Snake {
 
     advance_interval: SnakeAdvanceInterval,
 
+    // greater value - closer camera
     px_scale: f64,
     camera: Camera,
     adjust_algo: AdjustAlgo,
@@ -384,8 +381,8 @@ impl Component for Snake {
 
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
 
-            // use in drawing to preserve aspect ratio with differing camera distances
-            px_scale: PX_SCALE,
+            // initial value does not matter, will be reset on window load
+            px_scale: 0.,
             adjust_algo,
             camera: CAMERA,
 
