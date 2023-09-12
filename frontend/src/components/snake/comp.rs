@@ -160,7 +160,6 @@ impl DomainDefaults {
             }
         }
 
-        // let snake_vertices = snake.iter_vertices().collect::<HashSet<_>>();
         let taken_positions = taken_positions.collect::<HashSet<_>>();
         let mut vacant_food_positions = positions
             .difference(&taken_positions)
@@ -445,14 +444,18 @@ impl Component for Snake {
         let canvas_rendering_ctx =
             canvas_rendering_ctx_object.unchecked_into::<CanvasRenderingContext2d>();
 
-        let r = canvas_rendering_ctx;
+        let r = CanvasRenderer::from(canvas_rendering_ctx);
 
-        r.set_stroke_style(&JsValue::from_str("white"));
+        r.set_stroke_style("white");
         r.set_line_join("round");
         r.set_line_width(px_scale(0.1));
-        r.set_fill_style(&JsValue::from_str("black"));
+        r.set_fill_style("black");
         let wd = window_dimensions();
-        r.fill_rect(0f64, 0f64, f64::from(wd.width), f64::from(wd.height));
+
+        r.fill_rect(domain::Boundaries {
+            min: domain::Pos::new(0, 0),
+            max: domain::Pos::new(wd.width as i32, wd.height as i32),
+        });
 
         self.draw_snake(&r);
         self.draw_foods(&r);
@@ -594,49 +597,48 @@ impl Snake {
         }
     }
 
-    fn draw_snake(&self, r: &CanvasRenderingContext2d) {
-        let TransformedPos { x, y } =
-            self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
+    fn draw_snake(&self, r: &CanvasRenderer) {
+        let pos = self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
         r.begin_path();
-        r.move_to(x, y);
-        for TransformedPos { x, y } in self
+        r.move_to(pos);
+        for pos in self
             .domain
             .snake
             .iter_vertices()
             .skip(1)
             .map(|v| self.transform_pos(v))
         {
-            r.line_to(x, y);
+            r.line_to(pos);
         }
         r.stroke();
         r.close_path();
 
-        let TransformedPos { x, y } = self.transform_pos(self.domain.snake.mouth());
+        let pos = self.transform_pos(self.domain.snake.mouth());
         r.begin_path();
-        r.cirle(x, y, px_scale(0.2));
-        r.set_fill_style(&JsValue::from_str("white"));
+        r.cirle(pos, px_scale(0.2));
+        r.set_fill_style("white");
         r.fill();
         r.stroke();
         r.close_path();
     }
 
-    fn draw_foods(&self, r: &CanvasRenderingContext2d) {
+    fn draw_foods(&self, r: &CanvasRenderer) {
         for food in self.domain.foods.as_ref() {
-            let TransformedPos { x, y } = self.transform_pos(food.pos);
+            let pos = self.transform_pos(food.pos);
             r.begin_path();
-            r.cirle(x, y, px_scale(0.3));
-            r.set_fill_style(&JsValue::from_str("white"));
+            r.cirle(pos, px_scale(0.3));
+            r.set_fill_style("white");
             r.fill();
             r.stroke();
             r.close_path();
         }
     }
 
-    fn draw_boundaries(&self, r: &CanvasRenderingContext2d) {
-        let TransformedPos { x, y } = self.transform_pos(self.domain.boundaries.left_top());
+    fn draw_boundaries(&self, r: &CanvasRenderer) {
+        let pos = self.transform_pos(self.domain.boundaries.left_top());
 
         r.begin_path();
-        r.move_to(x, y);
+        r.move_to(pos);
 
         for pos in [
             self.domain.boundaries.right_top(),
@@ -644,8 +646,8 @@ impl Snake {
             self.domain.boundaries.left_bottom(),
             self.domain.boundaries.left_top(),
         ] {
-            let TransformedPos { x, y } = self.transform_pos(pos);
-            r.line_to(x, y);
+            let pos = self.transform_pos(pos);
+            r.line_to(pos);
         }
         r.stroke();
         r.close_path();
@@ -733,14 +735,73 @@ impl From<domain::Pos> for TransformedPos {
     }
 }
 
-trait CanvasRenderingContext2dExtend {
-    fn cirle(&self, x: f64, y: f64, radius: f64);
+struct CanvasRenderer {
+    context: CanvasRenderingContext2d,
 }
 
-impl CanvasRenderingContext2dExtend for CanvasRenderingContext2d {
-    fn cirle(&self, x: f64, y: f64, radius: f64) {
-        self.arc(x, y, radius, 0f64, 2.0 * std::f64::consts::PI)
+impl From<CanvasRenderingContext2d> for CanvasRenderer {
+    fn from(value: CanvasRenderingContext2d) -> Self {
+        Self { context: value }
+    }
+}
+
+impl AsRef<CanvasRenderingContext2d> for CanvasRenderer {
+    fn as_ref(&self) -> &CanvasRenderingContext2d {
+        &self.context
+    }
+}
+
+impl CanvasRenderer {
+    fn cirle(&self, TransformedPos { x, y }: TransformedPos, radius: f64) {
+        self.as_ref()
+            .arc(x, y, radius, 0f64, 2.0 * std::f64::consts::PI)
             .unwrap();
+    }
+
+    fn begin_path(&self) {
+        self.as_ref().begin_path();
+    }
+
+    fn close_path(&self) {
+        self.as_ref().close_path();
+    }
+
+    fn stroke(&self) {
+        self.as_ref().stroke();
+    }
+
+    fn fill(&self) {
+        self.as_ref().fill();
+    }
+
+    fn move_to(&self, TransformedPos { x, y }: TransformedPos) {
+        self.as_ref().move_to(x, y);
+    }
+
+    fn line_to(&self, TransformedPos { x, y }: TransformedPos) {
+        self.as_ref().line_to(x, y);
+    }
+
+    fn set_fill_style(&self, value: &str) {
+        self.as_ref().set_fill_style(&JsValue::from_str(value));
+    }
+
+    fn set_stroke_style(&self, value: &str) {
+        self.as_ref().set_stroke_style(&JsValue::from_str(value));
+    }
+
+    fn set_line_join(&self, value: &str) {
+        self.as_ref().set_line_join(value);
+    }
+
+    fn set_line_width(&self, value: f64) {
+        self.as_ref().set_line_width(value);
+    }
+
+    fn fill_rect(&self, boundaries: domain::Boundaries) {
+        let TransformedPos { x: min_x, y: min_y } = boundaries.min.into();
+        let TransformedPos { x: max_x, y: max_y } = boundaries.max.into();
+        self.as_ref().fill_rect(min_x, min_y, max_x, max_y);
     }
 }
 
