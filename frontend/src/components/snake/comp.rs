@@ -92,7 +92,19 @@ impl Refs {
         CanvasRenderer::from(self.canvas_rendering_ctx())
     }
 
-    fn set_canvas_size(&self, dims: Dimensions) {
+    fn canvas_dimensions(&self) -> Dimensions {
+        let canvas = self.canvas_el();
+        Dimensions {
+            width: canvas.width(),
+            height: canvas.height(),
+        }
+    }
+
+    fn is_canvas_fit(&self) -> bool {
+        self.canvas_dimensions() == canvas_target_dimensions()
+    }
+
+    fn set_canvas_dimensions(&self, dims: Dimensions) {
         let canvas = self.canvas_el();
         canvas.set_height(dims.height);
         canvas.set_width(dims.width);
@@ -101,7 +113,7 @@ impl Refs {
 
     fn fit_canvas(&self) {
         let cd = canvas_target_dimensions();
-        self.set_canvas_size(cd);
+        self.set_canvas_dimensions(cd);
     }
 
     fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
@@ -471,8 +483,9 @@ impl Component for Snake {
         r.set_line_join("round");
         r.set_line_width(px_scale(0.1));
         r.set_fill_style("black");
-        let cd = canvas_target_dimensions();
 
+        assert!(self.refs.is_canvas_fit());
+        let cd = self.refs.canvas_dimensions();
         r.fill_rect(domain::Boundaries {
             min: domain::Pos::new(0, 0),
             max: domain::Pos::new(cd.width as i32, cd.height as i32),
@@ -584,7 +597,8 @@ impl Snake {
                     TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth()))
                         * PX_SCALE;
                 // target position - center of the canvas
-                let cd = canvas_target_dimensions() / 2.0;
+                assert!(self.refs.is_canvas_fit());
+                let cd = self.refs.canvas_dimensions() / 2.0;
                 let to_center_x = cd.width - adjusted_mouth.x;
                 let to_center_y = cd.height - adjusted_mouth.y;
 
@@ -600,7 +614,8 @@ impl Snake {
                     (b_min.x + b_max.x) as f64 / 2.0,
                     (b_min.y + b_max.y) as f64 / 2.0,
                 ) * PX_SCALE;
-                let cd = canvas_target_dimensions() / 2.0;
+                assert!(self.refs.is_canvas_fit());
+                let cd = self.refs.canvas_dimensions() / 2.0;
                 let to_center_x = cd.width - adjusted_boundaries_center.x;
                 let to_center_y = cd.height - adjusted_boundaries_center.y;
 
@@ -697,7 +712,7 @@ fn get_document() -> Document {
     window.document().unwrap()
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Dimensions {
     pub width: u32,
     pub height: u32,
