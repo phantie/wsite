@@ -22,6 +22,8 @@ const CAMERA: Camera = Camera::BoundariesCentered;
 const MAP_BOUNDARIES_X: i32 = 10;
 const MAP_BOUNDARIES_Y: i32 = 4;
 
+const PANEL_PX_WIDTH: u32 = 350;
+
 pub enum Camera {
     MouthCentered,
     BoundariesCentered,
@@ -97,9 +99,9 @@ impl Refs {
         console::log!("canvas resized to:", format!("{:?}", dims));
     }
 
-    fn fit_canvas_to_window_size(&self) {
-        let wd = window_dimensions();
-        self.set_canvas_size(wd);
+    fn fit_canvas(&self) {
+        let cd = canvas_target_dimensions();
+        self.set_canvas_size(cd);
     }
 
     fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
@@ -373,14 +375,7 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let restart_button_onclick = ctx.link().callback(move |e| Self::Message::Restart);
-
-        let direction_onlick = |direction| {
-            ctx.link()
-                .callback(move |_| Self::Message::DirectionChange(direction))
-        };
-
-        let button_style = css! {"
+        let btn_style = css! {"
             border: 2px solid white;
             width: 80px; height: 20px;
             color: white;
@@ -396,57 +391,79 @@ impl Component for Snake {
             }
         "};
 
-        let camera_button_style = css! {"
-            position: absolute;
-            right: 350px;
-            top: 10px;
-        "};
+        let camera_btn_style = css! {"margin-top: 20px;"};
 
-        let restart_button_style = css! {"
-            position: absolute;
-            right: 200px;
-            top: 10px;
-        "};
+        let camera_btn_onclick = ctx.link().callback(move |e| Self::Message::CameraToggle);
 
-        let move_button = |text: &str, direction| {
+        let restart_btn_style = css! {"margin-top: 20px;"};
+
+        let restart_btn_onclick = ctx.link().callback(move |e| Self::Message::Restart);
+
+        let direction_btn = |text: &str, direction| {
+            let direction_btn_onlick = |direction| {
+                ctx.link()
+                    .callback(move |_| Self::Message::DirectionChange(direction))
+            };
+
             html! {
                 <div
                     ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
-                    class={ button_style.clone() }
-                    onclick={ direction_onlick(direction) }>{ text }</div>
+                    class={ btn_style.clone() }
+                    onclick={ direction_btn_onlick(direction) }>{ text }</div>
             }
         };
 
-        let camera_button_onclick = ctx.link().callback(move |e| Self::Message::CameraToggle);
+        // #4a4a4a
+        let panel_style = css! {"
+            width: ${width}px;
+            background-color: black;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            outline: 5px groove white;
+        ",
+            width = PANEL_PX_WIDTH
+        };
+
+        let wrapper_style = css! {"
+            display: flex;
+        "};
 
         html! {
             <>
                 <Global css={".active_btn { transition: 0.2s; border-color: green; background-color: green; }"}/>
                 <PageTitle title={"Snake"}/>
-                <div class={css!("display: flex; margin-top: 20px; position: absolute; left: 0; right: 0; align-items: center; flex-direction: column;")}>
-                    <div>
-                        { move_button("▲", domain::Direction::Up) }
-                    </div>
 
-                    <div>
-                        { move_button("◄", domain::Direction::Left) }
-                        { move_button("▼", domain::Direction::Bottom) }
-                        { move_button("►", domain::Direction::Right) }
+                <div class={ wrapper_style }>
+                    <canvas ref={self.refs.canvas_ref.clone()}></canvas>
+
+                    <div class={ panel_style }>
+
+                        <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
+                            <div>
+                                { direction_btn("▲", domain::Direction::Up) }
+                            </div>
+
+                            <div>
+                                { direction_btn("◄", domain::Direction::Left) }
+                                { direction_btn("▼", domain::Direction::Bottom) }
+                                { direction_btn("►", domain::Direction::Right) }
+                            </div>
+                        </div>
+
+                        <div class={ vec![camera_btn_style, btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
+                        <div class={ vec![restart_btn_style, btn_style] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
+
                     </div>
                 </div>
-
-                <div class={ vec![camera_button_style, button_style.clone()] } onclick={camera_button_onclick}>{ "Camera (C)" }</div>
-                <div class={ vec![restart_button_style, button_style] } onclick={restart_button_onclick}>{ "Restart (R)" }</div>
-                <canvas
-                    class={css!("position: absolute; z-index: -1;")}
-                    ref={self.refs.canvas_ref.clone()}></canvas>
             </>
         }
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            self.refs.fit_canvas_to_window_size();
+            self.refs.fit_canvas();
         }
 
         let r = self.refs.canvas_renderer();
@@ -454,11 +471,11 @@ impl Component for Snake {
         r.set_line_join("round");
         r.set_line_width(px_scale(0.1));
         r.set_fill_style("black");
-        let wd = window_dimensions();
+        let cd = canvas_target_dimensions();
 
         r.fill_rect(domain::Boundaries {
             min: domain::Pos::new(0, 0),
-            max: domain::Pos::new(wd.width as i32, wd.height as i32),
+            max: domain::Pos::new(cd.width as i32, cd.height as i32),
         });
 
         self.draw_snake(&r);
@@ -483,7 +500,7 @@ impl Component for Snake {
                 false
             }
             Self::Message::FitCanvasToWindowSize => {
-                self.refs.fit_canvas_to_window_size();
+                self.refs.fit_canvas();
                 true
             }
             Self::Message::Advance => {
@@ -566,10 +583,10 @@ impl Snake {
                 let adjusted_mouth =
                     TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth()))
                         * PX_SCALE;
-                // target position - center of the window
-                let wd = window_dimensions() / 2.0;
-                let to_center_x = wd.width - adjusted_mouth.x;
-                let to_center_y = wd.height - adjusted_mouth.y;
+                // target position - center of the canvas
+                let cd = canvas_target_dimensions() / 2.0;
+                let to_center_x = cd.width - adjusted_mouth.x;
+                let to_center_y = cd.height - adjusted_mouth.y;
 
                 TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
             }
@@ -583,9 +600,9 @@ impl Snake {
                     (b_min.x + b_max.x) as f64 / 2.0,
                     (b_min.y + b_max.y) as f64 / 2.0,
                 ) * PX_SCALE;
-                let wd = window_dimensions() / 2.0;
-                let to_center_x = wd.width - adjusted_boundaries_center.x;
-                let to_center_y = wd.height - adjusted_boundaries_center.y;
+                let cd = canvas_target_dimensions() / 2.0;
+                let to_center_x = cd.width - adjusted_boundaries_center.x;
+                let to_center_y = cd.height - adjusted_boundaries_center.y;
 
                 TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
             }
@@ -664,6 +681,15 @@ fn get_window() -> Window {
 
 fn window_dimensions() -> Dimensions {
     Dimensions::from(get_window())
+}
+
+fn canvas_target_dimensions() -> Dimensions {
+    let Dimensions { width, height } = window_dimensions();
+
+    Dimensions {
+        width: width - PANEL_PX_WIDTH,
+        height,
+    }
 }
 
 fn get_document() -> Document {
