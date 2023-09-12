@@ -78,6 +78,18 @@ impl Refs {
         self.canvas_ref.clone().cast::<HtmlCanvasElement>().unwrap()
     }
 
+    fn canvas_rendering_ctx(&self) -> CanvasRenderingContext2d {
+        self.canvas_el()
+            .get_context("2d")
+            .unwrap()
+            .unwrap()
+            .unchecked_into::<CanvasRenderingContext2d>()
+    }
+
+    fn canvas_renderer(&self) -> CanvasRenderer {
+        CanvasRenderer::from(self.canvas_rendering_ctx())
+    }
+
     fn set_canvas_size(&self, dims: Dimensions) {
         let canvas = self.canvas_el();
         canvas.set_height(dims.height);
@@ -433,19 +445,11 @@ impl Component for Snake {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        let canvas_el = self.refs.canvas_el();
-
         if first_render {
             self.refs.fit_canvas_to_window_size();
         }
 
-        let canvas_rendering_ctx_object = canvas_el.get_context("2d").unwrap().unwrap();
-
-        let canvas_rendering_ctx =
-            canvas_rendering_ctx_object.unchecked_into::<CanvasRenderingContext2d>();
-
-        let r = CanvasRenderer::from(canvas_rendering_ctx);
-
+        let r = self.refs.canvas_renderer();
         r.set_stroke_style("white");
         r.set_line_join("round");
         r.set_line_width(px_scale(0.1));
