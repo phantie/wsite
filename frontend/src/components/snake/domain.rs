@@ -314,6 +314,17 @@ impl std::ops::Add for Pos {
     }
 }
 
+impl std::ops::Sub for Pos {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
 impl Pos {
     pub fn new(x: i32, y: i32) -> Self {
         Self { x, y }
@@ -440,6 +451,14 @@ impl Boundaries {
             arr if arr.iter().any(|r| r == &Equal) => Touching,
             _ => Outside,
         }
+    }
+
+    pub fn width(&self) -> u32 {
+        (self.right_top() - self.left_top()).x as u32
+    }
+
+    pub fn height(&self) -> u32 {
+        (self.right_bottom() - self.right_top()).y as u32
     }
 }
 

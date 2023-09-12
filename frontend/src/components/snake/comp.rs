@@ -13,6 +13,7 @@ use super::domain;
 const PAUSED: bool = false;
 
 // greater value - closer camera
+// TODO does not matter now
 const PX_SCALE: f64 = 50.0;
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
@@ -111,7 +112,7 @@ impl Refs {
         let canvas = self.canvas_el();
         canvas.set_height(dims.height);
         canvas.set_width(dims.width);
-        console::log!("canvas resized to:", format!("{:?}", dims));
+        // console::log!("canvas resized to:", format!("{:?}", dims));
     }
 
     fn fit_canvas(&self) {
@@ -239,6 +240,7 @@ pub struct Snake {
 
     advance_interval: SnakeAdvanceInterval,
 
+    px_scale: f64,
     camera: Camera,
     adjust_algo: AdjustAlgo,
 
@@ -382,6 +384,8 @@ impl Component for Snake {
 
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
 
+            // use in drawing to preserve aspect ratio with differing camera distances
+            px_scale: PX_SCALE,
             adjust_algo,
             camera: CAMERA,
 
@@ -518,6 +522,18 @@ impl Component for Snake {
             }
             Self::Message::FitCanvasToWindowSize => {
                 self.refs.fit_canvas();
+
+                // scale game to fully fit into space available to canvas
+                // when camera is Camera::BoundariesCentered
+                let cd = self.refs.canvas_dimensions();
+                // add ones to for bounds strokes to be inside space boundaries
+                // can be chosen more accurate value in px
+                let px_scale = f64::min(
+                    cd.height as f64 / (self.domain.boundaries.height() + 1) as f64,
+                    cd.width as f64 / (self.domain.boundaries.width() + 1) as f64,
+                );
+                self.px_scale = px_scale;
+
                 true
             }
             Self::Message::Advance => {
@@ -590,7 +606,7 @@ impl Component for Snake {
 
 impl Snake {
     pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
-        let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * PX_SCALE;
+        let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * self.px_scale;
 
         match self.camera {
             Camera::MouthCentered => {
@@ -599,7 +615,7 @@ impl Snake {
                 // position of the mouth after the same transformations as of 'pos'
                 let adjusted_mouth =
                     TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth()))
-                        * PX_SCALE;
+                        * self.px_scale;
                 // target position - center of the canvas
                 assert!(self.refs.is_canvas_fit());
                 let cd = self.refs.canvas_dimensions() / 2.0;
@@ -617,7 +633,7 @@ impl Snake {
                 let adjusted_boundaries_center = TransformedPos::new(
                     (b_min.x + b_max.x) as f64 / 2.0,
                     (b_min.y + b_max.y) as f64 / 2.0,
-                ) * PX_SCALE;
+                ) * self.px_scale;
                 assert!(self.refs.is_canvas_fit());
                 let cd = self.refs.canvas_dimensions() / 2.0;
                 let to_center_x = cd.width - adjusted_boundaries_center.x;
@@ -638,7 +654,7 @@ impl Snake {
     }
 
     fn draw_snake(&self, r: &CanvasRenderer) {
-        let snake_body_width = px_scale(SNAKE_BODY_WIDTH);
+        let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
 
         r.set_line_width(snake_body_width);
         let pos = self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
@@ -683,7 +699,7 @@ impl Snake {
         for food in self.domain.foods.as_ref() {
             let pos = self.transform_pos(food.pos);
             r.begin_path();
-            r.cirle(pos, px_scale(FOOD_DIAMETER) / 2.);
+            r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
             r.set_fill_style("white");
             r.fill();
             r.close_path();
@@ -691,7 +707,7 @@ impl Snake {
     }
 
     fn draw_boundaries(&self, r: &CanvasRenderer) {
-        r.set_line_width(px_scale(0.5));
+        r.set_line_width(0.5 * self.px_scale);
         let pos = self.transform_pos(self.domain.boundaries.left_top());
 
         r.begin_path();
@@ -869,11 +885,6 @@ impl CanvasRenderer {
         let TransformedPos { x: max_x, y: max_y } = boundaries.max.into();
         self.as_ref().fill_rect(min_x, min_y, max_x, max_y);
     }
-}
-
-// use in drawing to preserve aspect ratio with differing camera distances
-fn px_scale(value: f64) -> f64 {
-    value * PX_SCALE
 }
 
 fn rand_from_iterator<Iter, I>(rng: Iter) -> <Iter as std::iter::Iterator>::Item
