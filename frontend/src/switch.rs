@@ -70,6 +70,11 @@ pub fn switch(routes: Route) -> Html {
                         </DefaultStyling>
                     }
                 }
+                _ if public_id == static_articles().snake.public_id => {
+                    html! {
+                        <Snake/>
+                    }
+                }
                 _ => html! {
                     <>
                         <Header/>
