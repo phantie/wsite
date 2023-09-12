@@ -16,8 +16,10 @@ const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
 const CAMERA: Camera = Camera::BoundariesCentered;
 
-const MAP_BOUNDARIES_X: i32 = 7;
-const MAP_BOUNDARIES_Y: i32 = 7;
+const SNAKE_ADVANCE_INTERVAL: u32 = 450; // in milliseconds
+
+const MAP_BOUNDARIES_X: i32 = 10;
+const MAP_BOUNDARIES_Y: i32 = 10;
 
 const PANEL_PX_WIDTH: u32 = 350;
 
@@ -244,9 +246,6 @@ pub struct Snake {
     refs: Refs,
     listeners: Listeners,
 }
-
-// in milliseconds
-const SNAKE_ADVANCE_INTERVAL: u32 = 750;
 
 struct SnakeAdvanceInterval {
     _handle: Interval,
