@@ -245,6 +245,8 @@ pub struct Snake {
 
     refs: Refs,
     listeners: Listeners,
+
+    theme_ctx: ThemeCtxSub,
 }
 
 struct SnakeAdvanceInterval {
@@ -278,6 +280,7 @@ pub enum SnakeMsg {
     FitCanvasToWindowSize,
     CameraChange(Camera),
     CameraToggle,
+    ThemeContextUpdate(ThemeCtx),
     Nothing,
 }
 
@@ -289,6 +292,7 @@ impl Component for Snake {
     fn create(ctx: &Context<Self>) -> Self {
         let listeners = {
             let link = ctx.link().clone();
+            // this event is unreliable, might not be emmited
             let window_load_listener = EventListener::new(&get_window(), "load", move |event| {
                 console::log!("event: window load");
                 link.send_message(Self::Message::WindowLoaded);
@@ -375,30 +379,39 @@ impl Component for Snake {
             }
         };
 
+        let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
+
         Self {
             domain,
 
             advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
 
-            // initial value does not matter, will be reset on window load
-            px_scale: 0.,
+            px_scale,
             adjust_algo,
             camera: CAMERA,
 
             refs: Default::default(),
             listeners,
+
+            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
         }
     }
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+        let contrast_bg_color = &theme.contrast_bg_color;
+        let text_color = &theme.text_color;
+
         let btn_style = css! {"
-            border: 2px solid white;
+            border: 2px solid ${box_border_color};
             width: 80px; height: 20px;
-            color: white;
+            color: ${text_color};
             cursor: pointer;
             display: inline-block;
-            padding: 7px 5px; margin: 2px 1px;
+            padding: 7px 5px;
             text-align: center;
             transition: 0.3s;
             user-select: none;
@@ -406,7 +419,10 @@ impl Component for Snake {
             :hover {
                 opacity: 0.8;
             }
-        "};
+        ",
+                box_border_color = box_border_color,
+                text_color = text_color
+        };
 
         let camera_btn_style = css! {"margin-top: 20px;"};
 
@@ -422,10 +438,12 @@ impl Component for Snake {
                     .callback(move |_| Self::Message::DirectionChange(direction))
             };
 
+            let direction_btn_style = css! {"margin: 2px 1px;"};
+
             html! {
                 <div
                     ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
-                    class={ btn_style.clone() }
+                    class={ vec![btn_style.clone(), direction_btn_style] }
                     onclick={ direction_btn_onlick(direction) }>{ text }</div>
             }
         };
@@ -433,14 +451,16 @@ impl Component for Snake {
         // #4a4a4a
         let panel_style = css! {"
             width: ${width}px;
-            background-color: black;
+            background-color: ${bg_color};
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            outline: 5px groove white;
+            outline: 5px groove ${box_border_color};
         ",
-            width = PANEL_PX_WIDTH
+            width = PANEL_PX_WIDTH,
+            box_border_color = box_border_color,
+            bg_color = bg_color
         };
 
         let wrapper_style = css! {"
@@ -479,14 +499,18 @@ impl Component for Snake {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+
         if first_render {
             self.refs.fit_canvas();
         }
 
         let r = self.refs.canvas_renderer();
-        r.set_stroke_style("white");
+        r.set_stroke_style(box_border_color);
         r.set_line_join("round");
-        r.set_fill_style("black");
+        r.set_fill_style(bg_color);
 
         assert!(self.refs.is_canvas_fit());
         let cd = self.refs.canvas_dimensions();
@@ -519,16 +543,8 @@ impl Component for Snake {
             Self::Message::FitCanvasToWindowSize => {
                 self.refs.fit_canvas();
 
-                // scale game to fully fit into space available to canvas
-                // when camera is Camera::BoundariesCentered
-                let cd = self.refs.canvas_dimensions();
-                // add ones to for bounds strokes to be inside space boundaries
-                // can be chosen more accurate value in px
-                let px_scale = f64::min(
-                    cd.height as f64 / (self.domain.boundaries.height() + 1) as f64,
-                    cd.width as f64 / (self.domain.boundaries.width() + 1) as f64,
-                );
-                self.px_scale = px_scale;
+                self.px_scale =
+                    calc_px_scale(self.refs.canvas_dimensions(), self.domain.boundaries);
 
                 true
             }
@@ -596,6 +612,11 @@ impl Component for Snake {
                     .send_message(Self::Message::CameraChange(next_camera));
                 false
             }
+            Self::Message::ThemeContextUpdate(theme_ctx) => {
+                console::log!("WithTheme context updated from Snake");
+                self.theme_ctx.set(theme_ctx);
+                true
+            }
         }
     }
 }
@@ -650,6 +671,10 @@ impl Snake {
     }
 
     fn draw_snake(&self, r: &CanvasRenderer) {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+
         let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
 
         r.set_line_width(snake_body_width);
@@ -672,13 +697,13 @@ impl Snake {
         let pos = self.transform_pos(self.domain.snake.mouth());
         r.begin_path();
         r.cirle(pos, snake_body_width / 2.);
-        r.set_fill_style("white");
+        r.set_fill_style(box_border_color);
         r.fill();
         r.close_path();
 
         r.begin_path();
         r.cirle(pos, (snake_body_width / 2.) * 0.9);
-        r.set_fill_style("black");
+        r.set_fill_style(bg_color);
         r.fill();
         r.close_path();
 
@@ -686,17 +711,21 @@ impl Snake {
         let pos = self.transform_pos(self.domain.snake.tail_end());
         r.begin_path();
         r.cirle(pos, snake_body_width / 2.);
-        r.set_fill_style("white");
+        r.set_fill_style(box_border_color);
         r.fill();
         r.close_path();
     }
 
     fn draw_foods(&self, r: &CanvasRenderer) {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+
         for food in self.domain.foods.as_ref() {
             let pos = self.transform_pos(food.pos);
             r.begin_path();
             r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
-            r.set_fill_style("white");
+            r.set_fill_style(box_border_color);
             r.fill();
             r.close_path();
         }
@@ -922,4 +951,16 @@ fn rand_direction(except: Option<domain::Direction>) -> domain::Direction {
     }
 
     rand_from_iterator(directions.into_iter())
+}
+
+fn calc_px_scale(canvas_dimensions: Dimensions, boundaries: domain::Boundaries) -> f64 {
+    // scale game to fully fit into space available to canvas
+    // when camera is Camera::BoundariesCentered
+
+    // add ones to for bounds strokes to be inside space boundaries
+    // can be chosen more accurate value in px
+    f64::min(
+        canvas_dimensions.height as f64 / (boundaries.height() + 1) as f64,
+        canvas_dimensions.width as f64 / (boundaries.width() + 1) as f64,
+    )
 }
