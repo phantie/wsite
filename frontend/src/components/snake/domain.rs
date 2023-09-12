@@ -21,8 +21,16 @@ impl Snake {
         self.sections.head()
     }
 
+    fn tail(&self) -> Section {
+        self.sections.tail()
+    }
+
     pub fn mouth(&self) -> Pos {
         self.head().end()
+    }
+
+    pub fn tail_end(&self) -> Pos {
+        self.sections.tail().start()
     }
 
     pub fn iter_vertices(&self) -> impl Iterator<Item = Pos> + '_ {
@@ -188,6 +196,10 @@ impl Sections {
 
     pub fn head(&self) -> Section {
         self.as_ref().last().unwrap().clone()
+    }
+
+    pub fn tail(&self) -> Section {
+        self.as_ref().first().unwrap().clone()
     }
 
     fn rm_tail(&mut self) {

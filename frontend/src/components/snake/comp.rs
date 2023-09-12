@@ -13,14 +13,14 @@ use super::domain;
 const PAUSED: bool = false;
 
 // greater value - closer camera
-const PX_SCALE: f64 = 70.0;
+const PX_SCALE: f64 = 50.0;
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
 const CAMERA: Camera = Camera::BoundariesCentered;
 
-const MAP_BOUNDARIES_X: i32 = 10;
-const MAP_BOUNDARIES_Y: i32 = 4;
+const MAP_BOUNDARIES_X: i32 = 7;
+const MAP_BOUNDARIES_Y: i32 = 7;
 
 const PANEL_PX_WIDTH: u32 = 350;
 
@@ -217,9 +217,11 @@ impl Domain {
     fn default(adjust_algo: AdjustAlgoChoice) -> Self {
         let snake = DomainDefaults::snake(adjust_algo);
         let boundaries = DomainDefaults::boundaries(&snake);
+
+        let food_average = ((MAP_BOUNDARIES_X * MAP_BOUNDARIES_Y) as f64 * 0.5);
         Self {
             foods: DomainDefaults::foods(
-                rand_from_iterator(10..15),
+                rand_from_iterator(((food_average * 0.9) as i32)..((food_average * 1.1) as i32)),
                 boundaries,
                 snake.iter_vertices(),
             ),
@@ -481,7 +483,6 @@ impl Component for Snake {
         let r = self.refs.canvas_renderer();
         r.set_stroke_style("white");
         r.set_line_join("round");
-        r.set_line_width(px_scale(0.1));
         r.set_fill_style("black");
 
         assert!(self.refs.is_canvas_fit());
@@ -634,6 +635,9 @@ impl Snake {
     }
 
     fn draw_snake(&self, r: &CanvasRenderer) {
+        let snake_body_width = px_scale(0.9);
+
+        r.set_line_width(snake_body_width);
         let pos = self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
         r.begin_path();
         r.move_to(pos);
@@ -649,12 +653,26 @@ impl Snake {
         r.stroke();
         r.close_path();
 
+        // round head
         let pos = self.transform_pos(self.domain.snake.mouth());
         r.begin_path();
-        r.cirle(pos, px_scale(0.2));
+        r.cirle(pos, snake_body_width / 2.);
         r.set_fill_style("white");
         r.fill();
-        r.stroke();
+        r.close_path();
+
+        r.begin_path();
+        r.cirle(pos, (snake_body_width / 2.) * 0.9);
+        r.set_fill_style("black");
+        r.fill();
+        r.close_path();
+
+        // round tail
+        let pos = self.transform_pos(self.domain.snake.tail_end());
+        r.begin_path();
+        r.cirle(pos, snake_body_width / 2.);
+        r.set_fill_style("white");
+        r.fill();
         r.close_path();
     }
 
@@ -665,12 +683,12 @@ impl Snake {
             r.cirle(pos, px_scale(0.3));
             r.set_fill_style("white");
             r.fill();
-            r.stroke();
             r.close_path();
         }
     }
 
     fn draw_boundaries(&self, r: &CanvasRenderer) {
+        r.set_line_width(px_scale(0.5));
         let pos = self.transform_pos(self.domain.boundaries.left_top());
 
         r.begin_path();
@@ -685,8 +703,8 @@ impl Snake {
             let pos = self.transform_pos(pos);
             r.line_to(pos);
         }
-        r.stroke();
         r.close_path();
+        r.stroke();
     }
 }
 
