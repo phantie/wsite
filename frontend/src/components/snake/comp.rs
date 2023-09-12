@@ -24,6 +24,9 @@ const MAP_BOUNDARIES_Y: i32 = 7;
 
 const PANEL_PX_WIDTH: u32 = 350;
 
+const SNAKE_BODY_WIDTH: f64 = 0.9;
+const FOOD_DIAMETER: f64 = 0.6;
+
 pub enum Camera {
     MouthCentered,
     BoundariesCentered,
@@ -635,7 +638,7 @@ impl Snake {
     }
 
     fn draw_snake(&self, r: &CanvasRenderer) {
-        let snake_body_width = px_scale(0.9);
+        let snake_body_width = px_scale(SNAKE_BODY_WIDTH);
 
         r.set_line_width(snake_body_width);
         let pos = self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
@@ -680,7 +683,7 @@ impl Snake {
         for food in self.domain.foods.as_ref() {
             let pos = self.transform_pos(food.pos);
             r.begin_path();
-            r.cirle(pos, px_scale(0.3));
+            r.cirle(pos, px_scale(FOOD_DIAMETER) / 2.);
             r.set_fill_style("white");
             r.fill();
             r.close_path();
