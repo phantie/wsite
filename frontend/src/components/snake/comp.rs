@@ -172,8 +172,16 @@ impl Component for Snake {
             display: flex;
         "};
 
-        let global_style =
-            ".active_btn { transition: 0.2s; border-color: green; background-color: green; }";
+        let global_style = css! {
+            ".active_btn {
+                transition: 0.2s;
+                border-color: ${box_border_color};
+                background-color: ${box_border_color};
+                color: ${bg_color};
+            }",
+                box_border_color = box_border_color,
+                bg_color = bg_color
+        };
 
         let main_area = match self.state {
             State::Begun => {
