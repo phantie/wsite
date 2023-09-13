@@ -54,7 +54,7 @@ pub enum SnakeMsg {
     DirectionChange(domain::Direction),
     WindowLoaded,
     WindowResized,
-    FitCanvasToWindowSize,
+    FitCanvasImmediately,
     CameraChange(Camera),
     CameraToggle,
     ThemeContextUpdate(ThemeCtx),
@@ -312,16 +312,14 @@ impl Component for Snake {
         match msg {
             Self::Message::Nothing => false,
             Self::Message::WindowLoaded => {
-                ctx.link()
-                    .send_message(Self::Message::FitCanvasToWindowSize);
+                ctx.link().send_message(Self::Message::FitCanvasImmediately);
                 false
             }
             Self::Message::WindowResized => {
-                ctx.link()
-                    .send_message(Self::Message::FitCanvasToWindowSize);
+                ctx.link().send_message(Self::Message::FitCanvasImmediately);
                 false
             }
-            Self::Message::FitCanvasToWindowSize => match self.state {
+            Self::Message::FitCanvasImmediately => match self.state {
                 State::Begun { .. } => {
                     self.refs.fit_canvas();
                     self.canvas_requires_fit = false;
@@ -405,7 +403,16 @@ impl Component for Snake {
             Self::Message::StateChange(new_state) if new_state == self.state => false,
             Self::Message::StateChange(new_state @ State::Begun { paused }) => {
                 // TODO refactor all around
-                self.px_scale = calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
+                match self.state {
+                    State::Begun { .. } => {}
+                    State::NotBegun { .. } => {
+                        self.px_scale =
+                            calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
+
+                        // ctx.link()
+                        //     .send_message(Self::Message::FitCanvasImmediately);
+                    }
+                }
 
                 if paused {
                     self.advance_interval.stop();
