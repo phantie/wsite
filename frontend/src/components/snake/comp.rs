@@ -31,7 +31,7 @@ pub struct Snake {
     domain: Domain,
     state: State,
 
-    // true if on first render if canvas
+    // true if state changed from NotBegun to Begun
     canvas_requires_fit: bool,
 
     advance_interval: SnakeAdvanceInterval,
@@ -280,7 +280,7 @@ impl Component for Snake {
         let box_border_color = &theme.box_border_color;
 
         if self.canvas_requires_fit {
-            self.refs.fit_canvas(self.state);
+            self.refs.fit_canvas();
             self.canvas_requires_fit = false;
         }
 
@@ -323,7 +323,7 @@ impl Component for Snake {
             }
             Self::Message::FitCanvasToWindowSize => match self.state {
                 State::Begun { .. } => {
-                    self.refs.fit_canvas(self.state);
+                    self.refs.fit_canvas();
                     self.canvas_requires_fit = false;
 
                     self.px_scale =
@@ -414,14 +414,15 @@ impl Component for Snake {
                             self.px_scale =
                                 calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
                             self.advance_interval.start();
+                            self.canvas_requires_fit = true;
                         }
                         State::NotBegun { .. } => {
                             self.advance_interval.stop();
+                            assert_eq!(self.canvas_requires_fit, false);
                         }
                     }
 
                     self.state = new_state;
-                    self.canvas_requires_fit = true;
                     true
                 }
             }
@@ -711,18 +712,9 @@ impl Refs {
         // console::log!("canvas resized to:", format!("{:?}", dims));
     }
 
-    // TODO needs refactoring all around
-    fn fit_canvas(&self, state: State) {
+    fn fit_canvas(&self) {
         let cd = canvas_target_dimensions();
-
-        match state {
-            State::Begun { .. } => {
-                self.set_canvas_dimensions(cd);
-            }
-            State::NotBegun { .. } => {
-                // canvas overlay auto fits into space
-            }
-        }
+        self.set_canvas_dimensions(cd);
     }
 
     fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
@@ -942,12 +934,10 @@ impl SnakeAdvanceInterval {
     }
 
     fn start(&mut self) {
-        console::log!("advance interval started");
         self.reset();
     }
 
     fn stop(&mut self) {
-        console::log!("advance interval stopped");
         self._handle = None;
     }
 }
