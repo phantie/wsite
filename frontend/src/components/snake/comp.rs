@@ -62,6 +62,7 @@ pub enum SnakeMsg {
     StateChange(State),
     Begin,
     PauseUnpause,
+    ToMenu,
 }
 
 impl Component for Snake {
@@ -132,6 +133,7 @@ impl Component for Snake {
         };
 
         let margin_top_btn_style = css! {"margin-top: 20px;"};
+        let margin_bottom_btn_style = css! {"margin-bottom: 20px;"};
 
         let panel_style = css! {"
             width: ${width}px;
@@ -232,8 +234,13 @@ impl Component for Snake {
                     let pause_btn_onclick =
                         ctx.link().callback(move |e| Self::Message::PauseUnpause);
 
+                    let to_main_screen_btn_onclick =
+                        ctx.link().callback(move |e| Self::Message::ToMenu);
+
                     html! {
                         <>
+                            <div class={ vec![margin_bottom_btn_style.clone(), btn_style.clone()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
+
                             <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
                                 <div>
                                     { direction_btn("▲", domain::Direction::Up) }
@@ -432,6 +439,7 @@ impl Component for Snake {
             }
             Self::Message::StateChange(new_state @ State::NotBegun { .. }) => {
                 self.advance_interval.stop();
+                self.domain = Domain::default();
                 assert_eq!(self.canvas_requires_fit, false);
                 self.state = new_state;
                 true
@@ -452,6 +460,11 @@ impl Component for Snake {
                     false
                 }
             },
+            Self::Message::ToMenu => {
+                ctx.link()
+                    .send_message(Self::Message::StateChange(State::NotBegun {}));
+                false
+            }
         }
     }
 }
