@@ -7,12 +7,11 @@ use gloo_timers::callback::Interval;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
-use State::*;
 
 use super::domain;
 
 const PAUSED: bool = false;
-const STATE: State = NotBegun;
+const STATE: State = State::NotBegun {};
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
@@ -60,6 +59,8 @@ pub enum SnakeMsg {
     ThemeContextUpdate(ThemeCtx),
     Nothing,
     StateChange(State),
+    GameBegun,
+    GamePauseUnpause,
 }
 
 impl Component for Snake {
@@ -76,8 +77,8 @@ impl Component for Snake {
 
         let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
         match state {
-            Begun => advance_interval.start(),
-            NotBegun => {}
+            State::Begun { .. } => advance_interval.start(),
+            State::NotBegun { .. } => {}
         }
 
         Self {
@@ -85,8 +86,8 @@ impl Component for Snake {
             state,
 
             canvas_requires_fit: match state {
-                Begun => true,
-                NotBegun => false,
+                State::Begun { .. } => true,
+                State::NotBegun { .. } => false,
             },
 
             advance_interval,
@@ -129,11 +130,13 @@ impl Component for Snake {
                 text_color = text_color
         };
 
-        let camera_btn_style = css! {"margin-top: 20px;"};
+        let margin_top_btn_style = css! {"margin-top: 20px;"};
+
+        let camera_btn_style = margin_top_btn_style.clone();
 
         let camera_btn_onclick = ctx.link().callback(move |e| Self::Message::CameraToggle);
 
-        let restart_btn_style = css! {"margin-top: 20px;"};
+        let restart_btn_style = margin_top_btn_style.clone();
 
         let restart_btn_onclick = ctx.link().callback(move |e| Self::Message::Restart);
 
@@ -184,10 +187,10 @@ impl Component for Snake {
         };
 
         let main_area = match self.state {
-            State::Begun => {
+            State::Begun { .. } => {
                 html! { <canvas ref={self.refs.canvas_ref.clone()}></canvas> }
             }
-            State::NotBegun => {
+            State::NotBegun { .. } => {
                 let canvas_overlay_style = css! {"
                     height: 100vh;
                     width: calc(100% - 350px);
@@ -217,14 +220,29 @@ impl Component for Snake {
                     }
                 ", text_color = text_color, box_border_color = box_border_color,};
 
-                let start_btn_onclick = ctx
-                    .link()
-                    .callback(move |e| Self::Message::StateChange(State::Begun));
+                let start_btn_onclick = ctx.link().callback(move |e| Self::Message::GameBegun);
 
                 html! {
                 <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
                     <div onclick={start_btn_onclick} class={ vec![start_btn_style] }>{ "Start" }</div>
                 </div> }
+            }
+        };
+
+        let pause_button = {
+            match self.state {
+                State::Begun { paused } => {
+                    let pause_btn_onclick = ctx
+                        .link()
+                        .callback(move |e| Self::Message::GamePauseUnpause);
+
+                    html! {
+                        <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                    }
+                }
+                State::NotBegun { .. } => {
+                    html! {}
+                }
             }
         };
 
@@ -252,7 +270,7 @@ impl Component for Snake {
 
                         <div class={ vec![camera_btn_style, btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
                         <div class={ vec![restart_btn_style, btn_style] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-
+                        { pause_button }
                     </div>
                 </div>
             </>
@@ -270,7 +288,7 @@ impl Component for Snake {
         }
 
         match self.state {
-            Begun => {
+            State::Begun { .. } => {
                 let r = self.refs.canvas_renderer();
                 r.set_stroke_style(box_border_color);
                 r.set_line_join("round");
@@ -287,7 +305,7 @@ impl Component for Snake {
                 self.draw_foods(&r);
                 self.draw_boundaries(&r);
             }
-            NotBegun => {}
+            State::NotBegun { .. } => {}
         }
         // console::log!("random int (0..1)", rand_from_iterator(0..1));
         // console::log!("random int (0..2)", rand_from_iterator(0..2));
@@ -307,7 +325,7 @@ impl Component for Snake {
                 false
             }
             Self::Message::FitCanvasToWindowSize => match self.state {
-                Begun => {
+                State::Begun { .. } => {
                     self.refs.fit_canvas(self.state);
                     self.canvas_requires_fit = false;
 
@@ -316,7 +334,7 @@ impl Component for Snake {
 
                     true
                 }
-                NotBegun => false,
+                State::NotBegun { .. } => false,
             },
             Self::Message::Advance => {
                 let game_over = || {
@@ -387,18 +405,20 @@ impl Component for Snake {
                 self.theme_ctx.set(theme_ctx);
                 true
             }
+
+            // TODO refactor
             Self::Message::StateChange(new_state) => {
                 if new_state == self.state {
                     false
                 } else {
                     match new_state {
-                        Begun => {
+                        State::Begun { .. } => {
                             // TODO refactor all around
                             self.px_scale =
                                 calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
                             self.advance_interval.start();
                         }
-                        NotBegun => {
+                        State::NotBegun { .. } => {
                             self.advance_interval.stop();
                         }
                     }
@@ -408,6 +428,27 @@ impl Component for Snake {
                     true
                 }
             }
+            Self::Message::GameBegun => {
+                ctx.link()
+                    .send_message(Self::Message::StateChange(State::Begun { paused: false }));
+                false
+            }
+            Self::Message::GamePauseUnpause => match &mut self.state {
+                State::Begun { paused } => {
+                    *paused = !*paused;
+                    if *paused {
+                        self.advance_interval.stop();
+                    } else {
+                        self.advance_interval.start();
+                    }
+
+                    true
+                }
+                State::NotBegun { .. } => {
+                    assert!(false, "game has not begun");
+                    false
+                }
+            },
         }
     }
 }
@@ -545,8 +586,8 @@ impl Snake {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum State {
-    Begun,
-    NotBegun,
+    Begun { paused: bool },
+    NotBegun {},
 }
 
 pub enum Camera {
@@ -661,8 +702,8 @@ impl Refs {
 
     fn is_canvas_fit(&self, state: State) -> bool {
         match state {
-            Begun => self.canvas_dimensions() == canvas_target_dimensions(),
-            NotBegun => true,
+            State::Begun { .. } => self.canvas_dimensions() == canvas_target_dimensions(),
+            State::NotBegun { .. } => true,
         }
     }
 
@@ -678,10 +719,10 @@ impl Refs {
         let cd = canvas_target_dimensions();
 
         match state {
-            Begun => {
+            State::Begun { .. } => {
                 self.set_canvas_dimensions(cd);
             }
-            NotBegun => {
+            State::NotBegun { .. } => {
                 // canvas overlay auto fits into space
             }
         }
@@ -744,6 +785,7 @@ impl Listeners {
                         Restart,
                         None,
                         CameraToggle,
+                        GamePauseUnpause,
                     }
                     use KeyBoardEvent::*;
 
@@ -754,6 +796,7 @@ impl Listeners {
                         "ArrowRight" => DirectionChange(domain::Direction::Right),
                         "r" | "R" => Restart,
                         "c" | "C" => CameraToggle,
+                        "p" | "P" => GamePauseUnpause,
                         _ => None,
                     };
 
@@ -762,6 +805,7 @@ impl Listeners {
                         Restart => SnakeMsg::Restart,
                         None => SnakeMsg::Nothing,
                         CameraToggle => SnakeMsg::CameraToggle,
+                        GamePauseUnpause => SnakeMsg::GamePauseUnpause,
                     };
                     link.send_message(message)
                 },
