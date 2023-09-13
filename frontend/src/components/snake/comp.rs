@@ -121,7 +121,6 @@ impl Component for Snake {
             display: inline-block;
             padding: 7px 5px;
             text-align: center;
-            transition: 0.3s;
             user-select: none;
 
             :hover {
@@ -200,7 +199,7 @@ impl Component for Snake {
 
                 html! {
                 <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
-                    <div onclick={start_btn_onclick} class={ vec![start_btn_style] }>{ "Start" }</div>
+                    <div onclick={start_btn_onclick} class={ vec![css!{"font-family: 'Iosevka Web';"}, start_btn_style] }>{ "Start" }</div>
                 </div> }
             }
         };
@@ -255,13 +254,31 @@ impl Component for Snake {
 
                             <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
                             <div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![btn_style.clone(), margin_top_btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
                         </>
                     }
                 }
-                // TODO add info about the game
                 State::NotBegun { .. } => {
-                    html! {}
+                    let text_wrapper_style = css! {"
+                        padding: 50px 35px;
+                        color: ${text_color};
+                        font-size: 25px;
+                        font-family: 'Iosevka Web';
+                    ",
+                        text_color = text_color
+                    };
+
+                    html! {
+                        <div class={text_wrapper_style}>
+                            <h2>{"Snake"}</h2>
+                            <p>{ "Goal - grow in size." }</p>
+                            <p>{ "Use arrow keyboard buttons for controls." }</p>
+                            <p>{ "Other buttons:" }</p>
+                            <p><b>{ "R" }</b>{ " for Restart" }</p>
+                            <p><b>{ "C" }</b>{ " for Camera" }</p>
+                            <p><b>{ "P" }</b>{ " for Pause" }</p>
+                        </div>
+                    }
                 }
             }
         };
