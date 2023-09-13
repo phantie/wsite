@@ -161,13 +161,7 @@ impl Component for Snake {
 
         let state = STATE;
 
-        let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
-
-        match state {
-            // TODO maybe start only when rendered, refactor
-            Begun => advance_interval.start(),
-            NotBegun => {}
-        }
+        let advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
 
         Self {
             domain,
@@ -348,6 +342,14 @@ impl Component for Snake {
         if self.canvas_requires_fit {
             self.refs.fit_canvas(self.state);
             self.canvas_requires_fit = false;
+        }
+
+        // TODO refactor
+        if first_render {
+            match self.state {
+                Begun => self.advance_interval.start(),
+                NotBegun => {}
+            }
         }
 
         match self.state {
@@ -874,6 +876,7 @@ impl SnakeAdvanceInterval {
         let link = self.link.clone();
         let new_handle = || {
             Interval::new(SNAKE_ADVANCE_INTERVAL, move || {
+                console::log!("sending Advance from Interval");
                 link.send_message(if PAUSED {
                     SnakeMsg::Nothing
                 } else {
@@ -885,10 +888,12 @@ impl SnakeAdvanceInterval {
     }
 
     fn start(&mut self) {
+        console::log!("advance interval started");
         self.reset();
     }
 
     fn stop(&mut self) {
+        console::log!("advance interval stopped");
         self._handle = None;
     }
 }
