@@ -132,31 +132,6 @@ impl Component for Snake {
 
         let margin_top_btn_style = css! {"margin-top: 20px;"};
 
-        let camera_btn_style = margin_top_btn_style.clone();
-
-        let camera_btn_onclick = ctx.link().callback(move |e| Self::Message::CameraToggle);
-
-        let restart_btn_style = margin_top_btn_style.clone();
-
-        let restart_btn_onclick = ctx.link().callback(move |e| Self::Message::Restart);
-
-        let direction_btn = |text: &str, direction| {
-            let direction_btn_onlick = |direction| {
-                ctx.link()
-                    .callback(move |_| Self::Message::DirectionChange(direction))
-            };
-
-            let direction_btn_style = css! {"margin: 2px 1px;"};
-
-            html! {
-                <div
-                    ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
-                    class={ vec![btn_style.clone(), direction_btn_style] }
-                    onclick={ direction_btn_onlick(direction) }>{ text }</div>
-            }
-        };
-
-        // #4a4a4a
         let panel_style = css! {"
             width: ${width}px;
             background-color: ${bg_color};
@@ -171,9 +146,7 @@ impl Component for Snake {
             bg_color = bg_color
         };
 
-        let wrapper_style = css! {"
-            display: flex;
-        "};
+        let wrapper_style = css! {"display: flex;"};
 
         let global_style = css! {
             ".active_btn {
@@ -229,17 +202,57 @@ impl Component for Snake {
             }
         };
 
-        let pause_button = {
+        let btns = {
             match self.state {
-                State::Begun { paused } => {
+                State::Begun { .. } => {
+                    let direction_btn = |text: &str, direction| {
+                        let direction_btn_onlick = |direction| {
+                            ctx.link()
+                                .callback(move |_| Self::Message::DirectionChange(direction))
+                        };
+
+                        let direction_btn_style = css! {"margin: 2px 1px;"};
+
+                        html! {
+                            <div
+                                ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
+                                class={ vec![btn_style.clone(), direction_btn_style] }
+                                onclick={ direction_btn_onlick(direction) }>{ text }</div>
+                        }
+                    };
+
+                    let camera_btn_style = margin_top_btn_style.clone();
+
+                    let camera_btn_onclick =
+                        ctx.link().callback(move |e| Self::Message::CameraToggle);
+
+                    let restart_btn_onclick = ctx.link().callback(move |e| Self::Message::Restart);
+
                     let pause_btn_onclick = ctx
                         .link()
                         .callback(move |e| Self::Message::GamePauseUnpause);
 
                     html! {
-                        <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                        <>
+                            <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
+                                <div>
+                                    { direction_btn("▲", domain::Direction::Up) }
+                                </div>
+
+                                <div>
+                                    { direction_btn("◄", domain::Direction::Left) }
+                                    { direction_btn("▼", domain::Direction::Bottom) }
+                                    { direction_btn("►", domain::Direction::Right) }
+                                </div>
+                            </div>
+
+                            <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
+                            <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
+                            <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                        </>
                     }
                 }
+                // TODO add info about the game
                 State::NotBegun { .. } => {
                     html! {}
                 }
@@ -253,24 +266,8 @@ impl Component for Snake {
 
                 <div class={ wrapper_style }>
                     { main_area }
-
                     <div class={ panel_style }>
-
-                        <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
-                            <div>
-                                { direction_btn("▲", domain::Direction::Up) }
-                            </div>
-
-                            <div>
-                                { direction_btn("◄", domain::Direction::Left) }
-                                { direction_btn("▼", domain::Direction::Bottom) }
-                                { direction_btn("►", domain::Direction::Right) }
-                            </div>
-                        </div>
-
-                        <div class={ vec![camera_btn_style, btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
-                        <div class={ vec![restart_btn_style, btn_style] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-                        { pause_button }
+                        { btns }
                     </div>
                 </div>
             </>
@@ -789,6 +786,7 @@ impl Listeners {
                     }
                     use KeyBoardEvent::*;
 
+                    // TODO ignore these actions when game NotBegun
                     let kb_event = match event.key().as_str() {
                         "ArrowUp" => DirectionChange(domain::Direction::Up),
                         "ArrowDown" => DirectionChange(domain::Direction::Bottom),
@@ -916,7 +914,6 @@ impl Domain {
     }
 }
 
-// TODO starts even when game is NotBegun
 struct SnakeAdvanceInterval {
     link: Scope<Snake>,
     _handle: Option<Interval>,
