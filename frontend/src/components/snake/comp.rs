@@ -7,10 +7,12 @@ use gloo_timers::callback::Interval;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
+use State::*;
 
 use super::domain;
 
-const PAUSED: bool = false;
+const PAUSED: bool = true;
+const STATE: State = NotBegun;
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
@@ -25,6 +27,587 @@ const PANEL_PX_WIDTH: u32 = 350;
 
 const SNAKE_BODY_WIDTH: f64 = 0.9;
 const FOOD_DIAMETER: f64 = 0.6;
+
+pub struct Snake {
+    domain: Domain,
+    state: State,
+
+    // true if on first render if canvas
+    canvas_requires_fit: bool,
+
+    advance_interval: SnakeAdvanceInterval,
+
+    // greater value - closer camera
+    px_scale: f64,
+    camera: Camera,
+    adjust_algo: AdjustAlgo,
+
+    refs: Refs,
+    listeners: Listeners,
+
+    theme_ctx: ThemeCtxSub,
+}
+
+pub enum SnakeMsg {
+    Advance,
+    Restart,
+    DirectionChange(domain::Direction),
+    WindowLoaded,
+    WindowResized,
+    FitCanvasToWindowSize,
+    CameraChange(Camera),
+    CameraToggle,
+    ThemeContextUpdate(ThemeCtx),
+    Nothing,
+    StateChange(State),
+}
+
+impl Component for Snake {
+    type Message = SnakeMsg;
+    type Properties = ();
+
+    #[allow(unused_variables)]
+    fn create(ctx: &Context<Self>) -> Self {
+        let listeners = {
+            let link = ctx.link().clone();
+            // this event is unreliable, might not be emmited
+            let window_load_listener = EventListener::new(&get_window(), "load", move |event| {
+                console::log!("event: window load");
+                link.send_message(Self::Message::WindowLoaded);
+            });
+
+            let link = ctx.link().clone();
+            let window_resize_listener =
+                EventListener::new(&get_window(), "resize", move |event| {
+                    console::log!("event: window resize");
+                    link.send_message(Self::Message::WindowResized);
+                });
+
+            let link = ctx.link().clone();
+            let kb_listener = EventListener::new_with_options(
+                &get_document(),
+                "keydown",
+                EventListenerOptions::enable_prevent_default(),
+                move |event| {
+                    let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
+
+                    enum KeyBoardEvent {
+                        DirectionChange(domain::Direction),
+                        Restart,
+                        None,
+                        CameraToggle,
+                    }
+                    use KeyBoardEvent::*;
+
+                    let kb_event = match event.key().as_str() {
+                        "ArrowUp" => DirectionChange(domain::Direction::Up),
+                        "ArrowDown" => DirectionChange(domain::Direction::Bottom),
+                        "ArrowLeft" => DirectionChange(domain::Direction::Left),
+                        "ArrowRight" => DirectionChange(domain::Direction::Right),
+                        "r" | "R" => Restart,
+                        "c" | "C" => CameraToggle,
+                        _ => None,
+                    };
+
+                    let message = match kb_event {
+                        DirectionChange(direction) => Self::Message::DirectionChange(direction),
+                        Restart => Self::Message::Restart,
+                        None => Self::Message::Nothing,
+                        CameraToggle => Self::Message::CameraToggle,
+                    };
+                    link.send_message(message)
+                },
+            );
+
+            Listeners {
+                kb_listener,
+                window_load_listener,
+                window_resize_listener,
+            }
+        };
+
+        let domain = Domain::default(ADJUST_ALGO);
+
+        let adjust_algo = match ADJUST_ALGO {
+            AdjustAlgoChoice::None => AdjustAlgo::None,
+            AdjustAlgoChoice::For4thQuadrant => {
+                let initial_adjustment = {
+                    let snake_boundaries = domain.snake.boundaries();
+                    let foods_boundaries = domain.foods.boundaries();
+                    let total_boundaries = snake_boundaries.join_option(foods_boundaries);
+
+                    fn adjust_for_negative(coord: i32) -> i32 {
+                        if coord < 0 {
+                            -coord
+                        } else {
+                            0
+                        }
+                    }
+
+                    let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
+                    let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
+
+                    domain::Pos {
+                        x: x_adjust_for_negative,
+                        y: y_adjust_for_negative,
+                    }
+                };
+
+                AdjustAlgo::For4thQuadrant { initial_adjustment }
+            }
+        };
+
+        let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
+
+        let state = STATE;
+        Self {
+            domain,
+            canvas_requires_fit: match state {
+                Begun => true,
+                NotBegun => false,
+            },
+
+            state,
+
+            advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
+
+            px_scale,
+            adjust_algo,
+            camera: CAMERA,
+
+            refs: Default::default(),
+            listeners,
+
+            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
+        }
+    }
+
+    #[allow(unused_variables)]
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+        let contrast_bg_color = &theme.contrast_bg_color;
+        let text_color = &theme.text_color;
+
+        let btn_style = css! {"
+            border: 2px solid ${box_border_color};
+            width: 80px; height: 20px;
+            color: ${text_color};
+            cursor: pointer;
+            display: inline-block;
+            padding: 7px 5px;
+            text-align: center;
+            transition: 0.3s;
+            user-select: none;
+
+            :hover {
+                opacity: 0.8;
+            }
+        ",
+                box_border_color = box_border_color,
+                text_color = text_color
+        };
+
+        let camera_btn_style = css! {"margin-top: 20px;"};
+
+        let camera_btn_onclick = ctx.link().callback(move |e| Self::Message::CameraToggle);
+
+        let restart_btn_style = css! {"margin-top: 20px;"};
+
+        let restart_btn_onclick = ctx.link().callback(move |e| Self::Message::Restart);
+
+        let direction_btn = |text: &str, direction| {
+            let direction_btn_onlick = |direction| {
+                ctx.link()
+                    .callback(move |_| Self::Message::DirectionChange(direction))
+            };
+
+            let direction_btn_style = css! {"margin: 2px 1px;"};
+
+            html! {
+                <div
+                    ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
+                    class={ vec![btn_style.clone(), direction_btn_style] }
+                    onclick={ direction_btn_onlick(direction) }>{ text }</div>
+            }
+        };
+
+        // #4a4a4a
+        let panel_style = css! {"
+            width: ${width}px;
+            background-color: ${bg_color};
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            outline: 5px groove ${box_border_color};
+        ",
+            width = PANEL_PX_WIDTH,
+            box_border_color = box_border_color,
+            bg_color = bg_color
+        };
+
+        let wrapper_style = css! {"
+            display: flex;
+        "};
+
+        let global_style =
+            ".active_btn { transition: 0.2s; border-color: green; background-color: green; }";
+
+        let main_area = match self.state {
+            State::Begun => {
+                html! { <canvas ref={self.refs.canvas_ref.clone()}></canvas> }
+            }
+            State::NotBegun => {
+                let canvas_overlay_style = css! {"
+                    height: 100vh;
+                    width: calc(100% - 350px);
+                    background-color: ${bg_color};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ", bg_color = bg_color};
+
+                let start_btn_style = css! {"
+                    border: 4px solid ${box_border_color};
+                    width: 300px; height: 100px;
+                    
+                    font-size: 50px;
+
+                    color: ${text_color};
+                    cursor: pointer;
+                    display: flex;
+                    
+                    align-items: center;
+                    justify-content: center;
+                    transition: 0.3s;
+                    user-select: none;
+        
+                    :hover {
+                        opacity: 0.8;
+                    }
+                ", text_color = text_color, box_border_color = box_border_color,};
+
+                let start_btn_onclick = ctx
+                    .link()
+                    .callback(move |e| Self::Message::StateChange(State::Begun));
+
+                html! {
+                <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
+                    <div onclick={start_btn_onclick} class={ vec![start_btn_style] }>{ "Start" }</div>
+                </div> }
+            }
+        };
+
+        html! {
+            <>
+                <Global css={global_style}/>
+                <PageTitle title={"Snake"}/>
+
+                <div class={ wrapper_style }>
+                    { main_area }
+
+                    <div class={ panel_style }>
+
+                        <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
+                            <div>
+                                { direction_btn("▲", domain::Direction::Up) }
+                            </div>
+
+                            <div>
+                                { direction_btn("◄", domain::Direction::Left) }
+                                { direction_btn("▼", domain::Direction::Bottom) }
+                                { direction_btn("►", domain::Direction::Right) }
+                            </div>
+                        </div>
+
+                        <div class={ vec![camera_btn_style, btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
+                        <div class={ vec![restart_btn_style, btn_style] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
+
+                    </div>
+                </div>
+            </>
+        }
+    }
+
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+
+        if self.canvas_requires_fit {
+            self.refs.fit_canvas(self.state);
+            self.canvas_requires_fit = false;
+        }
+
+        match self.state {
+            Begun => {
+                let r = self.refs.canvas_renderer();
+                r.set_stroke_style(box_border_color);
+                r.set_line_join("round");
+                r.set_fill_style(bg_color);
+
+                // assert!(self.refs.is_canvas_fit(self.state));
+                let cd = self.refs.canvas_dimensions();
+                r.fill_rect(domain::Boundaries {
+                    min: domain::Pos::new(0, 0),
+                    max: domain::Pos::new(cd.width as i32, cd.height as i32),
+                });
+
+                self.draw_snake(&r);
+                self.draw_foods(&r);
+                self.draw_boundaries(&r);
+            }
+            NotBegun => {}
+        }
+        // console::log!("random int (0..1)", rand_from_iterator(0..1));
+        // console::log!("random int (0..2)", rand_from_iterator(0..2));
+    }
+
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Self::Message::Nothing => false,
+            Self::Message::WindowLoaded => {
+                ctx.link()
+                    .send_message(Self::Message::FitCanvasToWindowSize);
+                false
+            }
+            Self::Message::WindowResized => {
+                ctx.link()
+                    .send_message(Self::Message::FitCanvasToWindowSize);
+                false
+            }
+            Self::Message::FitCanvasToWindowSize => match self.state {
+                Begun => {
+                    self.refs.fit_canvas(self.state);
+                    self.canvas_requires_fit = false;
+
+                    self.px_scale =
+                        calc_px_scale(self.refs.canvas_dimensions(), self.domain.boundaries);
+
+                    true
+                }
+                NotBegun => false,
+            },
+            Self::Message::Advance => {
+                let game_over = || {
+                    get_window().alert_with_message("game over");
+                    // when game ends - auto restart
+                    ctx.link().send_message(Self::Message::Restart);
+                };
+
+                match self.domain.snake.advance(&mut self.domain.foods) {
+                    domain::AdvanceResult::Success => {
+                        if self.out_of_bounds() {
+                            game_over();
+                        }
+
+                        // when no food, replenish
+                        if self.domain.foods.empty() {
+                            self.domain.foods = DomainDefaults::foods(
+                                rand_from_iterator(10..15),
+                                self.domain.boundaries,
+                                self.domain.snake.iter_vertices(),
+                            );
+                        }
+                    }
+                    domain::AdvanceResult::BitYaSelf => game_over(),
+                }
+                true
+            }
+            Self::Message::Restart => {
+                // drop old by replacement
+                self.advance_interval = SnakeAdvanceInterval::default(ctx.link().clone());
+                // reset domain items
+                self.domain = Domain::default(ADJUST_ALGO);
+                true
+            }
+            Self::Message::DirectionChange(direction) => {
+                if self.domain.snake.set_direction(direction).is_err() {
+                    console::log!("cannot move into the opposite direction")
+                }
+
+                let btn = self.refs.ctrl_btn_el(direction);
+
+                if !btn.class_name().contains("active_btn") {
+                    btn.set_class_name(&format!("active_btn {}", btn.class_name()));
+                }
+
+                gloo_timers::callback::Timeout::new(200, move || {
+                    btn.set_class_name(&btn.class_name().replace("active_btn ", ""));
+                })
+                .forget();
+
+                false
+            }
+            Self::Message::CameraChange(camera) => {
+                self.camera = camera;
+                true
+            }
+            Self::Message::CameraToggle => {
+                let next_camera = match self.camera {
+                    Camera::MouthCentered => Camera::BoundariesCentered,
+                    Camera::BoundariesCentered => Camera::MouthCentered,
+                };
+                ctx.link()
+                    .send_message(Self::Message::CameraChange(next_camera));
+                false
+            }
+            Self::Message::ThemeContextUpdate(theme_ctx) => {
+                console::log!("WithTheme context updated from Snake");
+                self.theme_ctx.set(theme_ctx);
+                true
+            }
+            Self::Message::StateChange(state) => {
+                if state == self.state {
+                    false
+                } else {
+                    self.state = state;
+                    self.canvas_requires_fit = true;
+                    true
+                }
+            }
+        }
+    }
+}
+
+impl Snake {
+    pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
+        let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * self.px_scale;
+
+        match self.camera {
+            Camera::MouthCentered => {
+                // center camera to the mouth
+                //
+                // position of the mouth after the same transformations as of 'pos'
+                let adjusted_mouth =
+                    TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth()))
+                        * self.px_scale;
+                // target position - center of the canvas
+                // assert!(self.refs.is_canvas_fit(self.state));
+                let cd = self.refs.canvas_dimensions() / 2.0;
+                let to_center_x = cd.width - adjusted_mouth.x;
+                let to_center_y = cd.height - adjusted_mouth.y;
+
+                TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
+            }
+            Camera::BoundariesCentered => {
+                // center camera to the boundaries center
+                //
+                let b = self.domain.boundaries;
+                let b_max = self.adjust_algo.apply(b.max);
+                let b_min = self.adjust_algo.apply(b.min);
+                let adjusted_boundaries_center = TransformedPos::new(
+                    (b_min.x + b_max.x) as f64 / 2.0,
+                    (b_min.y + b_max.y) as f64 / 2.0,
+                ) * self.px_scale;
+                // assert!(self.refs.is_canvas_fit(self.state));
+                let cd = self.refs.canvas_dimensions() / 2.0;
+                let to_center_x = cd.width - adjusted_boundaries_center.x;
+                let to_center_y = cd.height - adjusted_boundaries_center.y;
+
+                TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
+            }
+        }
+    }
+
+    pub fn out_of_bounds(&self) -> bool {
+        let mouth = self.domain.snake.mouth();
+        match self.domain.boundaries.relation(mouth) {
+            domain::RelationToBoundaries::Inside => false,
+            domain::RelationToBoundaries::Touching => true,
+            domain::RelationToBoundaries::Outside => true,
+        }
+    }
+
+    fn draw_snake(&self, r: &CanvasRenderer) {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+
+        let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
+
+        r.set_line_width(snake_body_width);
+        let pos = self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
+        r.begin_path();
+        r.move_to(pos);
+        for pos in self
+            .domain
+            .snake
+            .iter_vertices()
+            .skip(1)
+            .map(|v| self.transform_pos(v))
+        {
+            r.line_to(pos);
+        }
+        r.stroke();
+        r.close_path();
+
+        // round head
+        let pos = self.transform_pos(self.domain.snake.mouth());
+        r.begin_path();
+        r.cirle(pos, snake_body_width / 2.);
+        r.set_fill_style(box_border_color);
+        r.fill();
+        r.close_path();
+
+        r.begin_path();
+        r.cirle(pos, (snake_body_width / 2.) * 0.9);
+        r.set_fill_style(bg_color);
+        r.fill();
+        r.close_path();
+
+        // round tail
+        let pos = self.transform_pos(self.domain.snake.tail_end());
+        r.begin_path();
+        r.cirle(pos, snake_body_width / 2.);
+        r.set_fill_style(box_border_color);
+        r.fill();
+        r.close_path();
+    }
+
+    fn draw_foods(&self, r: &CanvasRenderer) {
+        let theme = self.theme_ctx.as_ref();
+        let bg_color = &theme.bg_color;
+        let box_border_color = &theme.box_border_color;
+
+        for food in self.domain.foods.as_ref() {
+            let pos = self.transform_pos(food.pos);
+            r.begin_path();
+            r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
+            r.set_fill_style(box_border_color);
+            r.fill();
+            r.close_path();
+        }
+    }
+
+    fn draw_boundaries(&self, r: &CanvasRenderer) {
+        r.set_line_width(0.5 * self.px_scale);
+        let pos = self.transform_pos(self.domain.boundaries.left_top());
+
+        r.begin_path();
+        r.move_to(pos);
+
+        for pos in [
+            self.domain.boundaries.right_top(),
+            self.domain.boundaries.right_bottom(),
+            self.domain.boundaries.left_bottom(),
+            self.domain.boundaries.left_top(),
+        ] {
+            let pos = self.transform_pos(pos);
+            r.line_to(pos);
+        }
+        r.close_path();
+        r.stroke();
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum State {
+    Begun,
+    NotBegun,
+}
 
 pub enum Camera {
     MouthCentered,
@@ -73,6 +656,7 @@ impl CtrlBtnRefs {
 
 #[derive(Default, Clone)]
 pub struct Refs {
+    canvas_overlay: NodeRef,
     canvas_ref: NodeRef,
     ctrl_brn_refs: CtrlBtnRefs,
 }
@@ -102,8 +686,11 @@ impl Refs {
         }
     }
 
-    fn is_canvas_fit(&self) -> bool {
-        self.canvas_dimensions() == canvas_target_dimensions()
+    fn is_canvas_fit(&self, state: State) -> bool {
+        match state {
+            Begun => self.canvas_dimensions() == canvas_target_dimensions(),
+            NotBegun => true,
+        }
     }
 
     fn set_canvas_dimensions(&self, dims: Dimensions) {
@@ -113,9 +700,18 @@ impl Refs {
         // console::log!("canvas resized to:", format!("{:?}", dims));
     }
 
-    fn fit_canvas(&self) {
+    // TODO needs refactoring all around
+    fn fit_canvas(&self, state: State) {
         let cd = canvas_target_dimensions();
-        self.set_canvas_dimensions(cd);
+
+        match state {
+            Begun => {
+                self.set_canvas_dimensions(cd);
+            }
+            NotBegun => {
+                // canvas overlay auto fits into space
+            }
+        }
     }
 
     fn ctrl_btn_el(&self, direction: domain::Direction) -> HtmlElement {
@@ -125,6 +721,15 @@ impl Refs {
             .cast::<HtmlElement>()
             .unwrap()
     }
+
+    // fn canvas_overlay_el(&self) -> HtmlElement {
+    //     self.canvas_overlay.clone().cast::<HtmlElement>().unwrap()
+    // }
+
+    // fn set_canvas_overlay_dimensions(&self, dims: Dimensions) {
+    //     let canvas_overlay_el = self.canvas_overlay_el();
+    //     // canvas_overlay_el.set_attribute("style.width", &format!("{}px", dims.width));
+    // }
 }
 
 pub struct Listeners {
@@ -233,22 +838,7 @@ impl Domain {
     }
 }
 
-pub struct Snake {
-    domain: Domain,
-
-    advance_interval: SnakeAdvanceInterval,
-
-    // greater value - closer camera
-    px_scale: f64,
-    camera: Camera,
-    adjust_algo: AdjustAlgo,
-
-    refs: Refs,
-    listeners: Listeners,
-
-    theme_ctx: ThemeCtxSub,
-}
-
+// TODO starts even when game is NotBegun
 struct SnakeAdvanceInterval {
     _handle: Interval,
 }
@@ -268,487 +858,6 @@ impl SnakeAdvanceInterval {
                 })
             }),
         }
-    }
-}
-
-pub enum SnakeMsg {
-    Advance,
-    Restart,
-    DirectionChange(domain::Direction),
-    WindowLoaded,
-    WindowResized,
-    FitCanvasToWindowSize,
-    CameraChange(Camera),
-    CameraToggle,
-    ThemeContextUpdate(ThemeCtx),
-    Nothing,
-}
-
-impl Component for Snake {
-    type Message = SnakeMsg;
-    type Properties = ();
-
-    #[allow(unused_variables)]
-    fn create(ctx: &Context<Self>) -> Self {
-        let listeners = {
-            let link = ctx.link().clone();
-            // this event is unreliable, might not be emmited
-            let window_load_listener = EventListener::new(&get_window(), "load", move |event| {
-                console::log!("event: window load");
-                link.send_message(Self::Message::WindowLoaded);
-            });
-
-            let link = ctx.link().clone();
-            let window_resize_listener =
-                EventListener::new(&get_window(), "resize", move |event| {
-                    console::log!("event: window resize");
-                    link.send_message(Self::Message::WindowResized);
-                });
-
-            let link = ctx.link().clone();
-            let kb_listener = EventListener::new_with_options(
-                &get_document(),
-                "keydown",
-                EventListenerOptions::enable_prevent_default(),
-                move |event| {
-                    let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
-
-                    enum KeyBoardEvent {
-                        DirectionChange(domain::Direction),
-                        Restart,
-                        None,
-                        CameraToggle,
-                    }
-                    use KeyBoardEvent::*;
-
-                    let kb_event = match event.key().as_str() {
-                        "ArrowUp" => DirectionChange(domain::Direction::Up),
-                        "ArrowDown" => DirectionChange(domain::Direction::Bottom),
-                        "ArrowLeft" => DirectionChange(domain::Direction::Left),
-                        "ArrowRight" => DirectionChange(domain::Direction::Right),
-                        "r" | "R" => Restart,
-                        "c" | "C" => CameraToggle,
-                        _ => None,
-                    };
-
-                    let message = match kb_event {
-                        DirectionChange(direction) => Self::Message::DirectionChange(direction),
-                        Restart => Self::Message::Restart,
-                        None => Self::Message::Nothing,
-                        CameraToggle => Self::Message::CameraToggle,
-                    };
-                    link.send_message(message)
-                },
-            );
-
-            Listeners {
-                kb_listener,
-                window_load_listener,
-                window_resize_listener,
-            }
-        };
-
-        let domain = Domain::default(ADJUST_ALGO);
-
-        let adjust_algo = match ADJUST_ALGO {
-            AdjustAlgoChoice::None => AdjustAlgo::None,
-            AdjustAlgoChoice::For4thQuadrant => {
-                let initial_adjustment = {
-                    let snake_boundaries = domain.snake.boundaries();
-                    let foods_boundaries = domain.foods.boundaries();
-                    let total_boundaries = snake_boundaries.join_option(foods_boundaries);
-
-                    fn adjust_for_negative(coord: i32) -> i32 {
-                        if coord < 0 {
-                            -coord
-                        } else {
-                            0
-                        }
-                    }
-
-                    let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
-                    let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
-
-                    domain::Pos {
-                        x: x_adjust_for_negative,
-                        y: y_adjust_for_negative,
-                    }
-                };
-
-                AdjustAlgo::For4thQuadrant { initial_adjustment }
-            }
-        };
-
-        let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
-
-        Self {
-            domain,
-
-            advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
-
-            px_scale,
-            adjust_algo,
-            camera: CAMERA,
-
-            refs: Default::default(),
-            listeners,
-
-            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
-        }
-    }
-
-    #[allow(unused_variables)]
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let theme = self.theme_ctx.as_ref();
-        let bg_color = &theme.bg_color;
-        let box_border_color = &theme.box_border_color;
-        let contrast_bg_color = &theme.contrast_bg_color;
-        let text_color = &theme.text_color;
-
-        let btn_style = css! {"
-            border: 2px solid ${box_border_color};
-            width: 80px; height: 20px;
-            color: ${text_color};
-            cursor: pointer;
-            display: inline-block;
-            padding: 7px 5px;
-            text-align: center;
-            transition: 0.3s;
-            user-select: none;
-
-            :hover {
-                opacity: 0.8;
-            }
-        ",
-                box_border_color = box_border_color,
-                text_color = text_color
-        };
-
-        let camera_btn_style = css! {"margin-top: 20px;"};
-
-        let camera_btn_onclick = ctx.link().callback(move |e| Self::Message::CameraToggle);
-
-        let restart_btn_style = css! {"margin-top: 20px;"};
-
-        let restart_btn_onclick = ctx.link().callback(move |e| Self::Message::Restart);
-
-        let direction_btn = |text: &str, direction| {
-            let direction_btn_onlick = |direction| {
-                ctx.link()
-                    .callback(move |_| Self::Message::DirectionChange(direction))
-            };
-
-            let direction_btn_style = css! {"margin: 2px 1px;"};
-
-            html! {
-                <div
-                    ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
-                    class={ vec![btn_style.clone(), direction_btn_style] }
-                    onclick={ direction_btn_onlick(direction) }>{ text }</div>
-            }
-        };
-
-        // #4a4a4a
-        let panel_style = css! {"
-            width: ${width}px;
-            background-color: ${bg_color};
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            outline: 5px groove ${box_border_color};
-        ",
-            width = PANEL_PX_WIDTH,
-            box_border_color = box_border_color,
-            bg_color = bg_color
-        };
-
-        let wrapper_style = css! {"
-            display: flex;
-        "};
-
-        html! {
-            <>
-                <Global css={".active_btn { transition: 0.2s; border-color: green; background-color: green; }"}/>
-                <PageTitle title={"Snake"}/>
-
-                <div class={ wrapper_style }>
-                    <canvas ref={self.refs.canvas_ref.clone()}></canvas>
-
-                    <div class={ panel_style }>
-
-                        <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
-                            <div>
-                                { direction_btn("▲", domain::Direction::Up) }
-                            </div>
-
-                            <div>
-                                { direction_btn("◄", domain::Direction::Left) }
-                                { direction_btn("▼", domain::Direction::Bottom) }
-                                { direction_btn("►", domain::Direction::Right) }
-                            </div>
-                        </div>
-
-                        <div class={ vec![camera_btn_style, btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
-                        <div class={ vec![restart_btn_style, btn_style] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-
-                    </div>
-                </div>
-            </>
-        }
-    }
-
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        let theme = self.theme_ctx.as_ref();
-        let bg_color = &theme.bg_color;
-        let box_border_color = &theme.box_border_color;
-
-        if first_render {
-            self.refs.fit_canvas();
-        }
-
-        let r = self.refs.canvas_renderer();
-        r.set_stroke_style(box_border_color);
-        r.set_line_join("round");
-        r.set_fill_style(bg_color);
-
-        assert!(self.refs.is_canvas_fit());
-        let cd = self.refs.canvas_dimensions();
-        r.fill_rect(domain::Boundaries {
-            min: domain::Pos::new(0, 0),
-            max: domain::Pos::new(cd.width as i32, cd.height as i32),
-        });
-
-        self.draw_snake(&r);
-        self.draw_foods(&r);
-        self.draw_boundaries(&r);
-
-        // console::log!("random int (0..1)", rand_from_iterator(0..1));
-        // console::log!("random int (0..2)", rand_from_iterator(0..2));
-    }
-
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Self::Message::Nothing => false,
-            Self::Message::WindowLoaded => {
-                ctx.link()
-                    .send_message(Self::Message::FitCanvasToWindowSize);
-                false
-            }
-            Self::Message::WindowResized => {
-                ctx.link()
-                    .send_message(Self::Message::FitCanvasToWindowSize);
-                false
-            }
-            Self::Message::FitCanvasToWindowSize => {
-                self.refs.fit_canvas();
-
-                self.px_scale =
-                    calc_px_scale(self.refs.canvas_dimensions(), self.domain.boundaries);
-
-                true
-            }
-            Self::Message::Advance => {
-                let game_over = || {
-                    get_window().alert_with_message("game over");
-                    // when game ends - auto restart
-                    ctx.link().send_message(Self::Message::Restart);
-                };
-
-                match self.domain.snake.advance(&mut self.domain.foods) {
-                    domain::AdvanceResult::Success => {
-                        if self.out_of_bounds() {
-                            game_over();
-                        }
-
-                        // when no food, replenish
-                        if self.domain.foods.empty() {
-                            self.domain.foods = DomainDefaults::foods(
-                                rand_from_iterator(10..15),
-                                self.domain.boundaries,
-                                self.domain.snake.iter_vertices(),
-                            );
-                        }
-                    }
-                    domain::AdvanceResult::BitYaSelf => game_over(),
-                }
-                true
-            }
-            Self::Message::Restart => {
-                // drop old by replacement
-                self.advance_interval = SnakeAdvanceInterval::default(ctx.link().clone());
-                // reset domain items
-                self.domain = Domain::default(ADJUST_ALGO);
-                true
-            }
-            Self::Message::DirectionChange(direction) => {
-                if self.domain.snake.set_direction(direction).is_err() {
-                    console::log!("cannot move into the opposite direction")
-                }
-
-                let btn = self.refs.ctrl_btn_el(direction);
-
-                if !btn.class_name().contains("active_btn") {
-                    btn.set_class_name(&format!("active_btn {}", btn.class_name()));
-                }
-
-                gloo_timers::callback::Timeout::new(200, move || {
-                    btn.set_class_name(&btn.class_name().replace("active_btn ", ""));
-                })
-                .forget();
-
-                false
-            }
-            Self::Message::CameraChange(camera) => {
-                self.camera = camera;
-                true
-            }
-            Self::Message::CameraToggle => {
-                let next_camera = match self.camera {
-                    Camera::MouthCentered => Camera::BoundariesCentered,
-                    Camera::BoundariesCentered => Camera::MouthCentered,
-                };
-                ctx.link()
-                    .send_message(Self::Message::CameraChange(next_camera));
-                false
-            }
-            Self::Message::ThemeContextUpdate(theme_ctx) => {
-                console::log!("WithTheme context updated from Snake");
-                self.theme_ctx.set(theme_ctx);
-                true
-            }
-        }
-    }
-}
-
-impl Snake {
-    pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
-        let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * self.px_scale;
-
-        match self.camera {
-            Camera::MouthCentered => {
-                // center camera to the mouth
-                //
-                // position of the mouth after the same transformations as of 'pos'
-                let adjusted_mouth =
-                    TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth()))
-                        * self.px_scale;
-                // target position - center of the canvas
-                assert!(self.refs.is_canvas_fit());
-                let cd = self.refs.canvas_dimensions() / 2.0;
-                let to_center_x = cd.width - adjusted_mouth.x;
-                let to_center_y = cd.height - adjusted_mouth.y;
-
-                TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
-            }
-            Camera::BoundariesCentered => {
-                // center camera to the boundaries center
-                //
-                let b = self.domain.boundaries;
-                let b_max = self.adjust_algo.apply(b.max);
-                let b_min = self.adjust_algo.apply(b.min);
-                let adjusted_boundaries_center = TransformedPos::new(
-                    (b_min.x + b_max.x) as f64 / 2.0,
-                    (b_min.y + b_max.y) as f64 / 2.0,
-                ) * self.px_scale;
-                assert!(self.refs.is_canvas_fit());
-                let cd = self.refs.canvas_dimensions() / 2.0;
-                let to_center_x = cd.width - adjusted_boundaries_center.x;
-                let to_center_y = cd.height - adjusted_boundaries_center.y;
-
-                TransformedPos::new(pos.x + to_center_x, pos.y + to_center_y)
-            }
-        }
-    }
-
-    pub fn out_of_bounds(&self) -> bool {
-        let mouth = self.domain.snake.mouth();
-        match self.domain.boundaries.relation(mouth) {
-            domain::RelationToBoundaries::Inside => false,
-            domain::RelationToBoundaries::Touching => true,
-            domain::RelationToBoundaries::Outside => true,
-        }
-    }
-
-    fn draw_snake(&self, r: &CanvasRenderer) {
-        let theme = self.theme_ctx.as_ref();
-        let bg_color = &theme.bg_color;
-        let box_border_color = &theme.box_border_color;
-
-        let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
-
-        r.set_line_width(snake_body_width);
-        let pos = self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
-        r.begin_path();
-        r.move_to(pos);
-        for pos in self
-            .domain
-            .snake
-            .iter_vertices()
-            .skip(1)
-            .map(|v| self.transform_pos(v))
-        {
-            r.line_to(pos);
-        }
-        r.stroke();
-        r.close_path();
-
-        // round head
-        let pos = self.transform_pos(self.domain.snake.mouth());
-        r.begin_path();
-        r.cirle(pos, snake_body_width / 2.);
-        r.set_fill_style(box_border_color);
-        r.fill();
-        r.close_path();
-
-        r.begin_path();
-        r.cirle(pos, (snake_body_width / 2.) * 0.9);
-        r.set_fill_style(bg_color);
-        r.fill();
-        r.close_path();
-
-        // round tail
-        let pos = self.transform_pos(self.domain.snake.tail_end());
-        r.begin_path();
-        r.cirle(pos, snake_body_width / 2.);
-        r.set_fill_style(box_border_color);
-        r.fill();
-        r.close_path();
-    }
-
-    fn draw_foods(&self, r: &CanvasRenderer) {
-        let theme = self.theme_ctx.as_ref();
-        let bg_color = &theme.bg_color;
-        let box_border_color = &theme.box_border_color;
-
-        for food in self.domain.foods.as_ref() {
-            let pos = self.transform_pos(food.pos);
-            r.begin_path();
-            r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
-            r.set_fill_style(box_border_color);
-            r.fill();
-            r.close_path();
-        }
-    }
-
-    fn draw_boundaries(&self, r: &CanvasRenderer) {
-        r.set_line_width(0.5 * self.px_scale);
-        let pos = self.transform_pos(self.domain.boundaries.left_top());
-
-        r.begin_path();
-        r.move_to(pos);
-
-        for pos in [
-            self.domain.boundaries.right_top(),
-            self.domain.boundaries.right_bottom(),
-            self.domain.boundaries.left_bottom(),
-            self.domain.boundaries.left_top(),
-        ] {
-            let pos = self.transform_pos(pos);
-            r.line_to(pos);
-        }
-        r.close_path();
-        r.stroke();
     }
 }
 
