@@ -11,7 +11,9 @@ use yew::html::Scope;
 use super::domain;
 
 const PAUSED: bool = false;
-const STATE: State = State::NotBegun {};
+const STATE: State = State::NotBegun {
+    inner: NotBegunState::Initial,
+};
 // const STATE: State = State::Begun { paused: false };
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
@@ -122,13 +124,12 @@ impl Component for Snake {
             padding: 7px 5px;
             text-align: center;
             user-select: none;
-
             :hover {
                 opacity: 0.8;
             }
         ",
-                box_border_color = box_border_color,
-                text_color = text_color
+            box_border_color = box_border_color,
+            text_color = text_color
         };
 
         let margin_top_btn_style = css! {"margin-top: 20px;"};
@@ -150,8 +151,8 @@ impl Component for Snake {
 
         let wrapper_style = css! {"display: flex;"};
 
-        let global_style = css! {
-            ".active_btn {
+        let global_style = css! {"
+            .active_btn {
                 transition: 0.2s;
                 border-color: ${box_border_color};
                 background-color: ${box_border_color};
@@ -165,42 +166,61 @@ impl Component for Snake {
             State::Begun { .. } => {
                 html! { <canvas ref={self.refs.canvas_ref.clone()}></canvas> }
             }
-            State::NotBegun { .. } => {
+            State::NotBegun { inner } => {
                 let canvas_overlay_style = css! {"
                     height: 100vh;
                     width: calc(100% - 350px);
                     background-color: ${bg_color};
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                ", bg_color = bg_color};
+                    font-family: 'Iosevka Web';
+                    color: ${text_color};
+                ",
+                    bg_color = bg_color,
+                    text_color = text_color
+                };
 
                 let start_btn_style = css! {"
                     border: 4px solid ${box_border_color};
                     width: 300px; height: 100px;
-                    
                     font-size: 50px;
-
-                    color: ${text_color};
                     cursor: pointer;
                     display: flex;
-                    
                     align-items: center;
                     justify-content: center;
                     transition: 0.3s;
                     user-select: none;
-        
                     :hover {
                         opacity: 0.8;
                     }
-                ", text_color = text_color, box_border_color = box_border_color,};
+                ",
+                    box_border_color = box_border_color
+                };
 
                 let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
+                let items = match inner {
+                    NotBegunState::Initial => {
+                        html! {
+                            <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Start" }</div>
+                        }
+                    }
+                    NotBegunState::Ended => {
+                        html! {
+                            <>
+                                <p class={css!{"font-size: 35px;"}}>{"Game over!"}</p>
+                                <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Try again" }</div>
+                            </>
+                        }
+                    }
+                };
 
                 html! {
-                <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
-                    <div onclick={start_btn_onclick} class={ vec![css!{"font-family: 'Iosevka Web';"}, start_btn_style] }>{ "Start" }</div>
-                </div> }
+                    <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
+                        { items }
+                    </div>
+                }
             }
         };
 
@@ -354,9 +374,10 @@ impl Component for Snake {
             },
             Self::Message::Advance => {
                 let game_over = || {
-                    get_window().alert_with_message("game over");
-                    // when game ends - auto restart
-                    ctx.link().send_message(Self::Message::Restart);
+                    ctx.link()
+                        .send_message(Self::Message::StateChange(State::NotBegun {
+                            inner: NotBegunState::Ended,
+                        }));
                 };
 
                 match self.domain.snake.advance(&mut self.domain.foods) {
@@ -471,7 +492,9 @@ impl Component for Snake {
             },
             Self::Message::ToMenu => {
                 ctx.link()
-                    .send_message(Self::Message::StateChange(State::NotBegun {}));
+                    .send_message(Self::Message::StateChange(State::NotBegun {
+                        inner: NotBegunState::Initial,
+                    }));
                 false
             }
         }
@@ -610,9 +633,15 @@ impl Snake {
 }
 
 #[derive(Clone, Copy, PartialEq)]
+pub enum NotBegunState {
+    Initial,
+    Ended,
+}
+
+#[derive(Clone, Copy, PartialEq)]
 pub enum State {
     Begun { paused: bool },
-    NotBegun {},
+    NotBegun { inner: NotBegunState },
 }
 
 pub enum Camera {
