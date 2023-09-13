@@ -68,63 +68,7 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
-        let listeners = {
-            let link = ctx.link().clone();
-            // this event is unreliable, might not be emmited
-            let window_load_listener = EventListener::new(&get_window(), "load", move |event| {
-                console::log!("event: window load");
-                link.send_message(Self::Message::WindowLoaded);
-            });
-
-            let link = ctx.link().clone();
-            let window_resize_listener =
-                EventListener::new(&get_window(), "resize", move |event| {
-                    console::log!("event: window resize");
-                    link.send_message(Self::Message::WindowResized);
-                });
-
-            let link = ctx.link().clone();
-            let kb_listener = EventListener::new_with_options(
-                &get_document(),
-                "keydown",
-                EventListenerOptions::enable_prevent_default(),
-                move |event| {
-                    let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
-
-                    enum KeyBoardEvent {
-                        DirectionChange(domain::Direction),
-                        Restart,
-                        None,
-                        CameraToggle,
-                    }
-                    use KeyBoardEvent::*;
-
-                    let kb_event = match event.key().as_str() {
-                        "ArrowUp" => DirectionChange(domain::Direction::Up),
-                        "ArrowDown" => DirectionChange(domain::Direction::Bottom),
-                        "ArrowLeft" => DirectionChange(domain::Direction::Left),
-                        "ArrowRight" => DirectionChange(domain::Direction::Right),
-                        "r" | "R" => Restart,
-                        "c" | "C" => CameraToggle,
-                        _ => None,
-                    };
-
-                    let message = match kb_event {
-                        DirectionChange(direction) => Self::Message::DirectionChange(direction),
-                        Restart => Self::Message::Restart,
-                        None => Self::Message::Nothing,
-                        CameraToggle => Self::Message::CameraToggle,
-                    };
-                    link.send_message(message)
-                },
-            );
-
-            Listeners {
-                kb_listener,
-                window_load_listener,
-                window_resize_listener,
-            }
-        };
+        let listeners = Listeners::init(ctx.link().clone());
 
         let domain = Domain::default(ADJUST_ALGO);
 
@@ -758,6 +702,71 @@ pub struct Listeners {
     window_resize_listener: EventListener,
 }
 
+impl Listeners {
+    fn init(link: Scope<Snake>) -> Self {
+        // this event is unreliable, might not be emmited
+        let window_load_listener = {
+            let link = link.clone();
+            EventListener::new(&get_window(), "load", move |event| {
+                console::log!("event: window load");
+                link.send_message(SnakeMsg::WindowLoaded);
+            })
+        };
+
+        let window_resize_listener = {
+            let link = link.clone();
+            EventListener::new(&get_window(), "resize", move |event| {
+                console::log!("event: window resize");
+                link.send_message(SnakeMsg::WindowResized);
+            })
+        };
+
+        let kb_listener = {
+            let link = link.clone();
+            EventListener::new_with_options(
+                &get_document(),
+                "keydown",
+                EventListenerOptions::enable_prevent_default(),
+                move |event| {
+                    let event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
+
+                    enum KeyBoardEvent {
+                        DirectionChange(domain::Direction),
+                        Restart,
+                        None,
+                        CameraToggle,
+                    }
+                    use KeyBoardEvent::*;
+
+                    let kb_event = match event.key().as_str() {
+                        "ArrowUp" => DirectionChange(domain::Direction::Up),
+                        "ArrowDown" => DirectionChange(domain::Direction::Bottom),
+                        "ArrowLeft" => DirectionChange(domain::Direction::Left),
+                        "ArrowRight" => DirectionChange(domain::Direction::Right),
+                        "r" | "R" => Restart,
+                        "c" | "C" => CameraToggle,
+                        _ => None,
+                    };
+
+                    let message = match kb_event {
+                        DirectionChange(direction) => SnakeMsg::DirectionChange(direction),
+                        Restart => SnakeMsg::Restart,
+                        None => SnakeMsg::Nothing,
+                        CameraToggle => SnakeMsg::CameraToggle,
+                    };
+                    link.send_message(message)
+                },
+            )
+        };
+
+        Self {
+            kb_listener,
+            window_load_listener,
+            window_resize_listener,
+        }
+    }
+}
+
 pub struct Domain {
     snake: domain::Snake,
     foods: domain::Foods,
@@ -876,7 +885,6 @@ impl SnakeAdvanceInterval {
         let link = self.link.clone();
         let new_handle = || {
             Interval::new(SNAKE_ADVANCE_INTERVAL, move || {
-                console::log!("sending Advance from Interval");
                 link.send_message(if PAUSED {
                     SnakeMsg::Nothing
                 } else {
