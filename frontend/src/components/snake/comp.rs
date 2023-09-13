@@ -68,62 +68,35 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
-        let listeners = Listeners::init(ctx.link().clone());
-
-        let domain = Domain::default(ADJUST_ALGO);
-
-        let adjust_algo = match ADJUST_ALGO {
-            AdjustAlgoChoice::None => AdjustAlgo::None,
-            AdjustAlgoChoice::For4thQuadrant => {
-                let initial_adjustment = {
-                    let snake_boundaries = domain.snake.boundaries();
-                    let foods_boundaries = domain.foods.boundaries();
-                    let total_boundaries = snake_boundaries.join_option(foods_boundaries);
-
-                    fn adjust_for_negative(coord: i32) -> i32 {
-                        if coord < 0 {
-                            -coord
-                        } else {
-                            0
-                        }
-                    }
-
-                    let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
-                    let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
-
-                    domain::Pos {
-                        x: x_adjust_for_negative,
-                        y: y_adjust_for_negative,
-                    }
-                };
-
-                AdjustAlgo::For4thQuadrant { initial_adjustment }
-            }
-        };
-
+        let domain = Domain::default();
         let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
+        let adjust_algo = ADJUST_ALGO.into_algo(&domain);
 
         let state = STATE;
 
-        let advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
+        let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
+        match state {
+            Begun => advance_interval.start(),
+            NotBegun => {}
+        }
 
         Self {
             domain,
+            state,
+
             canvas_requires_fit: match state {
                 Begun => true,
                 NotBegun => false,
             },
 
-            state,
-
-            advance_interval: SnakeAdvanceInterval::create(ctx.link().clone()),
+            advance_interval,
 
             px_scale,
             adjust_algo,
             camera: CAMERA,
 
             refs: Default::default(),
-            listeners,
+            listeners: Listeners::init(ctx.link().clone()),
 
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
         }
@@ -288,14 +261,6 @@ impl Component for Snake {
             self.canvas_requires_fit = false;
         }
 
-        // TODO refactor
-        if first_render {
-            match self.state {
-                Begun => self.advance_interval.start(),
-                NotBegun => {}
-            }
-        }
-
         match self.state {
             Begun => {
                 let r = self.refs.canvas_renderer();
@@ -375,7 +340,7 @@ impl Component for Snake {
                 // drop old by replacement
                 self.advance_interval.reset();
                 // reset domain items
-                self.domain = Domain::default(ADJUST_ALGO);
+                self.domain = Domain::default();
                 true
             }
             Self::Message::DirectionChange(direction) => {
@@ -584,6 +549,39 @@ enum AdjustAlgoChoice {
     For4thQuadrant,
 }
 
+impl AdjustAlgoChoice {
+    fn into_algo(&self, domain: &Domain) -> AdjustAlgo {
+        match ADJUST_ALGO {
+            AdjustAlgoChoice::None => AdjustAlgo::None,
+            AdjustAlgoChoice::For4thQuadrant => {
+                let initial_adjustment = {
+                    let snake_boundaries = domain.snake.boundaries();
+                    let foods_boundaries = domain.foods.boundaries();
+                    let total_boundaries = snake_boundaries.join_option(foods_boundaries);
+
+                    fn adjust_for_negative(coord: i32) -> i32 {
+                        if coord < 0 {
+                            -coord
+                        } else {
+                            0
+                        }
+                    }
+
+                    let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
+                    let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
+
+                    domain::Pos {
+                        x: x_adjust_for_negative,
+                        y: y_adjust_for_negative,
+                    }
+                };
+
+                AdjustAlgo::For4thQuadrant { initial_adjustment }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum AdjustAlgo {
     None,
@@ -776,14 +774,10 @@ pub struct Domain {
 struct DomainDefaults;
 
 impl DomainDefaults {
-    fn snake(adjust_algo: AdjustAlgoChoice) -> domain::Snake {
+    fn snake() -> domain::Snake {
         let rand_section_len = || rand_from_iterator(3..5);
 
-        let initial_pos = match adjust_algo {
-            AdjustAlgoChoice::None => domain::Pos::new(5, 5),
-            // test with negative coords
-            AdjustAlgoChoice::For4thQuadrant => domain::Pos::new(-2, 2),
-        };
+        let initial_pos = domain::Pos::new(-2, 2);
 
         let mut directions = vec![];
         for _ in 0..rand_section_len() {
@@ -850,8 +844,8 @@ impl DomainDefaults {
 }
 
 impl Domain {
-    fn default(adjust_algo: AdjustAlgoChoice) -> Self {
-        let snake = DomainDefaults::snake(adjust_algo);
+    fn default() -> Self {
+        let snake = DomainDefaults::snake();
         let boundaries = DomainDefaults::boundaries(&snake);
 
         let food_average = ((MAP_BOUNDARIES_X * MAP_BOUNDARIES_Y) as f64 * 0.5);
