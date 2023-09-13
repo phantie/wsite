@@ -59,8 +59,8 @@ pub enum SnakeMsg {
     ThemeContextUpdate(ThemeCtx),
     Nothing,
     StateChange(State),
-    GameBegun,
-    GamePauseUnpause,
+    Begin,
+    PauseUnpause,
 }
 
 impl Component for Snake {
@@ -193,7 +193,7 @@ impl Component for Snake {
                     }
                 ", text_color = text_color, box_border_color = box_border_color,};
 
-                let start_btn_onclick = ctx.link().callback(move |e| Self::Message::GameBegun);
+                let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
 
                 html! {
                 <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
@@ -228,9 +228,8 @@ impl Component for Snake {
 
                     let restart_btn_onclick = ctx.link().callback(move |e| Self::Message::Restart);
 
-                    let pause_btn_onclick = ctx
-                        .link()
-                        .callback(move |e| Self::Message::GamePauseUnpause);
+                    let pause_btn_onclick =
+                        ctx.link().callback(move |e| Self::Message::PauseUnpause);
 
                     html! {
                         <>
@@ -402,45 +401,39 @@ impl Component for Snake {
                 self.theme_ctx.set(theme_ctx);
                 true
             }
+            Self::Message::StateChange(new_state) if new_state == self.state => false,
+            Self::Message::StateChange(new_state @ State::Begun { paused }) => {
+                // TODO refactor all around
+                self.px_scale = calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
 
-            // TODO refactor
-            Self::Message::StateChange(new_state) => {
-                if new_state == self.state {
-                    false
+                if paused {
+                    self.advance_interval.stop();
                 } else {
-                    match new_state {
-                        State::Begun { .. } => {
-                            // TODO refactor all around
-                            self.px_scale =
-                                calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
-                            self.advance_interval.start();
-                            self.canvas_requires_fit = true;
-                        }
-                        State::NotBegun { .. } => {
-                            self.advance_interval.stop();
-                            assert_eq!(self.canvas_requires_fit, false);
-                        }
-                    }
-
-                    self.state = new_state;
-                    true
+                    self.advance_interval.start();
                 }
+
+                // TODO
+                self.canvas_requires_fit = true;
+
+                self.state = new_state;
+                true
             }
-            Self::Message::GameBegun => {
+            Self::Message::StateChange(new_state @ State::NotBegun { .. }) => {
+                self.advance_interval.stop();
+                assert_eq!(self.canvas_requires_fit, false);
+                self.state = new_state;
+                true
+            }
+            Self::Message::Begin => {
                 ctx.link()
                     .send_message(Self::Message::StateChange(State::Begun { paused: false }));
                 false
             }
-            Self::Message::GamePauseUnpause => match &mut self.state {
+            Self::Message::PauseUnpause => match self.state {
                 State::Begun { paused } => {
-                    *paused = !*paused;
-                    if *paused {
-                        self.advance_interval.stop();
-                    } else {
-                        self.advance_interval.start();
-                    }
-
-                    true
+                    ctx.link()
+                        .send_message(Self::Message::StateChange(State::Begun { paused: !paused }));
+                    false
                 }
                 State::NotBegun { .. } => {
                     assert!(false, "game has not begun");
@@ -774,7 +767,7 @@ impl Listeners {
                         Restart,
                         None,
                         CameraToggle,
-                        GamePauseUnpause,
+                        PauseUnpause,
                     }
                     use KeyBoardEvent::*;
 
@@ -786,7 +779,7 @@ impl Listeners {
                         "ArrowRight" => DirectionChange(domain::Direction::Right),
                         "r" | "R" => Restart,
                         "c" | "C" => CameraToggle,
-                        "p" | "P" => GamePauseUnpause,
+                        "p" | "P" => PauseUnpause,
                         _ => None,
                     };
 
@@ -795,7 +788,7 @@ impl Listeners {
                         Restart => SnakeMsg::Restart,
                         None => SnakeMsg::Nothing,
                         CameraToggle => SnakeMsg::CameraToggle,
-                        GamePauseUnpause => SnakeMsg::GamePauseUnpause,
+                        PauseUnpause => SnakeMsg::PauseUnpause,
                     };
                     link.send_message(message)
                 },
@@ -934,7 +927,10 @@ impl SnakeAdvanceInterval {
     }
 
     fn start(&mut self) {
-        self.reset();
+        // don't reset if already started
+        if let None = self._handle {
+            self.reset();
+        }
     }
 
     fn stop(&mut self) {
