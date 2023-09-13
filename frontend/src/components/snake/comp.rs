@@ -239,7 +239,7 @@ impl Component for Snake {
 
                     html! {
                         <>
-                            <div class={ vec![margin_bottom_btn_style.clone(), btn_style.clone()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
+                            <div ref={self.refs.btn_refs.menu_btn_ref.clone()} class={ vec![margin_bottom_btn_style.clone(), btn_style.clone()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
 
                             <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
                                 <div>
@@ -253,9 +253,9 @@ impl Component for Snake {
                                 </div>
                             </div>
 
-                            <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
-                            <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-                            <div class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                            <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
+                            <div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
+                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
                         </>
                     }
                 }
@@ -375,6 +375,9 @@ impl Component for Snake {
                 self.advance_interval.reset();
                 // reset domain items
                 self.domain = Domain::default();
+
+                Refs::fire_btn_active(self.refs.restart_btn_el());
+
                 true
             }
             Self::Message::DirectionChange(direction) => {
@@ -383,15 +386,7 @@ impl Component for Snake {
                 }
 
                 let btn = self.refs.ctrl_btn_el(direction);
-
-                if !btn.class_name().contains("active_btn") {
-                    btn.set_class_name(&format!("active_btn {}", btn.class_name()));
-                }
-
-                gloo_timers::callback::Timeout::new(200, move || {
-                    btn.set_class_name(&btn.class_name().replace("active_btn ", ""));
-                })
-                .forget();
+                Refs::fire_btn_active(btn);
 
                 false
             }
@@ -406,6 +401,7 @@ impl Component for Snake {
                 };
                 ctx.link()
                     .send_message(Self::Message::CameraChange(next_camera));
+                Refs::fire_btn_active(self.refs.camera_btn_el());
                 false
             }
             Self::Message::ThemeContextUpdate(theme_ctx) => {
@@ -447,6 +443,8 @@ impl Component for Snake {
                 State::Begun { paused } => {
                     ctx.link()
                         .send_message(Self::Message::StateChange(State::Begun { paused: !paused }));
+                    // TODO maybe move to StateChange
+                    Refs::fire_btn_active(self.refs.pause_btn_el());
                     false
                 }
                 State::NotBegun { .. } => {
@@ -660,6 +658,14 @@ impl AdjustAlgo {
 }
 
 #[derive(Default, Clone)]
+pub struct BtnRefs {
+    menu_btn_ref: NodeRef,
+    camera_btn_ref: NodeRef,
+    restart_btn_ref: NodeRef,
+    pause_btn_ref: NodeRef,
+}
+
+#[derive(Default, Clone)]
 pub struct CtrlBtnRefs {
     up_btn_ref: NodeRef,
     down_btn_ref: NodeRef,
@@ -683,6 +689,7 @@ pub struct Refs {
     canvas_overlay: NodeRef,
     canvas_ref: NodeRef,
     ctrl_brn_refs: CtrlBtnRefs,
+    btn_refs: BtnRefs,
 }
 
 impl Refs {
@@ -737,14 +744,40 @@ impl Refs {
             .unwrap()
     }
 
-    // fn canvas_overlay_el(&self) -> HtmlElement {
-    //     self.canvas_overlay.clone().cast::<HtmlElement>().unwrap()
-    // }
+    fn restart_btn_el(&self) -> HtmlElement {
+        self.btn_refs
+            .restart_btn_ref
+            .clone()
+            .cast::<HtmlElement>()
+            .unwrap()
+    }
 
-    // fn set_canvas_overlay_dimensions(&self, dims: Dimensions) {
-    //     let canvas_overlay_el = self.canvas_overlay_el();
-    //     // canvas_overlay_el.set_attribute("style.width", &format!("{}px", dims.width));
-    // }
+    fn camera_btn_el(&self) -> HtmlElement {
+        self.btn_refs
+            .camera_btn_ref
+            .clone()
+            .cast::<HtmlElement>()
+            .unwrap()
+    }
+
+    fn pause_btn_el(&self) -> HtmlElement {
+        self.btn_refs
+            .pause_btn_ref
+            .clone()
+            .cast::<HtmlElement>()
+            .unwrap()
+    }
+
+    fn fire_btn_active(btn: HtmlElement) {
+        if !btn.class_name().contains("active_btn") {
+            btn.set_class_name(&format!("active_btn {}", btn.class_name()));
+        }
+
+        gloo_timers::callback::Timeout::new(200, move || {
+            btn.set_class_name(&btn.class_name().replace("active_btn ", ""));
+        })
+        .forget();
+    }
 }
 
 pub struct Listeners {
