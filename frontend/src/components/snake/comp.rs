@@ -287,8 +287,7 @@ impl Component for Snake {
         let box_border_color = &theme.box_border_color;
 
         if self.canvas_requires_fit {
-            self.refs.fit_canvas();
-            self.canvas_requires_fit = false;
+            ctx.link().send_message(Self::Message::FitCanvasImmediately);
         }
 
         match self.state {
@@ -328,12 +327,10 @@ impl Component for Snake {
             }
             Self::Message::FitCanvasImmediately => match self.state {
                 State::Begun { .. } => {
-                    self.refs.fit_canvas();
                     self.canvas_requires_fit = false;
-
+                    self.refs.fit_canvas();
                     self.px_scale =
                         calc_px_scale(self.refs.canvas_dimensions(), self.domain.boundaries);
-
                     true
                 }
                 State::NotBegun { .. } => false,
@@ -409,18 +406,6 @@ impl Component for Snake {
             }
             Self::Message::StateChange(new_state) if new_state == self.state => false,
             Self::Message::StateChange(new_state @ State::Begun { paused }) => {
-                // TODO refactor all around
-                match self.state {
-                    State::Begun { .. } => {}
-                    State::NotBegun { .. } => {
-                        self.px_scale =
-                            calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
-
-                        // ctx.link()
-                        //     .send_message(Self::Message::FitCanvasImmediately);
-                    }
-                }
-
                 if paused {
                     self.advance_interval.stop();
                 } else {
