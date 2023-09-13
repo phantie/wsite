@@ -12,6 +12,7 @@ use super::domain;
 
 const PAUSED: bool = false;
 const STATE: State = State::NotBegun {};
+// const STATE: State = State::Begun { paused: false };
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
 
@@ -412,8 +413,12 @@ impl Component for Snake {
                     self.advance_interval.start();
                 }
 
-                // TODO
-                self.canvas_requires_fit = true;
+                match self.state {
+                    State::Begun { .. } => {}
+                    State::NotBegun { .. } => {
+                        self.canvas_requires_fit = true;
+                    }
+                }
 
                 self.state = new_state;
                 true
