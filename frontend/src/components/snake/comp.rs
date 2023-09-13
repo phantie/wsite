@@ -361,6 +361,15 @@ impl Component for Snake {
                 }
                 true
             }
+            Self::Message::Restart
+            | Self::Message::DirectionChange(_)
+            | Self::Message::CameraToggle
+            | Self::Message::PauseUnpause
+                if matches!(self.state, State::NotBegun { .. }) =>
+            {
+                console::log!("ignoring event: State::NotBegun");
+                false
+            }
             Self::Message::Restart => {
                 // drop old by replacement
                 self.advance_interval.reset();
@@ -781,7 +790,6 @@ impl Listeners {
                     }
                     use KeyBoardEvent::*;
 
-                    // TODO ignore these actions when game NotBegun
                     let kb_event = match event.key().as_str() {
                         "ArrowUp" => DirectionChange(domain::Direction::Up),
                         "ArrowDown" => DirectionChange(domain::Direction::Bottom),
