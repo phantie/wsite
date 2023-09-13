@@ -393,6 +393,9 @@ impl Component for Snake {
                 } else {
                     match new_state {
                         Begun => {
+                            // TODO refactor all around
+                            self.px_scale =
+                                calc_px_scale(canvas_target_dimensions(), self.domain.boundaries);
                             self.advance_interval.start();
                         }
                         NotBegun => {
