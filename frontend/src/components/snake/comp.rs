@@ -11,7 +11,7 @@ use State::*;
 
 use super::domain;
 
-const PAUSED: bool = true;
+const PAUSED: bool = false;
 const STATE: State = NotBegun;
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
@@ -160,6 +160,15 @@ impl Component for Snake {
         let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
 
         let state = STATE;
+
+        let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
+
+        match state {
+            // TODO maybe start only when rendered, refactor
+            Begun => advance_interval.start(),
+            NotBegun => {}
+        }
+
         Self {
             domain,
             canvas_requires_fit: match state {
@@ -169,7 +178,7 @@ impl Component for Snake {
 
             state,
 
-            advance_interval: SnakeAdvanceInterval::default(ctx.link().clone()),
+            advance_interval: SnakeAdvanceInterval::create(ctx.link().clone()),
 
             px_scale,
             adjust_algo,
@@ -418,7 +427,7 @@ impl Component for Snake {
             }
             Self::Message::Restart => {
                 // drop old by replacement
-                self.advance_interval = SnakeAdvanceInterval::default(ctx.link().clone());
+                self.advance_interval.reset();
                 // reset domain items
                 self.domain = Domain::default(ADJUST_ALGO);
                 true
@@ -459,11 +468,20 @@ impl Component for Snake {
                 self.theme_ctx.set(theme_ctx);
                 true
             }
-            Self::Message::StateChange(state) => {
-                if state == self.state {
+            Self::Message::StateChange(new_state) => {
+                if new_state == self.state {
                     false
                 } else {
-                    self.state = state;
+                    match new_state {
+                        Begun => {
+                            self.advance_interval.start();
+                        }
+                        NotBegun => {
+                            self.advance_interval.stop();
+                        }
+                    }
+
+                    self.state = new_state;
                     self.canvas_requires_fit = true;
                     true
                 }
@@ -840,24 +858,38 @@ impl Domain {
 
 // TODO starts even when game is NotBegun
 struct SnakeAdvanceInterval {
-    _handle: Interval,
+    link: Scope<Snake>,
+    _handle: Option<Interval>,
 }
 
 impl SnakeAdvanceInterval {
-    fn default(link: Scope<Snake>) -> Self {
-        Self::init(SNAKE_ADVANCE_INTERVAL, link)
+    fn create(link: Scope<Snake>) -> Self {
+        Self {
+            link,
+            _handle: None,
+        }
     }
 
-    fn init(millis: u32, link: Scope<Snake>) -> Self {
-        Self {
-            _handle: Interval::new(millis, move || {
+    fn reset(&mut self) {
+        let link = self.link.clone();
+        let new_handle = || {
+            Interval::new(SNAKE_ADVANCE_INTERVAL, move || {
                 link.send_message(if PAUSED {
                     SnakeMsg::Nothing
                 } else {
                     SnakeMsg::Advance
                 })
-            }),
-        }
+            })
+        };
+        self._handle = Some(new_handle());
+    }
+
+    fn start(&mut self) {
+        self.reset();
+    }
+
+    fn stop(&mut self) {
+        self._handle = None;
     }
 }
 
