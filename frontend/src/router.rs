@@ -21,6 +21,8 @@ pub enum Route {
     CreateArticle,
     #[at("/admin/articles/:public_id/edit")]
     EditArticle { public_id: String },
+    #[at("/snake")]
+    Snake,
     #[not_found]
     #[at("/404")]
     NotFound,

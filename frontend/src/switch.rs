@@ -36,6 +36,11 @@ pub fn switch(routes: Route) -> Html {
         Route::MarkdownPreview => {
             html! {<MarkdownPreviewPage/>}
         }
+        Route::Snake => {
+            html! {
+                <Snake/>
+            }
+        }
         Route::ArticleList => {
             html! {
                 <>
@@ -63,6 +68,11 @@ pub fn switch(routes: Route) -> Html {
                             <PageTitle title={static_articles().about.title}/>
                             <Post md={include_str!("../../README.md")}/>
                         </DefaultStyling>
+                    }
+                }
+                _ if public_id == static_articles().snake.public_id => {
+                    html! {
+                        <Snake/>
                     }
                 }
                 _ => html! {
