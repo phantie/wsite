@@ -18,11 +18,10 @@ Architecture
 Interesting implemented things:
 --------------------------------------
 - frontend in Rust
-- database self hosted with custom tooling and daily data auto backups using DigitalOcean Volumes
+- snake
+- self hosted database with daily data auto backups using DigitalOcean Volumes
 - user online by keeping of open websocket connections
 - frontend support for any number of themes (button in the right top corner)
 - compile-time routes to backend api methods
-- database client tooling for its connection reliability
-- custom admin session persistent storage layer (only in memory is provided by default)
-- hosting on DigitalOcean Droplets
+- custom user session persistent storage layer
 - found and reported or fixed several noteworthy bugs of BonsaiDB
