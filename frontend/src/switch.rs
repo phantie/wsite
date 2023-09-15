@@ -8,8 +8,8 @@ pub fn switch(routes: Route) -> Html {
     use admin::WithSession;
 
     match routes {
-        Route::NotFound => html! {<Colored with="red"><h1>{"not found 404"}</h1></Colored> },
-        Route::Unauthorized => html! {<Colored with="red"><h1>{"unauthorized 401"}</h1></Colored> },
+        Route::NotFound => html! { <Error msg={"Not Found"} code=404 /> },
+        Route::Unauthorized => html! { <Error msg={"Unauthorized"} code=401 /> },
         Route::Home => {
             html! { <yew_router::prelude::Redirect<Route> to={Route::ArticleList}/> }
         }

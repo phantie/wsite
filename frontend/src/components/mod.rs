@@ -1,8 +1,11 @@
+#![allow(non_upper_case_globals)]
+
 mod imports;
 
 mod articles;
 mod colored;
 mod default_styling;
+mod error;
 mod header;
 mod login;
 mod markdown;
@@ -19,6 +22,7 @@ pub mod admin;
 pub use articles::*;
 pub use colored::Colored;
 pub use default_styling::DefaultStyling;
+pub use error::Error;
 pub use header::Header;
 pub use login::Login;
 pub use markdown::Markdown;
