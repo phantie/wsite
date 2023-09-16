@@ -66,7 +66,7 @@ pub fn switch(routes: Route) -> Html {
                         <DefaultStyling>
                             <Header/>
                             <PageTitle title={static_articles().about.title}/>
-                            <Post md={include_str!("../../README.md")}/>
+                            <Post md={include_str!("../md/README.md")}/>
                         </DefaultStyling>
                     }
                 }

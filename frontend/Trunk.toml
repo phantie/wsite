@@ -11,9 +11,6 @@ port = 9000
 [[proxy]]
 backend = "http://localhost:8000/api/"
 
-[watch]
-watch = ["../README.md"]
-
 [[hooks]]
 # This hook example shows running a command inside a shell. As a result, features such as variable
 # interpolation are available. This shows the TRUNK_STAGING_DIR environment variable, one of a set
