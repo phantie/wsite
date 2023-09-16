@@ -4,3 +4,10 @@
 
 <br>
 
+
+<h3>For example, code</h3>
+<pre><code class="language-rust">
+fn main() {
+    yew::Renderer::<app::App>::new().render();
+}
+</code></pre>

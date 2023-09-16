@@ -17,11 +17,14 @@ Architecture
 
 Interesting implemented things:
 --------------------------------------
-- frontend in Rust
-- snake
-- self hosted database with daily data auto backups using DigitalOcean Volumes
-- user online by keeping of open websocket connections
-- frontend support for any number of themes (button in the right top corner)
-- compile-time routes to backend api methods
-- custom user session persistent storage layer
-- found and reported or fixed several noteworthy bugs of BonsaiDB
+
+- frontend
+    - support for any number of themes (button in the right top corner)
+    - snake game
+        - from scratch implementation with rendering using canvas
+- backend
+    - user online by keeping of open websocket connections
+    - self hosted database with daily data auto backups using DigitalOcean Volumes
+    - custom user session persistent storage layer
+    - compile-time routes to backend api methods
+    - found and reported or fixed several noteworthy bugs of BonsaiDB

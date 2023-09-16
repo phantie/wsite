@@ -2,6 +2,15 @@
 
 use crate::components::imports::*;
 
+mod hljs {
+    use wasm_bindgen::prelude::wasm_bindgen;
+    #[wasm_bindgen]
+    extern "C" {
+        #[wasm_bindgen(js_namespace = hljs)]
+        pub fn highlightAll();
+    }
+}
+
 pub struct Markdown {
     theme_ctx: ThemeCtxSub,
 }
@@ -91,14 +100,46 @@ impl Component for Markdown {
             text_color = text_color,
         );
 
+        let code_style_css_link = {
+            let url = match self.theme_ctx.as_ref().id {
+                Themes::Dark | Themes::Pastel => {
+                    "//unpkg.com/@catppuccin/highlightjs/css/catppuccin-macchiato.css"
+                }
+                Themes::Light => "//unpkg.com/@catppuccin/highlightjs/css/catppuccin-latte.css",
+            };
+
+            html! {
+                <link rel={"stylesheet"} href={url}/>
+            }
+        };
+
         html! {
             <>
                 <Global css={global_style}/>
+                { code_style_css_link }
                 <div class={ classes!("markdown-body", style) }>
                     { md_body }
                 </div>
             </>
         }
+    }
+
+    #[allow(unused)]
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        let document = web_sys::window().unwrap().document().unwrap();
+
+        /// remove line break if exists from code elements
+        {
+            let codes = document.get_elements_by_tag_name("code");
+            for i in 0..codes.length() {
+                let node = codes.get_with_index(i).unwrap();
+                let inner_html = node.inner_html();
+                let inner_html = inner_html.strip_prefix("\n").unwrap_or(&inner_html);
+                node.set_inner_html(&inner_html);
+            }
+        }
+
+        hljs::highlightAll();
     }
 }
 
