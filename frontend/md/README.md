@@ -8,12 +8,6 @@ Its entirety is written in Rust: backend api, frontend and database. Core techno
 
 Backend api and frontend are stateless, database only one instance.
 
-Architecture
----------------
-<!-- accessed from github, the second link should fail due to 404. accessed from deployment, the first should fail due to CORB -->
-![](https://github.com/phantie/wsite/blob/master/backend/static/app-system-diagram.png)
-![](/api/static/app-system-diagram.png)
-
 
 Interesting implemented things:
 --------------------------------------
@@ -30,3 +24,11 @@ Interesting implemented things:
     - custom user session persistent storage layer
     - compile-time routes to backend api methods
     - found and reported or fixed several noteworthy bugs of BonsaiDB
+
+
+Architecture
+---------------
+<!-- accessed from github, the second link should fail due to 404. accessed from deployment, the first should fail due to CORB -->
+![](https://github.com/phantie/wsite/blob/master/backend/static/app-system-diagram.png)
+![](/api/static/app-system-diagram.png)
+
