@@ -57,7 +57,8 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
-        .route("/static/:path", get(serve_static));
+        .route("/static/:path", get(serve_static))
+        .route("/video", get(video));
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 

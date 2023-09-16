@@ -17,6 +17,7 @@ mod post;
 mod snake;
 mod theme_ctx;
 mod title;
+mod video;
 
 pub mod admin;
 pub use articles::*;
@@ -34,3 +35,4 @@ pub use post::Post;
 pub use snake::comp::Snake;
 pub use theme_ctx::{ThemeCtx, ThemeCtxSub, Themes, WithTheme};
 pub use title::PageTitle;
+pub use video::Video;

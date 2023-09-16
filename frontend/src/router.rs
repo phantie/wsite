@@ -23,6 +23,8 @@ pub enum Route {
     EditArticle { public_id: String },
     #[at("/snake")]
     Snake,
+    #[at("/video")]
+    Video,
     #[not_found]
     #[at("/404")]
     NotFound,

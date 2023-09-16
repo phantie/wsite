@@ -83,5 +83,8 @@ pub fn switch(routes: Route) -> Html {
                 },
             }
         }
+        Route::Video => {
+            html! { <Video/> }
+        }
     }
 }

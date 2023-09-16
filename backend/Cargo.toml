@@ -20,7 +20,7 @@ config = { version = "0.13.3", default-features = false, features = ["yaml"] }
 hyper = "0.14.24"
 tokio = { version = "1.26.0", features = ["rt", "macros"] }
 tower = "0.4.13"
-tower-http = { version = "0.4.0", features = ["trace", "request-id", "add-extension", "util", "compression-gzip"] }
+tower-http = { version = "0.4.0", features = ["trace", "request-id", "add-extension", "util", "compression-gzip", "fs"] }
 tracing = { version = "0.1.37", features = ["log"] }
 tracing-bunyan-formatter = "0.3.6"
 tracing-log = "0.1.3"
