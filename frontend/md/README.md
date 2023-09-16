@@ -19,6 +19,8 @@ Interesting implemented things:
 --------------------------------------
 
 - frontend
+    - markdown parsing and custom rendering
+    - support for colored code blocks
     - support for any number of themes (button in the right top corner)
     - snake game
         - from scratch implementation with rendering using canvas
