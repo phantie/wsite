@@ -15,8 +15,9 @@ Interesting implemented things:
         - from scratch implementation with rendering using canvas
 - backend
     - user online by keeping of open websocket connections
-    - self hosted database with daily data auto backups using DigitalOcean Volumes
+    - usage of Datalog based database CozoDB for persistence
     - custom user session persistent storage layer
+    - self hosted database with daily data auto backups using DigitalOcean Volumes
     - compile-time routes to backend api methods
     - found and reported or fixed several noteworthy bugs of BonsaiDB
 
