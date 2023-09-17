@@ -32,5 +32,8 @@ upx --best --lzma target/x86_64-unknown-linux-gnu/release/backend
 # transfer configuration
 scp -pr configuration root@${SERVER_IP}:/root/configuration
 
+# transfer folder with static
+scp -pr static root@${SERVER_IP}:/root/static
+
 # transfer binary
 scp target/x86_64-unknown-linux-gnu/release/backend root@${SERVER_IP}:/root/
