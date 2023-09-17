@@ -1,0 +1,36 @@
+# Prepare Mac
+
+rustup target add x86_64-unknown-linux-gnu
+
+# Install a pre-built cross compiler
+brew tap SergioBenitez/osxct
+brew install x86_64-unknown-linux-gnu
+
+export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-unknown-linux-gnu-gcc
+export OPENSSL_DIR="$(pwd)/target/usr/"
+export OPENSSL_LIB_DIR="$(pwd)/target/usr/lib/x86_64-linux-gnu/"
+
+export SERVER_IP=
+
+# rebuild frontend
+
+#
+# run from /frontend/
+#
+trunk build --release
+
+# rebuild backend with included frontend
+
+#
+# run from /backend/
+#
+cargo build --release --target=x86_64-unknown-linux-gnu
+
+# optional
+upx --best --lzma target/x86_64-unknown-linux-gnu/release/backend
+
+# transfer configuration
+scp -pr configuration root@${SERVER_IP}:/root/configuration
+
+# transfer binary
+scp target/x86_64-unknown-linux-gnu/release/backend root@${SERVER_IP}:/root/

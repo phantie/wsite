@@ -1,5 +1,3 @@
-Installation when app and database live on the same server
-
 Start with 14$ 1vCPU 2Gb AMD Droplet 50Gb storage
 
 Resize to 112$ 8vCPU 16Gb AMD Droplet 50Gb
@@ -113,6 +111,7 @@ Setup TLS
     certbot --nginx -d phantie.com -d www.phantie.com
     nginx -t
     systemctl restart nginx
+    systemctl status nginx
 
 Check https://phantie.com and https://www.phantie.com (should succeed)
 
