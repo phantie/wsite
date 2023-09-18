@@ -10,7 +10,9 @@ pub async fn endpoint_hits(
     session: ReadableSession,
     Extension(db): Extension<cozo::DbInstance>,
 ) -> ApiResult<Json<Vec<interfacing::EndpointHit>>> {
-    reject_anonymous_users(&session)?;
+    if get_env().prod() {
+        reject_anonymous_users(&session)?;
+    }
     let result = db::q::find_endpoint_hits(&db)?;
     Ok(Json(result))
 }
@@ -26,7 +28,9 @@ pub async fn endpoint_hits_grouped(
     session: ReadableSession,
     Extension(db): Extension<cozo::DbInstance>,
 ) -> ApiResult<impl IntoResponse> {
-    // reject_anonymous_users(&session)?;
+    if get_env().prod() {
+        reject_anonymous_users(&session)?;
+    }
     let result = db::q::find_endpoint_hits(&db)?;
 
     let result = result
