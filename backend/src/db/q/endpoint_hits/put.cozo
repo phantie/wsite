@@ -1,0 +1,3 @@
+?[hashed_ip, endpoint, method, status, timestamp] <- [[$hashed_ip, $endpoint, $method, $status, $timestamp]]
+
+:put endpoint_hits {hashed_ip, endpoint, method, status, timestamp}

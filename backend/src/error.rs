@@ -26,6 +26,7 @@ impl axum::response::IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         let trace_message = match &self {
             Self::AuthError(e) => format!("{}: {}", self, e.root_cause()),
+            Self::DbError(e) => format!("{:?}", e),
             _ => self.to_string(),
         };
         tracing::error!("{}", trace_message);

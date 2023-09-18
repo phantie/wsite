@@ -7,6 +7,28 @@ pub fn switch(routes: Route) -> Html {
     use crate::components::*;
     use admin::WithSession;
 
+    let path = yew_router::Routable::to_path(&routes);
+    let status: u16 = match routes.clone() {
+        Route::NotFound => 404,
+        Route::Unauthorized => 401,
+        _ => 200,
+    };
+
+    // TODO makes duplicate requests
+    wasm_bindgen_futures::spawn_local(async move {
+        let req = gloo_net::http::Request::post("/api/admin/endpoint_hits/frontend")
+            .json(&interfacing::FrontendEndpointHit {
+                endpoint: path.clone(),
+                status,
+            })
+            .unwrap()
+            .send()
+            .await;
+        if let Err(_e) = req {
+            gloo_console::log!(format!("failed request_register_endpoint_hit for {path:?}"))
+        }
+    });
+
     match routes {
         Route::NotFound => html! { <Error msg={"Not Found"} code=404 /> },
         Route::Unauthorized => html! { <Error msg={"Unauthorized"} code=401 /> },

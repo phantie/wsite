@@ -1,6 +1,7 @@
 pub use crate::static_routes::extend::*;
 pub use crate::{
     authentication::{reject_anonymous_users, validate_credentials, Credentials},
+    configuration::get_env,
     error::{ApiError, ApiResult},
     startup::AppState,
     timeout::TimeoutStrategy,

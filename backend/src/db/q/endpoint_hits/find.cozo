@@ -1,0 +1,1 @@
+?[hashed_ip, endpoint, method, status, timestamp] := *endpoint_hits{ hashed_ip, endpoint, method, status, timestamp }

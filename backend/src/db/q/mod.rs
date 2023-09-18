@@ -273,3 +273,68 @@ pub fn rm_session(db: &DbInstance, id: &str) -> OpResult {
     let result = db.run_script(script, params, ScriptMutability::Mutable);
     op_result(result)
 }
+
+#[tracing::instrument(name = "Create endpoint_hits table", skip_all)]
+pub fn create_endpoint_hits(db: &DbInstance) -> OpResult {
+    let script = include_str!("endpoint_hits/create_table.cozo");
+    let result = db.run_script(script, Default::default(), ScriptMutability::Mutable);
+    op_result(result)
+}
+
+#[tracing::instrument(name = "Ensure endpoint_hits table", skip_all)]
+pub fn ensure_endpoint_hits(db: &DbInstance) -> OpResult {
+    let script = include_str!("endpoint_hits/ensure_table.cozo");
+    let result = db.run_script(script, Default::default(), ScriptMutability::Mutable);
+    op_result(result)
+}
+
+#[tracing::instrument(name = "Put endpoint hit", skip_all)]
+pub fn put_endpoint_hit(db: &DbInstance, value: interfacing::EndpointHit) -> OpResult {
+    let script = include_str!("endpoint_hits/put.cozo");
+    let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
+        "hashed_ip".into() => value.hashed_ip.into(),
+        "endpoint".into() => value.endpoint.into(),
+        "method".into() => value.method.into(),
+        "status".into() => (value.status as i64).into(),
+        "timestamp".into() => value.timestamp.into(),
+    };
+
+    let result = db.run_script(script, params, ScriptMutability::Mutable);
+    op_result(result)
+}
+
+#[tracing::instrument(name = "Find endpoint_hits", skip_all)]
+pub fn find_endpoint_hits(db: &DbInstance) -> Result<Vec<interfacing::EndpointHit>> {
+    let script = include_str!("endpoint_hits/find.cozo");
+    let result = db
+        .run_script(script, Default::default(), ScriptMutability::Mutable)
+        .map_err(Error::EngineError)?;
+
+    let headers = result.headers.iter().map(String::as_str).collect_vec();
+    let rows = result.rows.iter().map(Vec::as_slice).collect_vec();
+
+    match &headers[..] {
+        ["hashed_ip", "endpoint", "method", "status", "timestamp"] => {}
+        _ => return Err(Error::ResultError(result)),
+    }
+
+    let mut res = vec![];
+    // all rows must comply to format, if any does not - return error
+    for row in rows {
+        match &row[..] {
+            [DataValue::Str(hashed_ip), DataValue::Str(endpoint), DataValue::Str(method), DataValue::Num(Num::Int(status)), DataValue::Str(timestamp)] =>
+            {
+                res.push(interfacing::EndpointHit {
+                    hashed_ip: hashed_ip.to_string(),
+                    endpoint: endpoint.to_string(),
+                    method: method.to_string(),
+                    status: *status as u16,
+                    timestamp: timestamp.to_string(),
+                });
+            }
+            _ => return Err(Error::ResultError(result)),
+        }
+    }
+
+    Ok(res)
+}

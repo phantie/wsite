@@ -1,4 +1,4 @@
-use crate::configuration::Conf;
+use crate::configuration::{get_env, Conf};
 use static_routes::*;
 
 use axum::{
@@ -57,7 +57,10 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
-        .route("/static/:path", get(serve_static));
+        .route("/static/:path", get(serve_static))
+        .route("/admin/endpoint_hits", get(endpoint_hits))
+        .route("/admin/endpoint_hits/grouped", get(endpoint_hits_grouped))
+        .route("/admin/endpoint_hits/frontend", post(frontend_endpoint_hit));
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 
@@ -89,6 +92,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .nest("/ws", ws_router)
         .fallback(fallback)
         .layer(CompressionLayer::new())
+        .layer(axum::middleware::from_fn(endpoint_hit_middleware))
         .layer(AddExtensionLayer::new(db.clone()))
         .layer(request_tracing_layer)
         .layer({
@@ -105,6 +109,63 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
 
             SessionLayer::new(store, decoded.as_slice()).with_secure(true)
         })
+}
+
+async fn endpoint_hit_middleware<B>(
+    axum::extract::connect_info::ConnectInfo(con_info): axum::extract::connect_info::ConnectInfo<
+        UserConnectInfo,
+    >,
+    axum::extract::Extension(db): axum::extract::Extension<cozo::DbInstance>,
+    // TODO request hangs if this extractor is used
+    // session: axum_sessions::extractors::ReadableSession,
+    request: hyper::http::Request<B>,
+    next: axum::middleware::Next<B>,
+) -> axum::response::Response {
+    let endpoint = request.uri().to_string();
+    let method = request.method().to_string();
+
+    let response = next.run(request).await;
+
+    // TODO reuse staticly compiled
+    let skip_endpoints = [
+        "/favicon.ico",
+        "/api/admin/endpoint_hits",
+        "/api/admin/endpoint_hits/grouped",
+        "/api/admin/session",
+        "/_trunk/ws/",
+    ];
+
+    // skip logged in hits in prod
+    // let skip = crate::authentication::reject_anonymous_users(&session).is_ok() && get_env().prod();
+    let skip = skip_endpoints
+        .into_iter()
+        .any(|start| endpoint.starts_with(start));
+
+    if !skip {
+        let system_time = interfacing::EndpointHit::formatted_now();
+
+        let hashed_ip = if get_env().local() {
+            con_info.remote_addr.ip().to_string()
+        } else {
+            interfacing::EndpointHit::hash_ip(con_info.remote_addr.ip())
+        };
+
+        let status = response.status().as_u16();
+
+        let _result = db::q::put_endpoint_hit(
+            &db,
+            interfacing::EndpointHit {
+                hashed_ip,
+                endpoint,
+                method,
+                status,
+                timestamp: system_time,
+            },
+        )
+        .map_err(|e| tracing::error!("{e:?}"));
+    }
+
+    response
 }
 
 #[derive(derivative::Derivative, Clone)]

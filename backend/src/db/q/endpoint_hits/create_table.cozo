@@ -1,0 +1,10 @@
+?[hashed_ip, endpoint, method, status, timestamp] <- []
+
+:create endpoint_hits {
+    hashed_ip: String,
+    endpoint: String,
+    method: String,
+    timestamp: String,
+    =>
+    status: Int,
+}

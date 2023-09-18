@@ -55,6 +55,16 @@ pub fn start_db(db: DbInstance) -> DbInstance {
         }
     }
 
+    {
+        // Endpoint hits:
+        // Create missing tables: endpoint_hits
+        if q::ensure_endpoint_hits(db).is_err() {
+            let result = q::create_endpoint_hits(db);
+            result.unwrap();
+            // assert!(result.is_ok());
+        }
+    }
+
     db.clone()
 }
 

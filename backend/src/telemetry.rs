@@ -40,6 +40,8 @@ impl TracingSubscriber {
                 .skip_fields(skip_fields.into_iter().map(|s| s.to_owned()).into_iter())
                 .expect("unable to build the bunyan formatting layer");
 
+            // let formatting_layer = tracing_subscriber::fmt::layer();
+
             let env_filter = EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new(self.env_filter));
 

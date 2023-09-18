@@ -158,6 +158,7 @@ dependencies = [
  "stylist",
  "thiserror",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
  "yew",
  "yew-router",
@@ -513,6 +514,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "humantime"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+
+[[package]]
 name = "implicit-clone"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -547,6 +554,7 @@ dependencies = [
 name = "interfacing"
 version = "0.1.0"
 dependencies = [
+ "humantime",
  "secrecy",
  "serde",
 ]

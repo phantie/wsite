@@ -1,8 +1,10 @@
 mod articles;
+mod endpoint_hits;
 mod logout;
 mod password;
 mod session;
 pub use articles::*;
+pub use endpoint_hits::*;
 pub use logout::*;
 pub use password::*;
 pub use session::*;
