@@ -60,7 +60,9 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .route("/static/:path", get(serve_static))
         .route("/admin/endpoint_hits", get(endpoint_hits))
         .route("/admin/endpoint_hits/grouped", get(endpoint_hits_grouped))
-        .route("/admin/endpoint_hits/frontend", post(frontend_endpoint_hit));
+        .route("/endpoint_hits/frontend", post(frontend_endpoint_hit))
+        .route("/endpoint_hits/github", get(github_hit))
+        .route("/endpoint_hits/github/wsite", get(wsite_github_hit));
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 

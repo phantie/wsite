@@ -28,3 +28,5 @@ Architecture
 ![](https://github.com/phantie/wsite/blob/master/backend/static/app-system-diagram.png)
 ![](/api/static/app-system-diagram.png)
 
+
+![](https://phantie.com/endpoint_hits/github/wsite)

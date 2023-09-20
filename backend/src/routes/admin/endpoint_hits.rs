@@ -48,7 +48,6 @@ pub async fn endpoint_hits_grouped(
     Ok(Json(result))
 }
 
-#[allow(unused)]
 pub async fn frontend_endpoint_hit(
     Extension(db): Extension<cozo::DbInstance>,
     ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
@@ -56,11 +55,7 @@ pub async fn frontend_endpoint_hit(
 ) -> ApiResult<()> {
     let system_time = interfacing::EndpointHit::formatted_now();
 
-    let hashed_ip = if get_env().local() {
-        con_info.remote_addr.ip().to_string()
-    } else {
-        interfacing::EndpointHit::hash_ip(con_info.remote_addr.ip())
-    };
+    let hashed_ip = hash_ip(con_info.remote_addr.ip());
 
     let hit = interfacing::EndpointHit {
         hashed_ip,
@@ -72,4 +67,51 @@ pub async fn frontend_endpoint_hit(
 
     db::q::put_endpoint_hit(&db, hit)?;
     Ok(())
+}
+
+pub async fn github_hit(
+    Extension(db): Extension<cozo::DbInstance>,
+    ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
+) -> ApiResult<()> {
+    let system_time = interfacing::EndpointHit::formatted_now();
+
+    let hashed_ip = hash_ip(con_info.remote_addr.ip());
+
+    let hit = interfacing::EndpointHit {
+        hashed_ip,
+        endpoint: "https://github.com/phantie".into(),
+        method: "GET".into(),
+        status: 200,
+        timestamp: system_time,
+    };
+
+    db::q::put_endpoint_hit(&db, hit)?;
+    Ok(())
+}
+
+pub async fn wsite_github_hit(
+    Extension(db): Extension<cozo::DbInstance>,
+    ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
+) -> ApiResult<()> {
+    let system_time = interfacing::EndpointHit::formatted_now();
+    let hashed_ip = hash_ip(con_info.remote_addr.ip());
+
+    let hit = interfacing::EndpointHit {
+        hashed_ip,
+        endpoint: "https://github.com/phantie/wsite".into(),
+        method: "GET".into(),
+        status: 200,
+        timestamp: system_time,
+    };
+
+    db::q::put_endpoint_hit(&db, hit)?;
+    Ok(())
+}
+
+fn hash_ip(ip: std::net::IpAddr) -> String {
+    if get_env().local() {
+        ip.to_string()
+    } else {
+        interfacing::EndpointHit::hash_ip(ip)
+    }
 }

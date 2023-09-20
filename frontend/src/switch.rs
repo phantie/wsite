@@ -16,7 +16,7 @@ pub fn switch(routes: Route) -> Html {
 
     // TODO makes duplicate requests
     wasm_bindgen_futures::spawn_local(async move {
-        let req = gloo_net::http::Request::post("/api/admin/endpoint_hits/frontend")
+        let req = gloo_net::http::Request::post("/api/endpoint_hits/frontend")
             .json(&interfacing::FrontendEndpointHit {
                 endpoint: path.clone(),
                 status,
