@@ -14,13 +14,23 @@ pub fn switch(routes: Route) -> Html {
         _ => 200,
     };
 
+    let article_list = html! {
+        <>
+            <Header/>
+            <WithSession optional={true}>
+                <ArticleList/>
+            </WithSession>
+        </>
+    };
+
     {
         use crate::components::imports::*;
+        let params = web_sys::window().unwrap().location().search().unwrap();
         // TODO makes duplicate requests
         wasm_bindgen_futures::spawn_local(async move {
             let req = Request::static_post(routes().api.endpoint_hits.frontend)
                 .json(&interfacing::FrontendEndpointHit {
-                    endpoint: path.clone(),
+                    endpoint: format!("{}{}", path.clone(), params),
                     status,
                 })
                 .unwrap()
@@ -35,9 +45,11 @@ pub fn switch(routes: Route) -> Html {
     match routes {
         Route::NotFound => html! { <Error msg={"Not Found"} code=404 /> },
         Route::Unauthorized => html! { <Error msg={"Unauthorized"} code=401 /> },
-        Route::Home => {
-            html! { <yew_router::prelude::Redirect<Route> to={Route::ArticleList}/> }
+        Route::Home => article_list.clone(),
+        Route::Ref => {
+            html! { <yew_router::prelude::Redirect<Route> to={Route::Home}/> }
         }
+        Route::ArticleList => article_list.clone(),
         Route::Login => html! { <Login/> },
         Route::AdminDashboard => {
             html! {
@@ -64,16 +76,6 @@ pub fn switch(routes: Route) -> Html {
         Route::Snake => {
             html! {
                 <Snake/>
-            }
-        }
-        Route::ArticleList => {
-            html! {
-                <>
-                    <Header/>
-                    <WithSession optional={true}>
-                        <ArticleList/>
-                    </WithSession>
-                </>
             }
         }
         Route::ArticleViewer { public_id } => {
