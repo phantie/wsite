@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 
-mod imports;
+// TODO switch.rs uses it, refactor
+pub mod imports;
 
 mod articles;
 mod colored;

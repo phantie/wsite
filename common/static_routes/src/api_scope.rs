@@ -8,6 +8,58 @@ pub struct Routes {
     pub login: Login,
     pub admin: Admin,
     pub articles: Articles,
+    pub endpoint_hits: EndpointHits,
+}
+
+#[derive(Default)]
+pub struct EndpointHits {
+    pub frontend: EndpointHitsFrontend,
+    pub github: EndpointHitsGithub,
+}
+
+#[derive(Default, Post)]
+pub struct EndpointHitsFrontend;
+
+impl Url for EndpointHitsFrontend {
+    fn postfix(&self) -> &str {
+        "/endpoint_hits/frontend"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
+}
+
+#[derive(Default)]
+pub struct EndpointHitsGithub {
+    pub profile: EndpointHitsGithubProfile,
+    pub wsite: EndpointHitsGithubWsite,
+}
+
+#[derive(Default, Get)]
+pub struct EndpointHitsGithubProfile;
+
+impl Url for EndpointHitsGithubProfile {
+    fn postfix(&self) -> &str {
+        "/endpoint_hits/github"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
+}
+
+#[derive(Default, Get)]
+pub struct EndpointHitsGithubWsite;
+
+impl Url for EndpointHitsGithubWsite {
+    fn postfix(&self) -> &str {
+        "/endpoint_hits/github/wsite"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
 }
 
 #[derive(Default)]
@@ -16,6 +68,7 @@ pub struct Admin {
     pub logout: AdminLogout,
     pub session: AdminSession,
     pub articles: AdminArticles,
+    pub endpoint_hits: AdminEndpointHits,
 }
 
 #[derive(Default, Get)]
@@ -102,6 +155,34 @@ pub struct AdminArticles;
 impl Url for AdminArticles {
     fn postfix(&self) -> &str {
         "/admin/articles"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
+}
+
+#[derive(Default, Get)]
+pub struct AdminEndpointHits {
+    pub grouped: AdminEndpointHitsGrouped,
+}
+
+impl Url for AdminEndpointHits {
+    fn postfix(&self) -> &str {
+        "/admin/endpoint_hits"
+    }
+
+    fn prefix(&self) -> &str {
+        "/api"
+    }
+}
+
+#[derive(Default, Get)]
+pub struct AdminEndpointHitsGrouped;
+
+impl Url for AdminEndpointHitsGrouped {
+    fn postfix(&self) -> &str {
+        "/admin/endpoint_hits/grouped"
     }
 
     fn prefix(&self) -> &str {

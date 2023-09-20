@@ -58,11 +58,28 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
         .route("/static/:path", get(serve_static))
-        .route("/admin/endpoint_hits", get(endpoint_hits))
-        .route("/admin/endpoint_hits/grouped", get(endpoint_hits_grouped))
-        .route("/endpoint_hits/frontend", post(frontend_endpoint_hit))
-        .route("/endpoint_hits/github", get(github_hit))
-        .route("/endpoint_hits/github/wsite", get(wsite_github_hit));
+        // .route("/admin/endpoint_hits", get(endpoint_hits))
+        .route(
+            routes.admin.endpoint_hits.get().postfix(),
+            get(endpoint_hits),
+        )
+        .route(
+            routes.admin.endpoint_hits.grouped.get().postfix(),
+            get(endpoint_hits_grouped),
+        )
+        // .route("/endpoint_hits/frontend", post(frontend_endpoint_hit))
+        .route(
+            routes.endpoint_hits.frontend.post().postfix(),
+            post(frontend_endpoint_hit),
+        )
+        .route(
+            routes.endpoint_hits.github.profile.get().postfix(),
+            get(github_hit),
+        )
+        .route(
+            routes.endpoint_hits.github.wsite.get().postfix(),
+            get(wsite_github_hit),
+        );
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 
@@ -127,23 +144,24 @@ async fn endpoint_hit_middleware<B>(
     let method = request.method().to_string();
 
     let response = next.run(request).await;
+    let routes = routes().api;
 
-    // TODO reuse staticly compiled
     let skip_endpoints = [
-        "/favicon.ico",
-        "/api/admin/endpoint_hits",
-        "/api/admin/endpoint_hits/grouped",
-        "/api/admin/session",
-        "/api/endpoint_hits/github",
-        "/api/endpoint_hits/github/wsite",
-        "/_trunk/ws/",
+        "/favicon.ico".to_string(),
+        "/api/admin/session".into(),
+        "/_trunk/ws/".into(),
+        routes.admin.endpoint_hits.get().complete().into(),
+        routes.admin.endpoint_hits.grouped.get().complete().into(),
+        routes.endpoint_hits.frontend.post().complete().into(),
+        routes.endpoint_hits.github.profile.get().complete().into(),
+        routes.endpoint_hits.github.wsite.get().complete().into(),
     ];
 
     // skip logged in hits in prod
     // let skip = crate::authentication::reject_anonymous_users(&session).is_ok() && get_env().prod();
     let skip = skip_endpoints
         .into_iter()
-        .any(|start| endpoint.starts_with(start));
+        .any(|start| endpoint.starts_with(&start));
 
     if !skip {
         let system_time = interfacing::EndpointHit::formatted_now();

@@ -14,20 +14,23 @@ pub fn switch(routes: Route) -> Html {
         _ => 200,
     };
 
-    // TODO makes duplicate requests
-    wasm_bindgen_futures::spawn_local(async move {
-        let req = gloo_net::http::Request::post("/api/endpoint_hits/frontend")
-            .json(&interfacing::FrontendEndpointHit {
-                endpoint: path.clone(),
-                status,
-            })
-            .unwrap()
-            .send()
-            .await;
-        if let Err(_e) = req {
-            gloo_console::log!(format!("failed request_register_endpoint_hit for {path:?}"))
-        }
-    });
+    {
+        use crate::components::imports::*;
+        // TODO makes duplicate requests
+        wasm_bindgen_futures::spawn_local(async move {
+            let req = Request::static_post(routes().api.endpoint_hits.frontend)
+                .json(&interfacing::FrontendEndpointHit {
+                    endpoint: path.clone(),
+                    status,
+                })
+                .unwrap()
+                .send()
+                .await;
+            if let Err(_e) = req {
+                gloo_console::log!(format!("failed request_register_endpoint_hit for {path:?}"))
+            }
+        });
+    }
 
     match routes {
         Route::NotFound => html! { <Error msg={"Not Found"} code=404 /> },
