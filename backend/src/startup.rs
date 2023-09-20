@@ -134,6 +134,8 @@ async fn endpoint_hit_middleware<B>(
         "/api/admin/endpoint_hits",
         "/api/admin/endpoint_hits/grouped",
         "/api/admin/session",
+        "/api/endpoint_hits/github",
+        "/api/endpoint_hits/github/wsite",
         "/_trunk/ws/",
     ];
 

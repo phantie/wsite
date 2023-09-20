@@ -72,7 +72,7 @@ pub async fn frontend_endpoint_hit(
 pub async fn github_hit(
     Extension(db): Extension<cozo::DbInstance>,
     ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
-) -> ApiResult<()> {
+) -> ApiResult<StatusCode> {
     let system_time = interfacing::EndpointHit::formatted_now();
 
     let hashed_ip = hash_ip(con_info.remote_addr.ip());
@@ -86,13 +86,13 @@ pub async fn github_hit(
     };
 
     db::q::put_endpoint_hit(&db, hit)?;
-    Ok(())
+    Ok(StatusCode::NOT_FOUND)
 }
 
 pub async fn wsite_github_hit(
     Extension(db): Extension<cozo::DbInstance>,
     ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
-) -> ApiResult<()> {
+) -> ApiResult<StatusCode> {
     let system_time = interfacing::EndpointHit::formatted_now();
     let hashed_ip = hash_ip(con_info.remote_addr.ip());
 
@@ -105,7 +105,7 @@ pub async fn wsite_github_hit(
     };
 
     db::q::put_endpoint_hit(&db, hit)?;
-    Ok(())
+    Ok(StatusCode::NOT_FOUND)
 }
 
 fn hash_ip(ip: std::net::IpAddr) -> String {
