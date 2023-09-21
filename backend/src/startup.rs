@@ -134,6 +134,7 @@ async fn endpoint_hit_middleware<B>(
     axum::extract::connect_info::ConnectInfo(con_info): axum::extract::connect_info::ConnectInfo<
         UserConnectInfo,
     >,
+    h: hyper::HeaderMap,
     axum::extract::Extension(db): axum::extract::Extension<cozo::DbInstance>,
     // TODO request hangs if this extractor is used
     // session: axum_sessions::extractors::ReadableSession,
@@ -166,10 +167,11 @@ async fn endpoint_hit_middleware<B>(
     if !skip {
         let system_time = interfacing::EndpointHit::formatted_now();
 
+        let ip = ip_address(con_info.clone(), &h);
         let hashed_ip = if get_env().local() {
-            con_info.remote_addr.ip().to_string()
+            ip.to_string()
         } else {
-            interfacing::EndpointHit::hash_ip(con_info.remote_addr.ip())
+            interfacing::EndpointHit::hash_ip(ip)
         };
 
         let status = response.status().as_u16();
@@ -343,4 +345,21 @@ impl axum::extract::connect_info::Connected<&hyper::server::conn::AddrStream> fo
             remote_addr: target.remote_addr(),
         }
     }
+}
+
+fn get_x_forwarded_for(h: &hyper::HeaderMap) -> Option<std::net::IpAddr> {
+    h.get("x-forwarded-for")
+        .map(|v| v.to_str().ok())
+        .flatten()
+        .map(|v| v.split(",").map(|v| v.trim()).last())
+        .flatten()
+        .map(|v| v.parse::<std::net::IpAddr>().ok())
+        .flatten()
+}
+
+// TODO refactor into extractor
+pub fn ip_address(con_info: UserConnectInfo, h: &hyper::HeaderMap) -> std::net::IpAddr {
+    get_x_forwarded_for(h)
+        .or_else(|| Some(con_info.remote_addr.ip()))
+        .unwrap()
 }
