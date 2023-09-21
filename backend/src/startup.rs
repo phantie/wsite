@@ -131,9 +131,6 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
 }
 
 async fn endpoint_hit_middleware<B>(
-    axum::extract::connect_info::ConnectInfo(con_info): axum::extract::connect_info::ConnectInfo<
-        UserConnectInfo,
-    >,
     h: hyper::HeaderMap,
     axum::extract::Extension(db): axum::extract::Extension<cozo::DbInstance>,
     // TODO request hangs if this extractor is used
@@ -167,7 +164,7 @@ async fn endpoint_hit_middleware<B>(
     if !skip {
         let system_time = interfacing::EndpointHit::formatted_now();
 
-        let ip = ip_address(con_info.clone(), &h);
+        let ip = ip_address(&h);
         let hashed_ip = if get_env().local() {
             ip.to_string()
         } else {
@@ -347,6 +344,30 @@ impl axum::extract::connect_info::Connected<&hyper::server::conn::AddrStream> fo
     }
 }
 
+fn get_origin(h: &hyper::HeaderMap) -> Option<std::net::IpAddr> {
+    h.get("origin")
+        .map(|v| v.to_str().ok())
+        .flatten()
+        .map(|v| url::Url::parse(v).ok())
+        .flatten()
+        .map(|v| v.host_str().map(|v| v.to_owned()))
+        .flatten()
+        .map(|v| v.parse::<std::net::IpAddr>().ok())
+        .flatten()
+}
+
+fn get_referer(h: &hyper::HeaderMap) -> Option<std::net::IpAddr> {
+    h.get("referer")
+        .map(|v| v.to_str().ok())
+        .flatten()
+        .map(|v| url::Url::parse(v).ok())
+        .flatten()
+        .map(|v| v.host_str().map(|v| v.to_owned()))
+        .flatten()
+        .map(|v| v.parse::<std::net::IpAddr>().ok())
+        .flatten()
+}
+
 fn get_x_forwarded_for(h: &hyper::HeaderMap) -> Option<std::net::IpAddr> {
     h.get("x-forwarded-for")
         .map(|v| v.to_str().ok())
@@ -358,8 +379,13 @@ fn get_x_forwarded_for(h: &hyper::HeaderMap) -> Option<std::net::IpAddr> {
 }
 
 // TODO refactor into extractor
-pub fn ip_address(con_info: UserConnectInfo, h: &hyper::HeaderMap) -> std::net::IpAddr {
-    get_x_forwarded_for(h)
-        .or_else(|| Some(con_info.remote_addr.ip()))
-        .unwrap()
+pub fn ip_address(h: &hyper::HeaderMap) -> std::net::IpAddr {
+    get_x_forwarded_for(h) // when behind reverse proxy
+        .or_else(|| get_referer(h)) // when local not ws
+        .or_else(|| get_origin(h)) // when local ws
+        // fallback if buggy code above
+        .unwrap_or_else(|| {
+            tracing::error!("should have gotten IP by here");
+            "127.0.0.1".parse().unwrap()
+        })
 }

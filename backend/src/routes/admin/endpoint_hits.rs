@@ -4,8 +4,6 @@ use itertools::Itertools;
 use crate::db;
 use crate::routes::imports::*;
 use crate::startup::ip_address;
-use crate::startup::UserConnectInfo;
-use axum::extract::connect_info::ConnectInfo;
 
 #[allow(unused)]
 pub async fn endpoint_hits(
@@ -52,13 +50,12 @@ pub async fn endpoint_hits_grouped(
 
 pub async fn frontend_endpoint_hit(
     Extension(db): Extension<cozo::DbInstance>,
-    ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
     h: HeaderMap,
     Json(value): Json<interfacing::FrontendEndpointHit>,
 ) -> ApiResult<()> {
     let system_time = interfacing::EndpointHit::formatted_now();
 
-    let ip = ip_address(con_info.clone(), &h);
+    let ip = ip_address(&h);
     let hashed_ip = hash_ip(ip);
 
     let hit = interfacing::EndpointHit {
@@ -75,11 +72,10 @@ pub async fn frontend_endpoint_hit(
 
 pub async fn github_hit(
     Extension(db): Extension<cozo::DbInstance>,
-    ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
     h: HeaderMap,
 ) -> ApiResult<StatusCode> {
     let system_time = interfacing::EndpointHit::formatted_now();
-    let ip = ip_address(con_info.clone(), &h);
+    let ip = ip_address(&h);
     let hashed_ip = hash_ip(ip);
 
     let hit = interfacing::EndpointHit {
@@ -96,11 +92,10 @@ pub async fn github_hit(
 
 pub async fn wsite_github_hit(
     Extension(db): Extension<cozo::DbInstance>,
-    ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
     h: HeaderMap,
 ) -> ApiResult<StatusCode> {
     let system_time = interfacing::EndpointHit::formatted_now();
-    let ip = ip_address(con_info.clone(), &h);
+    let ip = ip_address(&h);
     let hashed_ip = hash_ip(ip);
 
     let hit = interfacing::EndpointHit {
