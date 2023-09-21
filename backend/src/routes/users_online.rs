@@ -1,5 +1,6 @@
 use crate::configuration::get_env;
 use crate::routes::imports::*;
+use crate::startup::ip_address;
 use crate::startup::UserConnectInfo;
 use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -23,20 +24,28 @@ pub async fn ws_users_online(
         }
     };
 
-    ws.on_upgrade(|socket| handle_socket(socket, state, con_info))
+    let sock = {
+        let mut sock = con_info.remote_addr;
+        let ip = ip_address(&headers);
+        // rewrite ip address because server may be behind reverse proxy
+        sock.set_ip(ip);
+        sock
+    };
+
+    ws.on_upgrade(move |socket| handle_socket(socket, state, sock))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState, con_info: UserConnectInfo) {
+async fn handle_socket(socket: WebSocket, state: AppState, sock: std::net::SocketAddr) {
     if get_env().local() {
-        tracing::info!("Client connected: {:?}", con_info.remote_addr);
+        tracing::info!("Client connected: {:?}", sock);
     } else {
         tracing::info!("Client connected");
     }
 
     {
         let cons = &mut state.users_online.cons.lock().await;
-        let cons_per_ip = *cons.entry(con_info.remote_addr).or_default();
-        cons.insert(con_info.remote_addr, cons_per_ip + 1);
+        let cons_per_ip = *cons.entry(sock).or_default();
+        cons.insert(sock, cons_per_ip + 1);
 
         let con_count = cons.len();
         state.users_online.broadcast_con_count(con_count).await;
@@ -57,13 +66,11 @@ async fn handle_socket(socket: WebSocket, state: AppState, con_info: UserConnect
 
     {
         let cons = &mut state.users_online.cons.lock().await;
-        let cons_per_ip = *cons
-            .get(&con_info.remote_addr)
-            .expect("Connect predates disconnect");
+        let cons_per_ip = *cons.get(&sock).expect("Connect predates disconnect");
         if cons_per_ip == 1 {
-            cons.remove(&con_info.remote_addr);
+            cons.remove(&sock);
         } else {
-            cons.insert(con_info.remote_addr, cons_per_ip - 1);
+            cons.insert(sock, cons_per_ip - 1);
         }
 
         let con_count = cons.len();
