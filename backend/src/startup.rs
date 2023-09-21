@@ -144,10 +144,13 @@ async fn endpoint_hit_middleware<B>(
     let response = next.run(request).await;
     let routes = routes().api;
 
-    let skip_endpoints = [
+    let skip_endpoint_starts = [
         "/favicon.ico".to_string(),
         "/api/admin/session".into(),
-        "/_trunk/ws/".into(),
+        "/_trunk/ws".into(),
+        // after upgrade ip defaults to localhost
+        // now not worth to bother implementing correctly
+        "/ws/users_online".into(),
         routes.admin.endpoint_hits.get().complete().into(),
         routes.admin.endpoint_hits.grouped.get().complete().into(),
         routes.endpoint_hits.frontend.post().complete().into(),
@@ -155,11 +158,18 @@ async fn endpoint_hit_middleware<B>(
         routes.endpoint_hits.github.wsite.get().complete().into(),
     ];
 
+    let js_file = endpoint.starts_with("/frontend") && endpoint.ends_with(".js");
+    let wasm_file = endpoint.starts_with("/frontend") && endpoint.ends_with(".wasm");
+    let favicon = endpoint.starts_with("/favicon") && endpoint.ends_with(".ico");
+
     // skip logged in hits in prod
     // let skip = crate::authentication::reject_anonymous_users(&session).is_ok() && get_env().prod();
-    let skip = skip_endpoints
+    let skip = skip_endpoint_starts
         .into_iter()
-        .any(|start| endpoint.starts_with(&start));
+        .any(|start| endpoint.starts_with(&start))
+        || js_file
+        || wasm_file
+        || favicon;
 
     if !skip {
         let system_time = interfacing::EndpointHit::formatted_now();
