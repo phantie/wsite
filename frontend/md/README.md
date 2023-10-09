@@ -29,4 +29,4 @@ Architecture
 ![](/api/static/app-system-diagram.png)
 
 
-![](https://phantie.com/api/endpoint_hits/github/wsite)
+![](https://phantie.site/api/endpoint_hits/github/wsite)

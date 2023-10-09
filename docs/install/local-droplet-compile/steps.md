@@ -67,7 +67,7 @@ Check connection to http://{SERVER IP}:8000/
 
 Modify A DNS records on DigitalOcean to point to {SERVER IP}
 
-Check https://phantie.com and https://www.phantie.com (should not hang and immediately fail)
+Check https://phantie.site and https://www.phantie.site (should not hang and immediately fail)
 
 Setup nginx
 
@@ -76,7 +76,7 @@ Setup nginx
 
 Create file
 
-    nano /etc/nginx/sites-available/phantie.com
+    nano /etc/nginx/sites-available/phantie.site
 
 With content:
 ```
@@ -84,7 +84,7 @@ server {
     listen 80;
     listen [::]:80;
 
-    server_name phantie.com www.phantie.com;
+    server_name phantie.site www.phantie.site;
 
     proxy_set_header X-Forwarded-For $remote_addr;
 
@@ -102,7 +102,7 @@ server {
 ```
 
 ```
-ln -s /etc/nginx/sites-available/phantie.com /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/phantie.site /etc/nginx/sites-enabled/
 nginx -t
 systemctl reload nginx
 ```
@@ -110,12 +110,12 @@ systemctl reload nginx
 Setup TLS
 <!--- apt-get purge nginx nginx-common nginx-full certbot python3-certbot-nginx -->
     apt install certbot python3-certbot-nginx -y
-    certbot --nginx -d phantie.com -d www.phantie.com
+    certbot --nginx -d phantie.site -d www.phantie.site
     nginx -t
     systemctl restart nginx
     systemctl status nginx
 
-Check https://phantie.com and https://www.phantie.com (should succeed)
+Check https://phantie.site and https://www.phantie.site (should succeed)
 
 Forbid this type of connection
     
