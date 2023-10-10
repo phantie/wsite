@@ -103,9 +103,9 @@ impl Component for Markdown {
         let code_style_css_link = {
             let url = match self.theme_ctx.as_ref().id {
                 Themes::Dark | Themes::Pastel => {
-                    "//unpkg.com/@catppuccin/highlightjs/css/catppuccin-macchiato.css"
+                    "//cdn.jsdelivr.net/npm/@catppuccin/highlightjs@0.1.2/css/catppuccin-macchiato.css"
                 }
-                Themes::Light => "//unpkg.com/@catppuccin/highlightjs/css/catppuccin-latte.css",
+                Themes::Light => "//cdn.jsdelivr.net/npm/@catppuccin/highlightjs@0.1.2/css/catppuccin-latte.css",
             };
 
             html! {
