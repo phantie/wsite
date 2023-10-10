@@ -1,9 +1,9 @@
 use crate::routes::imports::*;
+use crate::serve_files::{FRONTEND_DIR, INDEX_HTML, STATIC_DIR};
 
 #[axum_macros::debug_handler]
 pub async fn serve_static(Path(path): Path<String>) -> ApiResult<Response> {
-    let static_dir = "static/";
-    let path = std::path::PathBuf::from(static_dir).join(path);
+    let path = std::path::PathBuf::from(STATIC_DIR).join(path);
 
     match std::fs::read(&path) {
         Err(_e) => return Ok(IntoResponse::into_response(StatusCode::NOT_FOUND)),
@@ -44,8 +44,3 @@ pub fn file_response(
         .body(axum::body::boxed(contents.into()))
         .unwrap_or_else(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }
-
-static FRONTEND_DIR: include_dir::Dir<'_> =
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../frontend/dist/");
-
-static INDEX_HTML: &str = include_str!("../../../frontend/dist/index.html");
