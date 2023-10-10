@@ -231,6 +231,7 @@ impl Component for WithTheme {
         let toggle_border_color = &theme.box_border_color;
         let toggle_style = css!(
             "
+                user-select: none;
                 position: absolute; right: 15px; top: 15px;
                 outline: 5px solid ${toggle_border_color};
                 height: 2em; width: 2em;
