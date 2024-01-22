@@ -43,6 +43,11 @@ impl<S> _State<S> {
     fn upstream_msg(&self, msg: Msg<S>) {
         self.upstream_msg_cb.emit(msg);
     }
+
+    // TODO remove upstream, _upstream, upstream_fn if mut_state works
+    fn mut_state(&mut self) -> &mut S {
+        &mut self.state
+    }
 }
 
 #[allow(unused)]
