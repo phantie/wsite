@@ -33,5 +33,5 @@ pub use online::Online;
 pub use online_ctx::{OnlineCtx, OnlineCtxSub, WithOnline};
 pub use post::Post;
 pub use snake::comp::Snake;
-pub use theme_ctx::{ThemeCtx, ThemeCtxSub, Themes, WithTheme};
+pub use theme_ctx::{ThemeCtx, ThemeCtxSub, ThemeToggle, Themes, WithTheme};
 pub use title::PageTitle;
