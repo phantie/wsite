@@ -186,138 +186,85 @@ pub enum Msg {
     SetTheme(Themes),
 }
 
-// impl Component for WithTheme {
-//     type Message = Msg;
-//     type Properties = Props;
+pub struct ThemeToggle {
+    theme_ctx: ThemeCtxSub,
+}
 
-//     // #[allow(unused_variables)]
-//     // fn create(ctx: &Context<Self>) -> Self {
-//     //     Self {
-//     //         theme: Themes::derived(),
-//     //     }
-//     // }
+pub enum ThemeToggleMsg {
+    ThemeContextUpdate(ThemeCtx),
+    ToggleTheme,
+}
 
-//     fn view(&self, ctx: &Context<Self>) -> Html {
-//         let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
+#[derive(Properties, PartialEq)]
+pub struct ThemeToggleProps {
+    #[prop_or_default]
+    pub children: Children,
+}
 
-//         let theme = Theme::from(&self.theme);
-//         let toggle_border_color = &theme.box_border_color;
-//         let toggle_style = css!(
-//             "
-//                 user-select: none;
-//                 position: absolute; right: 15px; top: 15px;
-//                 outline: 5px solid ${toggle_border_color};
-//                 height: 2em; width: 2em;
-//                 border-radius: 100%;
-//                 cursor: pointer;
-//                 transition: opacity .2s ease-in;
+impl Component for ThemeToggle {
+    type Message = ThemeToggleMsg;
+    type Properties = ThemeToggleProps;
 
-//                 :hover {
-//                     opacity: 0.8;
-//                 }
-//             ",
-//             toggle_border_color = toggle_border_color
-//         );
+    fn create(ctx: &Context<Self>) -> Self {
+        Self {
+            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
+        }
+    }
 
-//         html! {
-//             <ContextProvider<ThemeCtx> context={ Rc::new(theme) }>
-//                 { ctx.props().children.clone() }
+    #[allow(unused_variables)]
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
 
-//                 <div {onclick} class={ toggle_style }/> // here
-//             </ContextProvider<ThemeCtx>>
-//         }
-//     }
+        let theme = self.theme_ctx.as_ref();
+        let toggle_border_color = &theme.box_border_color;
+        let toggle_style = css!(
+            "
+                user-select: none;
+                position: absolute; right: 15px; top: 15px;
+                outline: 5px solid ${toggle_border_color};
+                height: 2em; width: 2em;
+                border-radius: 100%;
+                cursor: pointer;
+                transition: opacity .2s ease-in;
 
-//     #[allow(unused_variables)]
-//     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-//         match msg {
-//             Self::Message::ToggleTheme => {
-//                 let new_theme = match self.theme {
-//                     Themes::Dark => Themes::Pastel,
-//                     Themes::Pastel => {
-//                         if TURN_ON_LIGHT_THEME {
-//                             Themes::Light
-//                         } else {
-//                             Themes::Dark
-//                         }
-//                     }
-//                     Themes::Light => Themes::Dark,
-//                 };
+                :hover {
+                    opacity: 0.8;
+                }
+            ",
+            toggle_border_color = toggle_border_color
+        );
 
-//                 self.set_theme(new_theme)
-//             }
+        html! {
+            <div {onclick} class={ toggle_style }/>
+        }
+    }
 
-//             Self::Message::SetTheme(theme) => self.set_theme(theme),
-//         }
-//     }
-// }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            Self::Message::ThemeContextUpdate(theme_ctx) => {
+                self.theme_ctx.set(theme_ctx);
+                true
+            }
+            Self::Message::ToggleTheme => {
+                // let new_theme = match self.theme_ctx.as_ref() {
+                //     Themes::Dark => Themes::Pastel,
+                //     Themes::Pastel => {
+                //         if TURN_ON_LIGHT_THEME {
+                //             Themes::Light
+                //         } else {
+                //             Themes::Dark
+                //         }
+                //     }
+                //     Themes::Light => Themes::Dark,
+                // };
 
-// pub struct ThemeToggle {
-//     theme_ctx: ThemeCtxSub,
-// }
-
-// pub enum ThemeToggleMsg {
-//     ThemeContextUpdate(ThemeCtx),
-//     ToggleTheme,
-// }
-
-// #[derive(Properties, PartialEq)]
-// pub struct ThemeToggleProps {
-//     #[prop_or_default]
-//     pub children: Children,
-// }
-
-// impl Component for ThemeToggle {
-//     type Message = ThemeToggleMsg;
-//     type Properties = ThemeToggleProps;
-
-//     fn create(ctx: &Context<Self>) -> Self {
-//         Self {
-//             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
-//         }
-//     }
-
-//     #[allow(unused_variables)]
-//     fn view(&self, ctx: &Context<Self>) -> Html {
-//         let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
-
-//         let theme = self.theme_ctx.as_ref();
-//         let toggle_border_color = &theme.box_border_color;
-//         let toggle_style = css!(
-//             "
-//                 user-select: none;
-//                 position: absolute; right: 15px; top: 15px;
-//                 outline: 5px solid ${toggle_border_color};
-//                 height: 2em; width: 2em;
-//                 border-radius: 100%;
-//                 cursor: pointer;
-//                 transition: opacity .2s ease-in;
-
-//                 :hover {
-//                     opacity: 0.8;
-//                 }
-//             ",
-//             toggle_border_color = toggle_border_color
-//         );
-
-//         html! {
-//             <div {onclick} class={ toggle_style }/>
-//         }
-//     }
-
-//     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-//         match msg {
-//             Self::Message::ThemeContextUpdate(theme_ctx) => {
-//                 self.theme_ctx.set(theme_ctx);
-//                 true
-//             }
-//             Self::Message::ToggleTheme => {
-//                 console::log!("Wanting to change a theme");
-//                 false
-//             }
-//         }
-//     }
-// }
+                let q = &mut self.theme_ctx.ctx.state;
+                console::log!("Wanting to change a theme");
+                false
+            }
+        }
+    }
+}
 
 const TURN_ON_LIGHT_THEME: bool = false;
 

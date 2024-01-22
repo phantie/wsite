@@ -35,14 +35,14 @@ impl<S: Clone> _State<S> {
 
 #[allow(unused)]
 impl<S> _State<S> {
-    fn upstream_msg(&self, msg: Msg<S>) {
+    pub fn upstream_msg(&self, msg: Msg<S>) {
         self.upstream_msg_cb.emit(msg);
     }
 
-    // TODO remove upstream, _upstream, upstream_fn if mut_state works
-    fn mut_state(&mut self) -> &mut S {
-        &mut self.state
-    }
+    // // TODO remove upstream, _upstream, upstream_fn if mut_state works
+    // pub fn mut_state(&mut self) -> &mut S {
+    //     &mut self.state
+    // }
 }
 
 #[allow(unused)]
@@ -93,7 +93,7 @@ impl<S: std::fmt::Debug> _State<S> {
 pub type StateCtx<S> = _State<S>;
 
 pub struct StateCtxSub<S: 'static + PartialEq + Clone> {
-    ctx: StateCtx<S>,
+    pub ctx: StateCtx<S>,
     // keep handle for component rerender after a state is loaded
     _ctx_handle: ContextHandle<StateCtx<S>>,
 }
@@ -102,6 +102,16 @@ impl<S: PartialEq + Clone> AsRef<S> for StateCtxSub<S> {
     fn as_ref(&self) -> &S {
         &self.ctx.state
     }
+}
+
+impl<S: PartialEq + Clone> StateCtxSub<S> {
+    // pub fn mut_ctx(&mut self) -> &mut StateCtx<S> {
+    //     &mut self.ctx
+    // }
+
+    // pub fn ctx(&self) -> &StateCtx<S> {
+    //     &self.ctx
+    // }
 }
 
 impl<S: PartialEq + Clone> StateCtxSub<S> {
