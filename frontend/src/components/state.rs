@@ -19,33 +19,42 @@ pub struct State {
 
 #[derive(derivative::Derivative)]
 #[derivative(Clone, Debug, PartialEq)] // TODO remove Clone, Debug
-pub struct _State {
-    pub state: State,
+pub struct _State<S> {
+    pub state: S,
 
     #[derivative(Debug = "ignore", PartialEq = "ignore")]
-    upstream_cb: Callback<State>,
+    upstream_cb: Callback<S>,
 
     #[derivative(Debug = "ignore", PartialEq = "ignore")]
-    upstream_msg_cb: Callback<Msg>,
+    upstream_msg_cb: Callback<Msg<S>>,
 }
 
 // experimental
 #[allow(unused)]
-impl _State {
+impl<S: Clone> _State<S> {
     // modify state from children
     fn _upstream(&self) {
         self.upstream_cb.emit(self.state.clone());
     }
+}
 
-    fn upstream_msg(&self, msg: Msg) {
+#[allow(unused)]
+impl<S> _State<S> {
+    fn upstream_msg(&self, msg: Msg<S>) {
         self.upstream_msg_cb.emit(msg);
     }
+}
 
+#[allow(unused)]
+impl<S: std::fmt::Debug + Clone> _State<S> {
     pub fn upstream<COMP: Component>(&self) {
         self.log_from::<COMP>();
         self._upstream();
     }
+}
 
+#[allow(unused)]
+impl<S: std::fmt::Debug + Clone> _State<S> {
     // provides more logs, but less flexible.
     // all changes must be done in one go before upstreaming
     //
@@ -53,7 +62,7 @@ impl _State {
     // should not matter because the caller should reload after
     pub fn upstream_fn<COMP: Component, F>(&mut self, f: F)
     where
-        F: FnOnce(State) -> State,
+        F: FnOnce(S) -> S,
     {
         let state = f(self.state.clone());
         console::log!(format!(
@@ -68,44 +77,44 @@ impl _State {
 }
 
 #[allow(unused)]
-impl _State {
+impl<S: std::fmt::Debug> _State<S> {
     pub fn log(&self) {
-        console::log!(format!("{:?}", self));
+        console::log!(format!("{:?}", self.state));
     }
 
     pub fn log_from<COMP: Component>(&self) {
         console::log!(format!(
             "{}\n\n  {:?}",
             std::any::type_name::<COMP>(),
-            &self
+            &self.state
         ));
     }
 }
 
-pub type StateCtx = Rc<_State>;
+pub type StateCtx<S> = Rc<_State<S>>;
 
-pub struct WithState {
-    state: _State,
+pub struct WithState<S> {
+    state: _State<S>,
 }
 
-pub struct StateCtxSub {
-    ctx: StateCtx,
+pub struct StateCtxSub<S: 'static + PartialEq> {
+    ctx: StateCtx<S>,
     // keep handle for component rerender after a state is loaded
-    _ctx_handle: ContextHandle<StateCtx>,
+    _ctx_handle: ContextHandle<StateCtx<S>>,
 }
 
-impl AsRef<_State> for StateCtxSub {
-    fn as_ref(&self) -> &_State {
+impl<S: PartialEq> AsRef<_State<S>> for StateCtxSub<S> {
+    fn as_ref(&self) -> &_State<S> {
         &self.ctx
     }
 }
 
-impl StateCtxSub {
+impl<S: PartialEq> StateCtxSub<S> {
     pub fn subscribe<COMP, F, M>(ctx: &Context<COMP>, f: F) -> Self
     where
         COMP: Component,
         M: Into<COMP::Message>,
-        F: Fn(StateCtx) -> M + 'static,
+        F: Fn(StateCtx<S>) -> M + 'static,
     {
         let (ctx, _ctx_handle) = ctx
             .link()
@@ -115,26 +124,28 @@ impl StateCtxSub {
         Self { ctx, _ctx_handle }
     }
 
-    pub fn set(&mut self, ctx: StateCtx) {
+    pub fn set(&mut self, ctx: StateCtx<S>) {
         self.ctx = ctx;
     }
 }
 
 #[derive(Properties, PartialEq)]
 
-pub struct Props {
+pub struct Props<S: PartialEq> {
+    initial_state: S,
+
     #[prop_or_default]
     pub children: Children,
 }
 
-pub enum Msg {
+pub enum Msg<S> {
     #[allow(unused)]
-    StateChanged(State),
+    StateChanged(S),
 }
 
-impl Component for WithState {
-    type Message = Msg;
-    type Properties = Props;
+impl<S: 'static + PartialEq + Clone> Component for WithState<S> {
+    type Message = Msg<S>;
+    type Properties = Props<S>;
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
@@ -143,7 +154,7 @@ impl Component for WithState {
 
         Self {
             state: _State {
-                state: State { secret: 42 },
+                state: ctx.props().initial_state.clone(),
                 upstream_msg_cb,
                 upstream_cb,
             },
@@ -154,9 +165,9 @@ impl Component for WithState {
         let state = Rc::new(self.state.clone());
 
         html! {
-            <ContextProvider<StateCtx> context={state}>
+            <ContextProvider<StateCtx<S>> context={state}>
                 { ctx.props().children.clone() }
-            </ContextProvider<StateCtx>>
+            </ContextProvider<StateCtx<S>>>
         }
     }
 
@@ -169,3 +180,5 @@ impl Component for WithState {
         }
     }
 }
+
+// type MyState = State<()>;
