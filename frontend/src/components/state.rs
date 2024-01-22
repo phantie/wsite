@@ -90,15 +90,15 @@ impl<S: std::fmt::Debug> _State<S> {
     }
 }
 
-pub type StateCtx<S> = Rc<_State<S>>;
+pub type StateCtx<S> = _State<S>;
 
-pub struct StateCtxSub<S: 'static + PartialEq> {
+pub struct StateCtxSub<S: 'static + PartialEq + Clone> {
     ctx: StateCtx<S>,
     // keep handle for component rerender after a state is loaded
     _ctx_handle: ContextHandle<StateCtx<S>>,
 }
 
-impl<S: PartialEq> AsRef<S> for StateCtxSub<S> {
+impl<S: PartialEq + Clone> AsRef<S> for StateCtxSub<S> {
     fn as_ref(&self) -> &S {
         &self.ctx.state
     }
@@ -111,7 +111,6 @@ impl<S: PartialEq + Clone> StateCtxSub<S> {
         M: Into<COMP::Message>,
         F: Fn(S) -> M + 'static,
     {
-        // F: Fn(StateCtx<S>) -> M + 'static,
         let (ctx, _ctx_handle) = ctx
             .link()
             .context(
@@ -124,9 +123,7 @@ impl<S: PartialEq + Clone> StateCtxSub<S> {
     }
 
     pub fn set(&mut self, state: S) {
-
-        // TODO
-        // self.ctx.state = state;
+        self.ctx.state = state;
     }
 }
 
@@ -165,7 +162,7 @@ impl<S: 'static + PartialEq + Clone + StateDefault> Component for WithState<S> {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let state = Rc::new(self.state.clone());
+        let state = self.state.clone();
 
         html! {
             <ContextProvider<StateCtx<S>> context={state}>
