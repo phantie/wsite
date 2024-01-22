@@ -12,10 +12,15 @@ pub mod imports {
     pub use super::{StateCtx, StateCtxSub, WithState};
 }
 
-#[derive(derivative::Derivative)]
-#[derivative(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct State {
     pub secret: u16,
+}
+
+#[derive(derivative::Derivative)]
+#[derivative(Clone, Debug, PartialEq)] // TODO remove Clone, Debug
+pub struct _State {
+    pub state: State,
 
     #[derivative(Debug = "ignore", PartialEq = "ignore")]
     upstream_cb: Callback<State>,
@@ -26,10 +31,10 @@ pub struct State {
 
 // experimental
 #[allow(unused)]
-impl State {
+impl _State {
     // modify state from children
     fn _upstream(&self) {
-        self.upstream_cb.emit(self.clone());
+        self.upstream_cb.emit(self.state.clone());
     }
 
     fn upstream_msg(&self, msg: Msg) {
@@ -46,23 +51,24 @@ impl State {
     //
     // ! does not modify the variable it's called on
     // should not matter because the caller should reload after
-    pub fn upstream_fn<COMP: Component, F>(&self, f: F)
+    pub fn upstream_fn<COMP: Component, F>(&mut self, f: F)
     where
         F: FnOnce(State) -> State,
     {
-        let state = f(self.clone());
+        let state = f(self.state.clone());
         console::log!(format!(
             "{}\n\n  {:?}\n\t->\n  {:?}",
             std::any::type_name::<COMP>(),
             &self,
             &state,
         ));
-        state._upstream();
+        self.state = state.clone();
+        self._upstream();
     }
 }
 
 #[allow(unused)]
-impl State {
+impl _State {
     pub fn log(&self) {
         console::log!(format!("{:?}", self));
     }
@@ -76,10 +82,10 @@ impl State {
     }
 }
 
-pub type StateCtx = Rc<State>;
+pub type StateCtx = Rc<_State>;
 
 pub struct WithState {
-    state: State,
+    state: _State,
 }
 
 pub struct StateCtxSub {
@@ -88,8 +94,8 @@ pub struct StateCtxSub {
     _ctx_handle: ContextHandle<StateCtx>,
 }
 
-impl AsRef<State> for StateCtxSub {
-    fn as_ref(&self) -> &State {
+impl AsRef<_State> for StateCtxSub {
+    fn as_ref(&self) -> &_State {
         &self.ctx
     }
 }
@@ -104,7 +110,7 @@ impl StateCtxSub {
         let (ctx, _ctx_handle) = ctx
             .link()
             .context(ctx.link().callback(f))
-            .expect("State context to exist");
+            .expect("_State context to exist");
 
         Self { ctx, _ctx_handle }
     }
@@ -136,8 +142,8 @@ impl Component for WithState {
         let upstream_msg_cb = ctx.link().callback(|msg| msg);
 
         Self {
-            state: State {
-                secret: 42,
+            state: _State {
+                state: State { secret: 42 },
                 upstream_msg_cb,
                 upstream_cb,
             },
@@ -157,7 +163,7 @@ impl Component for WithState {
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::StateChanged(state) => {
-                self.state = state;
+                self.state.state = state;
                 true
             }
         }
