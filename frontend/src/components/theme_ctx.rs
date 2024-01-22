@@ -271,17 +271,19 @@ impl Component for WithTheme {
                     Themes::Light => Themes::Dark,
                 };
 
-                new_theme.remember();
-                self.theme = new_theme;
-                true
+                self.set_theme(new_theme)
             }
 
-            Self::Message::SetTheme(theme) => {
-                theme.remember();
-                self.theme = theme;
-                true
-            }
+            Self::Message::SetTheme(theme) => self.set_theme(theme),
         }
+    }
+}
+
+impl WithTheme {
+    pub fn set_theme(&mut self, theme: Themes) -> bool {
+        theme.remember();
+        self.theme = theme;
+        true
     }
 }
 
