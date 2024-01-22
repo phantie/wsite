@@ -12,20 +12,15 @@ pub mod imports {
     pub use super::{StateCtx, StateCtxSub, WithState};
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct State {
-    pub secret: u16,
-}
-
 #[derive(derivative::Derivative)]
 #[derivative(Clone, PartialEq)] // TODO remove Clone
 pub struct _State<S> {
     pub state: S,
 
-    #[derivative(Debug = "ignore", PartialEq = "ignore")]
+    #[derivative(PartialEq = "ignore")]
     upstream_cb: Callback<S>,
 
-    #[derivative(Debug = "ignore", PartialEq = "ignore")]
+    #[derivative(PartialEq = "ignore")]
     upstream_msg_cb: Callback<Msg<S>>,
 }
 
@@ -97,47 +92,47 @@ impl<S: std::fmt::Debug> _State<S> {
 
 pub type StateCtx<S> = Rc<_State<S>>;
 
-pub struct WithState<S> {
-    state: _State<S>,
-}
-
 pub struct StateCtxSub<S: 'static + PartialEq> {
     ctx: StateCtx<S>,
     // keep handle for component rerender after a state is loaded
     _ctx_handle: ContextHandle<StateCtx<S>>,
 }
 
-impl<S: PartialEq> AsRef<_State<S>> for StateCtxSub<S> {
-    fn as_ref(&self) -> &_State<S> {
-        &self.ctx
+impl<S: PartialEq> AsRef<S> for StateCtxSub<S> {
+    fn as_ref(&self) -> &S {
+        &self.ctx.state
     }
 }
 
-impl<S: PartialEq> StateCtxSub<S> {
+impl<S: PartialEq + Clone> StateCtxSub<S> {
     pub fn subscribe<COMP, F, M>(ctx: &Context<COMP>, f: F) -> Self
     where
         COMP: Component,
         M: Into<COMP::Message>,
-        F: Fn(StateCtx<S>) -> M + 'static,
+        F: Fn(S) -> M + 'static,
     {
+        // F: Fn(StateCtx<S>) -> M + 'static,
         let (ctx, _ctx_handle) = ctx
             .link()
-            .context(ctx.link().callback(f))
+            .context(
+                ctx.link()
+                    .callback(move |ctx: StateCtx<S>| f(ctx.state.clone())),
+            )
             .expect("_State context to exist");
 
         Self { ctx, _ctx_handle }
     }
 
-    pub fn set(&mut self, ctx: StateCtx<S>) {
-        self.ctx = ctx;
+    pub fn set(&mut self, state: S) {
+
+        // TODO
+        // self.ctx.state = state;
     }
 }
 
 #[derive(Properties, PartialEq)]
 
-pub struct Props<S: PartialEq> {
-    initial_state: S,
-
+pub struct Props {
     #[prop_or_default]
     pub children: Children,
 }
@@ -147,9 +142,13 @@ pub enum Msg<S> {
     StateChanged(S),
 }
 
-impl<S: 'static + PartialEq + Clone> Component for WithState<S> {
+pub struct WithState<S> {
+    state: _State<S>,
+}
+
+impl<S: 'static + PartialEq + Clone + StateDefault> Component for WithState<S> {
     type Message = Msg<S>;
-    type Properties = Props<S>;
+    type Properties = Props;
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
@@ -158,7 +157,7 @@ impl<S: 'static + PartialEq + Clone> Component for WithState<S> {
 
         Self {
             state: _State {
-                state: ctx.props().initial_state.clone(),
+                state: S::default_state(),
                 upstream_msg_cb,
                 upstream_cb,
             },
@@ -185,4 +184,6 @@ impl<S: 'static + PartialEq + Clone> Component for WithState<S> {
     }
 }
 
-// type MyState = State<()>;
+pub trait StateDefault {
+    fn default_state() -> Self;
+}

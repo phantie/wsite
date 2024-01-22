@@ -92,6 +92,12 @@ pub enum Themes {
     Pastel,
 }
 
+impl state::StateDefault for Theme {
+    fn default_state() -> Self {
+        (&Themes::derived()).into()
+    }
+}
+
 impl Default for Themes {
     fn default() -> Self {
         Self::Dark
@@ -160,46 +166,13 @@ impl TryFrom<&str> for Themes {
     }
 }
 
-pub type ThemeCtx = Rc<Theme>;
+pub type ThemeCtx = Theme;
 
-pub struct WithTheme {
-    theme: Themes,
-}
+type State = Theme;
 
-pub struct ThemeCtxSub {
-    ctx: ThemeCtx,
-    _ctx_handle: ContextHandle<ThemeCtx>,
-}
+pub type WithTheme = state::WithState<State>;
 
-impl AsRef<Theme> for ThemeCtxSub {
-    fn as_ref(&self) -> &Theme {
-        &self.ctx
-    }
-}
-
-impl ThemeCtxSub {
-    fn new(ctx: ThemeCtx, _ctx_handle: ContextHandle<ThemeCtx>) -> Self {
-        Self { ctx, _ctx_handle }
-    }
-
-    pub fn subscribe<COMP, F, M>(ctx: &Context<COMP>, f: F) -> Self
-    where
-        COMP: Component,
-        M: Into<COMP::Message>,
-        F: Fn(ThemeCtx) -> M + 'static,
-    {
-        let (ctx, _ctx_handle) = ctx
-            .link()
-            .context(ctx.link().callback(f))
-            .expect("Theme context does not exist");
-
-        Self::new(ctx, _ctx_handle)
-    }
-
-    pub fn set(&mut self, ctx: ThemeCtx) {
-        self.ctx = ctx;
-    }
-}
+pub type ThemeCtxSub = state::StateCtxSub<State>;
 
 #[derive(Properties, PartialEq)]
 
@@ -213,146 +186,138 @@ pub enum Msg {
     SetTheme(Themes),
 }
 
-impl Component for WithTheme {
-    type Message = Msg;
-    type Properties = Props;
+// impl Component for WithTheme {
+//     type Message = Msg;
+//     type Properties = Props;
 
-    #[allow(unused_variables)]
-    fn create(ctx: &Context<Self>) -> Self {
-        Self {
-            theme: Themes::derived(),
-        }
-    }
+//     // #[allow(unused_variables)]
+//     // fn create(ctx: &Context<Self>) -> Self {
+//     //     Self {
+//     //         theme: Themes::derived(),
+//     //     }
+//     // }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
+//     fn view(&self, ctx: &Context<Self>) -> Html {
+//         let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
 
-        let theme = Theme::from(&self.theme);
-        let toggle_border_color = &theme.box_border_color;
-        let toggle_style = css!(
-            "
-                user-select: none;
-                position: absolute; right: 15px; top: 15px;
-                outline: 5px solid ${toggle_border_color};
-                height: 2em; width: 2em;
-                border-radius: 100%;
-                cursor: pointer;
-                transition: opacity .2s ease-in;
+//         let theme = Theme::from(&self.theme);
+//         let toggle_border_color = &theme.box_border_color;
+//         let toggle_style = css!(
+//             "
+//                 user-select: none;
+//                 position: absolute; right: 15px; top: 15px;
+//                 outline: 5px solid ${toggle_border_color};
+//                 height: 2em; width: 2em;
+//                 border-radius: 100%;
+//                 cursor: pointer;
+//                 transition: opacity .2s ease-in;
 
-                :hover {
-                    opacity: 0.8;
-                }
-            ",
-            toggle_border_color = toggle_border_color
-        );
+//                 :hover {
+//                     opacity: 0.8;
+//                 }
+//             ",
+//             toggle_border_color = toggle_border_color
+//         );
 
-        html! {
-            <ContextProvider<ThemeCtx> context={ Rc::new(theme) }>
-                { ctx.props().children.clone() }
+//         html! {
+//             <ContextProvider<ThemeCtx> context={ Rc::new(theme) }>
+//                 { ctx.props().children.clone() }
 
-                <div {onclick} class={ toggle_style }/> // here
-            </ContextProvider<ThemeCtx>>
-        }
-    }
+//                 <div {onclick} class={ toggle_style }/> // here
+//             </ContextProvider<ThemeCtx>>
+//         }
+//     }
 
-    #[allow(unused_variables)]
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Self::Message::ToggleTheme => {
-                let new_theme = match self.theme {
-                    Themes::Dark => Themes::Pastel,
-                    Themes::Pastel => {
-                        if TURN_ON_LIGHT_THEME {
-                            Themes::Light
-                        } else {
-                            Themes::Dark
-                        }
-                    }
-                    Themes::Light => Themes::Dark,
-                };
+//     #[allow(unused_variables)]
+//     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+//         match msg {
+//             Self::Message::ToggleTheme => {
+//                 let new_theme = match self.theme {
+//                     Themes::Dark => Themes::Pastel,
+//                     Themes::Pastel => {
+//                         if TURN_ON_LIGHT_THEME {
+//                             Themes::Light
+//                         } else {
+//                             Themes::Dark
+//                         }
+//                     }
+//                     Themes::Light => Themes::Dark,
+//                 };
 
-                self.set_theme(new_theme)
-            }
+//                 self.set_theme(new_theme)
+//             }
 
-            Self::Message::SetTheme(theme) => self.set_theme(theme),
-        }
-    }
-}
+//             Self::Message::SetTheme(theme) => self.set_theme(theme),
+//         }
+//     }
+// }
 
-impl WithTheme {
-    pub fn set_theme(&mut self, theme: Themes) -> bool {
-        theme.remember();
-        self.theme = theme;
-        true
-    }
-}
+// pub struct ThemeToggle {
+//     theme_ctx: ThemeCtxSub,
+// }
 
-pub struct ThemeToggle {
-    theme_ctx: ThemeCtxSub,
-}
+// pub enum ThemeToggleMsg {
+//     ThemeContextUpdate(ThemeCtx),
+//     ToggleTheme,
+// }
 
-pub enum ThemeToggleMsg {
-    ThemeContextUpdate(ThemeCtx),
-    ToggleTheme,
-}
+// #[derive(Properties, PartialEq)]
+// pub struct ThemeToggleProps {
+//     #[prop_or_default]
+//     pub children: Children,
+// }
 
-#[derive(Properties, PartialEq)]
-pub struct ThemeToggleProps {
-    #[prop_or_default]
-    pub children: Children,
-}
+// impl Component for ThemeToggle {
+//     type Message = ThemeToggleMsg;
+//     type Properties = ThemeToggleProps;
 
-impl Component for ThemeToggle {
-    type Message = ThemeToggleMsg;
-    type Properties = ThemeToggleProps;
+//     fn create(ctx: &Context<Self>) -> Self {
+//         Self {
+//             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
+//         }
+//     }
 
-    fn create(ctx: &Context<Self>) -> Self {
-        Self {
-            theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
-        }
-    }
+//     #[allow(unused_variables)]
+//     fn view(&self, ctx: &Context<Self>) -> Html {
+//         let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
 
-    #[allow(unused_variables)]
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        let onclick = ctx.link().callback(move |_| Self::Message::ToggleTheme);
+//         let theme = self.theme_ctx.as_ref();
+//         let toggle_border_color = &theme.box_border_color;
+//         let toggle_style = css!(
+//             "
+//                 user-select: none;
+//                 position: absolute; right: 15px; top: 15px;
+//                 outline: 5px solid ${toggle_border_color};
+//                 height: 2em; width: 2em;
+//                 border-radius: 100%;
+//                 cursor: pointer;
+//                 transition: opacity .2s ease-in;
 
-        let theme = self.theme_ctx.as_ref();
-        let toggle_border_color = &theme.box_border_color;
-        let toggle_style = css!(
-            "
-                user-select: none;
-                position: absolute; right: 15px; top: 15px;
-                outline: 5px solid ${toggle_border_color};
-                height: 2em; width: 2em;
-                border-radius: 100%;
-                cursor: pointer;
-                transition: opacity .2s ease-in;
+//                 :hover {
+//                     opacity: 0.8;
+//                 }
+//             ",
+//             toggle_border_color = toggle_border_color
+//         );
 
-                :hover {
-                    opacity: 0.8;
-                }
-            ",
-            toggle_border_color = toggle_border_color
-        );
+//         html! {
+//             <div {onclick} class={ toggle_style }/>
+//         }
+//     }
 
-        html! {
-            <div {onclick} class={ toggle_style }/>
-        }
-    }
-
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        match msg {
-            Self::Message::ThemeContextUpdate(theme_ctx) => {
-                self.theme_ctx.set(theme_ctx);
-                true
-            }
-            Self::Message::ToggleTheme => {
-                console::log!("Wanting to change a theme");
-                false
-            }
-        }
-    }
-}
+//     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+//         match msg {
+//             Self::Message::ThemeContextUpdate(theme_ctx) => {
+//                 self.theme_ctx.set(theme_ctx);
+//                 true
+//             }
+//             Self::Message::ToggleTheme => {
+//                 console::log!("Wanting to change a theme");
+//                 false
+//             }
+//         }
+//     }
+// }
 
 const TURN_ON_LIGHT_THEME: bool = false;
 
