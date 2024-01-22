@@ -18,7 +18,7 @@ pub struct State {
 }
 
 #[derive(derivative::Derivative)]
-#[derivative(Clone, Debug, PartialEq)] // TODO remove Clone, Debug
+#[derivative(Clone, PartialEq)] // TODO remove Clone
 pub struct _State<S> {
     pub state: S,
 
@@ -66,9 +66,8 @@ impl<S: std::fmt::Debug + Clone> _State<S> {
     {
         let state = f(self.state.clone());
         console::log!(format!(
-            "{}\n\n  {:?}\n\t->\n  {:?}",
+            "{}\n\n  \t->\n  {:?}",
             std::any::type_name::<COMP>(),
-            &self,
             &state,
         ));
         self.state = state.clone();
