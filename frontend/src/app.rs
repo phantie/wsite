@@ -6,9 +6,9 @@ use yew_router::prelude::{BrowserRouter, Switch};
 
 #[function_component(App)]
 pub fn app() -> Html {
-    use crate::components::ThemeToggle;
+    use crate::components::theme::theme_ctx::WithTheme;
+    use crate::components::theme::toggle::ThemeToggle;
     use crate::components::WithOnline;
-    use crate::components::WithTheme;
 
     html! {
         <WithTheme>

@@ -16,7 +16,6 @@ mod online;
 mod online_ctx;
 mod post;
 mod snake;
-mod theme_ctx;
 mod title;
 
 pub mod admin;
@@ -33,7 +32,7 @@ pub use online::Online;
 pub use online_ctx::{OnlineCtx, OnlineCtxSub, WithOnline};
 pub use post::Post;
 pub use snake::comp::Snake;
-pub use theme_ctx::{ThemeCtx, ThemeCtxSub, ThemeToggle, Themes, WithTheme};
 pub use title::PageTitle;
 
 mod state;
+pub mod theme;
