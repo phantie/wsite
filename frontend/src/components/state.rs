@@ -1,8 +1,14 @@
-// It works for theme, online counter, etc
-// because the same root ctx component can change data.
+/// Context Subscribers can both read and write the data
+///
+/// Ideal for any mutable state decoupled state: theme, online counter, etc.
+///
+// Trouble to move to library because
+// - (Major) Traits cannot be implemented for foreign types (StateDefault)
+// - (Minor) cannot define inherent `impl` for a type outside of the crate where the type is defined
+//   ThemeCtxSub::set_theme would become impossible
 //
-// Subscribers can read and write the data
-
+// The only solution is to make it a macro, so it does not consider it foreign
+//
 use crate::components::imports::*;
 
 pub mod imports {
@@ -10,7 +16,7 @@ pub mod imports {
 }
 
 #[derive(derivative::Derivative)]
-#[derivative(Clone, PartialEq)] // TODO investigate PartialEq role
+#[derivative(Clone, PartialEq)]
 pub struct _State<S> {
     pub state: S,
 
