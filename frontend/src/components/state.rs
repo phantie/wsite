@@ -19,9 +19,6 @@ pub struct _State<S> {
 
     #[derivative(PartialEq = "ignore")]
     upstream_cb: Callback<S>,
-
-    #[derivative(PartialEq = "ignore")]
-    upstream_msg_cb: Callback<Msg<S>>,
 }
 
 // experimental
@@ -31,13 +28,6 @@ impl<S: Clone> _State<S> {
     // broadcast that state has changed
     fn _upstream(&self) {
         self.upstream_cb.emit(self.state.clone());
-    }
-}
-
-#[allow(unused)]
-impl<S> _State<S> {
-    pub fn upstream_msg(&self, msg: Msg<S>) {
-        self.upstream_msg_cb.emit(msg);
     }
 }
 
@@ -108,7 +98,6 @@ pub struct Props {
 }
 
 pub enum Msg<S> {
-    #[allow(unused)]
     StateChanged(S),
 }
 
@@ -123,12 +112,10 @@ impl<S: 'static + PartialEq + Clone + StateDefault> Component for WithState<S> {
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         let upstream_cb = ctx.link().callback(Msg::StateChanged);
-        let upstream_msg_cb = ctx.link().callback(|msg| msg);
 
         Self {
             state: _State {
                 state: S::default_state(),
-                upstream_msg_cb,
                 upstream_cb,
             },
         }
