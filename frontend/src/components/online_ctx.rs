@@ -80,7 +80,7 @@ impl Component for WithOnline {
                 0
             }
             State::Updated(state) => {
-                console::log!("drawing WithOnline with Updated({state})");
+                console::log!(format!("drawing WithOnline with Updated({state})"));
                 *state
             }
         };

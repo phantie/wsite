@@ -28,6 +28,7 @@ pub struct _State<S> {
 #[allow(unused)]
 impl<S: Clone> _State<S> {
     // modify state from children
+    // broadcast that state has changed
     fn _upstream(&self) {
         self.upstream_cb.emit(self.state.clone());
     }
@@ -38,11 +39,6 @@ impl<S> _State<S> {
     pub fn upstream_msg(&self, msg: Msg<S>) {
         self.upstream_msg_cb.emit(msg);
     }
-
-    // // TODO remove upstream, _upstream, upstream_fn if mut_state works
-    // pub fn mut_state(&mut self) -> &mut S {
-    //     &mut self.state
-    // }
 }
 
 #[allow(unused)]
@@ -83,7 +79,7 @@ impl<S: std::fmt::Debug> _State<S> {
 
     pub fn log_from<COMP: Component>(&self) {
         console::log!(format!(
-            "{}\n\n  {:?}",
+            "{}\n\n Current state:\n {:?}",
             std::any::type_name::<COMP>(),
             &self.state
         ));
@@ -102,16 +98,6 @@ impl<S: PartialEq + Clone> AsRef<S> for StateCtxSub<S> {
     fn as_ref(&self) -> &S {
         &self.ctx.state
     }
-}
-
-impl<S: PartialEq + Clone> StateCtxSub<S> {
-    // pub fn mut_ctx(&mut self) -> &mut StateCtx<S> {
-    //     &mut self.ctx
-    // }
-
-    // pub fn ctx(&self) -> &StateCtx<S> {
-    //     &self.ctx
-    // }
 }
 
 impl<S: PartialEq + Clone> StateCtxSub<S> {

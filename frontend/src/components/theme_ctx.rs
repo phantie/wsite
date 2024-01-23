@@ -2,6 +2,8 @@
 
 use crate::components::imports::*;
 
+const TURN_ON_LIGHT_THEME: bool = false;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
     pub name: AttrValue,
@@ -85,7 +87,7 @@ impl<'a> RawTheme<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum Themes {
     Dark,
     Light,
@@ -94,7 +96,7 @@ pub enum Themes {
 
 impl state::StateDefault for Theme {
     fn default_state() -> Self {
-        (&Themes::derived()).into()
+        Themes::derived().into()
     }
 }
 
@@ -130,15 +132,15 @@ impl Themes {
 
     pub fn remember(&self) {
         use gloo_storage::{LocalStorage, Storage};
-        match LocalStorage::set(Self::SESSION_KEY, Theme::from(self).session_id.to_string()) {
+        match LocalStorage::set(Self::SESSION_KEY, Theme::from(*self).session_id.to_string()) {
             Ok(()) => {}
             Err(_) => console::log!("failed to store theme in session storage"),
         }
     }
 }
 
-impl From<&Themes> for Theme {
-    fn from(value: &Themes) -> Self {
+impl From<Themes> for Theme {
+    fn from(value: Themes) -> Self {
         match value {
             Themes::Dark => RawTheme::dark(),
             Themes::Light => RawTheme::light(),
@@ -158,7 +160,7 @@ impl TryFrom<&str> for Themes {
             _ => return Err(()),
         };
         assert_eq!(
-            Theme::from(&theme).session_id,
+            Theme::from(theme).session_id,
             value,
             "resulting theme's session_id must match with the provided value"
         );
@@ -166,9 +168,9 @@ impl TryFrom<&str> for Themes {
     }
 }
 
-pub type ThemeCtx = Theme;
-
 type State = Theme;
+
+pub type ThemeCtx = State;
 
 pub type WithTheme = state::WithState<State>;
 
@@ -179,11 +181,6 @@ pub type ThemeCtxSub = state::StateCtxSub<State>;
 pub struct Props {
     #[prop_or_default]
     pub children: Children,
-}
-
-pub enum Msg {
-    ToggleTheme,
-    SetTheme(Themes),
 }
 
 pub struct ThemeToggle {
@@ -239,33 +236,34 @@ impl Component for ThemeToggle {
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::ThemeContextUpdate(theme_ctx) => {
                 self.theme_ctx.set(theme_ctx);
                 true
             }
             Self::Message::ToggleTheme => {
-                // let new_theme = match self.theme_ctx.as_ref() {
-                //     Themes::Dark => Themes::Pastel,
-                //     Themes::Pastel => {
-                //         if TURN_ON_LIGHT_THEME {
-                //             Themes::Light
-                //         } else {
-                //             Themes::Dark
-                //         }
-                //     }
-                //     Themes::Light => Themes::Dark,
-                // };
-
-                let q = &mut self.theme_ctx.ctx.state;
-                console::log!("Wanting to change a theme");
+                self.theme_ctx.ctx.state = Theme::from(theme_toggle(self.theme_ctx.as_ref().id));
+                self.theme_ctx.ctx.upstream::<Self>();
+                console::log!("Changing a theme");
                 false
             }
         }
     }
 }
 
-const TURN_ON_LIGHT_THEME: bool = false;
+fn theme_toggle(theme: Themes) -> Themes {
+    match theme {
+        Themes::Dark => Themes::Pastel,
+        Themes::Pastel => {
+            if TURN_ON_LIGHT_THEME {
+                Themes::Light
+            } else {
+                Themes::Dark
+            }
+        }
+        Themes::Light => Themes::Dark,
+    }
+}
 
 use super::state;
