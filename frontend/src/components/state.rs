@@ -9,7 +9,7 @@
 use crate::components::imports::*;
 
 pub mod imports {
-    pub use super::{StateCtx, StateCtxSub, WithState};
+    pub use super::{StateCtx, StateCtxSub, StateDefault, WithState};
 }
 
 #[derive(derivative::Derivative)]

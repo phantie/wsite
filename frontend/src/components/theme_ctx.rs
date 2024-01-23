@@ -94,7 +94,7 @@ pub enum Themes {
     Pastel,
 }
 
-impl state::StateDefault for Theme {
+impl StateDefault for Theme {
     fn default_state() -> Self {
         Themes::derived().into()
     }
@@ -172,9 +172,9 @@ type State = Theme;
 
 pub type ThemeCtx = State;
 
-pub type WithTheme = state::WithState<State>;
+pub type WithTheme = WithState<State>;
 
-pub type ThemeCtxSub = state::StateCtxSub<State>;
+pub type ThemeCtxSub = StateCtxSub<State>;
 
 #[derive(Properties, PartialEq)]
 
@@ -266,4 +266,4 @@ fn theme_toggle(theme: Themes) -> Themes {
     }
 }
 
-use super::state;
+use super::state::imports::*;
