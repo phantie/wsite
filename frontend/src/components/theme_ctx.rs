@@ -243,12 +243,19 @@ impl Component for ThemeToggle {
                 true
             }
             Self::Message::ToggleTheme => {
-                self.theme_ctx.ctx.state = Theme::from(theme_toggle(self.theme_ctx.as_ref().id));
-                self.theme_ctx.ctx.upstream::<Self>();
-                console::log!("Changing a theme");
+                self.theme_ctx
+                    .set_theme::<Self>(theme_toggle(self.theme_ctx.as_ref().id));
                 false
             }
         }
+    }
+}
+
+impl ThemeCtxSub {
+    pub fn set_theme<COMP: Component>(&mut self, theme: Themes) {
+        theme.remember();
+        self.ctx.state = Theme::from(theme);
+        self.ctx.upstream::<COMP>();
     }
 }
 
