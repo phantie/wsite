@@ -41,32 +41,9 @@ impl<S> _State<S> {
     }
 }
 
-#[allow(unused)]
 impl<S: std::fmt::Debug + Clone> _State<S> {
     pub fn upstream<COMP: Component>(&self) {
         self.log_from::<COMP>();
-        self._upstream();
-    }
-}
-
-#[allow(unused)]
-impl<S: std::fmt::Debug + Clone> _State<S> {
-    // provides more logs, but less flexible.
-    // all changes must be done in one go before upstreaming
-    //
-    // ! does not modify the variable it's called on
-    // should not matter because the caller should reload after
-    pub fn upstream_fn<COMP: Component, F>(&mut self, f: F)
-    where
-        F: FnOnce(S) -> S,
-    {
-        let state = f(self.state.clone());
-        console::log!(format!(
-            "{}\n\n  \t->\n  {:?}",
-            std::any::type_name::<COMP>(),
-            &state,
-        ));
-        self.state = state.clone();
         self._upstream();
     }
 }
