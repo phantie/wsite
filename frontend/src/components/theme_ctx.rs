@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use crate::components::imports::*;
 
 const TURN_ON_LIGHT_THEME: bool = false;
@@ -94,9 +92,9 @@ pub enum Themes {
     Pastel,
 }
 
-impl StateDefault for Theme {
+impl StateDefault for State {
     fn default_state() -> Self {
-        Themes::derived().into()
+        Rc::new(Themes::derived().into())
     }
 }
 
@@ -168,19 +166,17 @@ impl TryFrom<&str> for Themes {
     }
 }
 
-type State = Theme;
-
+type State = Rc<Theme>;
 pub type ThemeCtx = State;
-
 pub type WithTheme = WithState<State>;
-
 pub type ThemeCtxSub = StateCtxSub<State>;
 
-#[derive(Properties, PartialEq)]
-
-pub struct Props {
-    #[prop_or_default]
-    pub children: Children,
+impl ThemeCtxSub {
+    pub fn set_theme<COMP: Component>(&mut self, theme: Themes) {
+        theme.remember();
+        self.ctx.state = Rc::new(Theme::from(theme));
+        self.ctx.upstream::<COMP>();
+    }
 }
 
 pub struct ThemeToggle {
@@ -248,14 +244,6 @@ impl Component for ThemeToggle {
                 false
             }
         }
-    }
-}
-
-impl ThemeCtxSub {
-    pub fn set_theme<COMP: Component>(&mut self, theme: Themes) {
-        theme.remember();
-        self.ctx.state = Theme::from(theme);
-        self.ctx.upstream::<COMP>();
     }
 }
 

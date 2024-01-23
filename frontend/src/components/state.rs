@@ -1,10 +1,7 @@
 // It works for theme, online counter, etc
 // because the same root ctx component can change data.
 //
-// Components subscribing to the data can read, but not change it.
-//
-// TODO add feature for data flow both down and upstream
-// UPD added, feature is experimental
+// Subscribers can read and write the data
 
 use crate::components::imports::*;
 
@@ -13,7 +10,7 @@ pub mod imports {
 }
 
 #[derive(derivative::Derivative)]
-#[derivative(Clone, PartialEq)] // TODO remove Clone
+#[derivative(Clone, PartialEq)] // TODO investigate PartialEq role
 pub struct _State<S> {
     pub state: S,
 
@@ -21,11 +18,10 @@ pub struct _State<S> {
     upstream_cb: Callback<S>,
 }
 
-// experimental
 #[allow(unused)]
 impl<S: Clone> _State<S> {
     // modify state from children
-    // broadcast that state has changed
+    // broadcast that state has changed to subscribers
     fn _upstream(&self) {
         self.upstream_cb.emit(self.state.clone());
     }
@@ -56,6 +52,7 @@ impl<S: std::fmt::Debug> _State<S> {
 pub type StateCtx<S> = _State<S>;
 
 pub struct StateCtxSub<S: 'static + PartialEq + Clone> {
+    // TODO investigate 'static
     pub ctx: StateCtx<S>,
     // keep handle for component rerender after a state is loaded
     _ctx_handle: ContextHandle<StateCtx<S>>,
@@ -91,7 +88,6 @@ impl<S: PartialEq + Clone> StateCtxSub<S> {
 }
 
 #[derive(Properties, PartialEq)]
-
 pub struct Props {
     #[prop_or_default]
     pub children: Children,
