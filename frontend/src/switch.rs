@@ -42,10 +42,24 @@ pub fn switch(routes: Route) -> Html {
         });
     }
 
+    #[allow(unused)]
+    enum Home {
+        ArticleList,
+        Snake,
+    }
+
+    const HOME: Home = Home::Snake;
+
     match routes {
-        Route::NotFound => html! { <Error msg={"Not Found"} code=404 /> },
-        Route::Unauthorized => html! { <Error msg={"Unauthorized"} code=401 /> },
-        Route::Home => article_list.clone(),
+        Route::Home => match HOME {
+            Home::ArticleList => article_list.clone(),
+            Home::Snake => html! { <Snake/> },
+        },
+        Route::Snake => {
+            html! {
+                <Snake/>
+            }
+        }
         Route::Ref => {
             html! { <yew_router::prelude::Redirect<Route> to={Route::Home}/> }
         }
@@ -72,11 +86,6 @@ pub fn switch(routes: Route) -> Html {
         }
         Route::MarkdownPreview => {
             html! {<MarkdownPreviewPage/>}
-        }
-        Route::Snake => {
-            html! {
-                <Snake/>
-            }
         }
         Route::ArticleViewer { public_id } => {
             match public_id.as_str() {
@@ -110,5 +119,7 @@ pub fn switch(routes: Route) -> Html {
                 },
             }
         }
+        Route::NotFound => html! { <Error msg={"Not Found"} code=404 /> },
+        Route::Unauthorized => html! { <Error msg={"Unauthorized"} code=401 /> },
     }
 }
