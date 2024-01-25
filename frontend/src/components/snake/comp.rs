@@ -12,7 +12,7 @@ use super::domain;
 
 const PAUSED: bool = false;
 const STATE: State = State::NotBegun {
-    inner: NotBegunState::Initial,
+    inner: NotBegunState::ModeSelection,
 };
 // const STATE: State = State::Begun { paused: false };
 
@@ -109,6 +109,9 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn view(&self, ctx: &Context<Self>) -> Html {
+        // TODO refactor this function
+        // especially parts that match state
+
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
@@ -160,68 +163,6 @@ impl Component for Snake {
             }",
                 box_border_color = box_border_color,
                 bg_color = bg_color
-        };
-
-        let main_area = match self.state {
-            State::Begun { .. } => {
-                html! { <canvas ref={self.refs.canvas_ref.clone()}></canvas> }
-            }
-            State::NotBegun { inner } => {
-                let canvas_overlay_style = css! {"
-                    height: 100vh;
-                    width: calc(100% - 350px);
-                    background-color: ${bg_color};
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    font-family: 'Iosevka Web';
-                    color: ${text_color};
-                ",
-                    bg_color = bg_color,
-                    text_color = text_color
-                };
-
-                let start_btn_style = css! {"
-                    border: 4px solid ${box_border_color};
-                    width: 300px; height: 100px;
-                    font-size: 50px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: 0.3s;
-                    user-select: none;
-                    :hover {
-                        opacity: 0.8;
-                    }
-                ",
-                    box_border_color = box_border_color
-                };
-
-                let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
-                let items = match inner {
-                    NotBegunState::Initial => {
-                        html! {
-                            <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Start" }</div>
-                        }
-                    }
-                    NotBegunState::Ended => {
-                        html! {
-                            <>
-                                <p class={css!{"font-size: 35px;"}}>{"Game over!"}</p>
-                                <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Try again" }</div>
-                            </>
-                        }
-                    }
-                };
-
-                html! {
-                    <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
-                        { items }
-                    </div>
-                }
-            }
         };
 
         let btns = {
@@ -303,17 +244,105 @@ impl Component for Snake {
             }
         };
 
+        let main_area = match self.state {
+            State::Begun { .. } => {
+                html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
+            }
+            State::NotBegun { inner } if inner == NotBegunState::ModeSelection => {
+                html! {
+                    <>
+                    <button>{ "Singleplayer" }</button>
+                    <button>{ "Multiplayer" }</button>
+                    </>
+                }
+            }
+            State::NotBegun { inner } => {
+                let canvas_overlay_style = css! {"
+                    height: 100vh;
+                    width: calc(100% - 350px);
+                    background-color: ${bg_color};
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: 'Iosevka Web';
+                    color: ${text_color};
+                ",
+                    bg_color = bg_color,
+                    text_color = text_color
+                };
+
+                let start_btn_style = css! {"
+                    border: 4px solid ${box_border_color};
+                    width: 300px; height: 100px;
+                    font-size: 50px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: 0.3s;
+                    user-select: none;
+                    :hover {
+                        opacity: 0.8;
+                    }
+                ",
+                    box_border_color = box_border_color
+                };
+
+                let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
+                let items = match inner {
+                    NotBegunState::ModeSelection => {
+                        unreachable!("caught before")
+                    }
+                    NotBegunState::Initial => {
+                        html! {
+                            <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Start" }</div>
+                        }
+                    }
+                    NotBegunState::Ended => {
+                        html! {
+                            <>
+                                <p class={css!{"font-size: 35px;"}}>{"Game over!"}</p>
+                                <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Try again" }</div>
+                            </>
+                        }
+                    }
+                };
+
+                html! {
+                    <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
+                        { items }
+                    </div>
+                }
+            }
+        };
+
+        let body = match self.state {
+            State::NotBegun { inner } if inner == NotBegunState::ModeSelection => {
+                html! {
+                    <>
+                    <Global css={"background-color: black;"}/>
+                    {main_area}
+                    </>
+                }
+            }
+            _ => {
+                html! {
+                    <div class={ wrapper_style }>
+                        { main_area }
+                        <div class={ panel_style }>
+                            { btns }
+                        </div>
+                    </div>
+                }
+            }
+        };
+
         html! {
             <>
                 <Global css={global_style}/>
                 <PageTitle title={"Snake"}/>
-
-                <div class={ wrapper_style }>
-                    { main_area }
-                    <div class={ panel_style }>
-                        { btns }
-                    </div>
-                </div>
+                { body }
             </>
         }
     }
@@ -634,6 +663,7 @@ impl Snake {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum NotBegunState {
+    ModeSelection,
     Initial,
     Ended,
 }
