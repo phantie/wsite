@@ -255,10 +255,24 @@ impl Component for Snake {
                     })
                 });
 
+                let mp_onclick = ctx.link().callback(move |e| {
+                    Self::Message::StateChange(State::NotBegun {
+                        inner: NotBegunState::MPCreateJoinLobby,
+                    })
+                });
+
                 html! {
                     <>
                     <button onclick={ sp_onclick }>{ "Singleplayer" }</button>
-                    <button>{ "Multiplayer" }</button>
+                    <button onclick={ mp_onclick }>{ "Multiplayer" }</button>
+                    </>
+                }
+            }
+            State::NotBegun { inner } if inner == NotBegunState::MPCreateJoinLobby => {
+                html! {
+                    <>
+                    <button>{ "Create server" }</button>
+                    <button>{ "Join server" }</button>
                     </>
                 }
             }
@@ -297,7 +311,7 @@ impl Component for Snake {
 
                 let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
                 let items = match inner {
-                    NotBegunState::ModeSelection => {
+                    NotBegunState::ModeSelection | NotBegunState::MPCreateJoinLobby => {
                         unreachable!("caught before")
                     }
                     NotBegunState::Initial => {
@@ -324,7 +338,10 @@ impl Component for Snake {
         };
 
         let body = match self.state {
-            State::NotBegun { inner } if inner == NotBegunState::ModeSelection => {
+            State::NotBegun { inner }
+                if inner == NotBegunState::ModeSelection
+                    || inner == NotBegunState::MPCreateJoinLobby =>
+            {
                 html! {
                     <>
                     <Global css={"background-color: black;"}/>
@@ -670,6 +687,7 @@ impl Snake {
 #[derive(Clone, Copy, PartialEq)]
 pub enum NotBegunState {
     ModeSelection,
+    MPCreateJoinLobby,
     Initial,
     Ended,
 }
