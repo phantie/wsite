@@ -249,9 +249,15 @@ impl Component for Snake {
                 html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
             }
             State::NotBegun { inner } if inner == NotBegunState::ModeSelection => {
+                let sp_onclick = ctx.link().callback(move |e| {
+                    Self::Message::StateChange(State::NotBegun {
+                        inner: NotBegunState::Initial,
+                    })
+                });
+
                 html! {
                     <>
-                    <button>{ "Singleplayer" }</button>
+                    <button onclick={ sp_onclick }>{ "Singleplayer" }</button>
                     <button>{ "Multiplayer" }</button>
                     </>
                 }
