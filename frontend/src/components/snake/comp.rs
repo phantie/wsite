@@ -248,6 +248,14 @@ impl Component for Snake {
             State::Begun { .. } => {
                 html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
             }
+            State::NotBegun { inner } if inner == NotBegunState::MPCreateLobby => {
+                let onsubmit = |_| unimplemented!();
+                html! {
+                    <form {onsubmit} method="post">
+                        <input type="text" name="id"/>
+                    </form>
+                }
+            }
             State::NotBegun { inner } if inner == NotBegunState::ModeSelection => {
                 let sp_onclick = ctx.link().callback(move |e| {
                     Self::Message::StateChange(State::NotBegun {
@@ -269,9 +277,15 @@ impl Component for Snake {
                 }
             }
             State::NotBegun { inner } if inner == NotBegunState::MPCreateJoinLobby => {
+                let create_onclick = ctx.link().callback(move |e| {
+                    Self::Message::StateChange(State::NotBegun {
+                        inner: NotBegunState::MPCreateLobby,
+                    })
+                });
+
                 html! {
                     <>
-                    <button>{ "Create server" }</button>
+                    <button onclick={create_onclick}>{ "Create server" }</button>
                     <button>{ "Join server" }</button>
                     </>
                 }
@@ -311,9 +325,6 @@ impl Component for Snake {
 
                 let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
                 let items = match inner {
-                    NotBegunState::ModeSelection | NotBegunState::MPCreateJoinLobby => {
-                        unreachable!("caught before")
-                    }
                     NotBegunState::Initial => {
                         html! {
                             <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Start" }</div>
@@ -327,6 +338,9 @@ impl Component for Snake {
                             </>
                         }
                     }
+                    _ => {
+                        unreachable!("caught before")
+                    }
                 };
 
                 html! {
@@ -339,17 +353,8 @@ impl Component for Snake {
 
         let body = match self.state {
             State::NotBegun { inner }
-                if inner == NotBegunState::ModeSelection
-                    || inner == NotBegunState::MPCreateJoinLobby =>
+                if inner == NotBegunState::Initial || inner == NotBegunState::Ended =>
             {
-                html! {
-                    <>
-                    <Global css={"background-color: black;"}/>
-                    {main_area}
-                    </>
-                }
-            }
-            _ => {
                 html! {
                     <div class={ wrapper_style }>
                         { main_area }
@@ -357,6 +362,14 @@ impl Component for Snake {
                             { btns }
                         </div>
                     </div>
+                }
+            }
+            _ => {
+                html! {
+                    <>
+                    <Global css={"background-color: black;"}/>
+                    {main_area}
+                    </>
                 }
             }
         };
@@ -688,6 +701,7 @@ impl Snake {
 pub enum NotBegunState {
     ModeSelection,
     MPCreateJoinLobby,
+    MPCreateLobby,
     Initial,
     Ended,
 }
