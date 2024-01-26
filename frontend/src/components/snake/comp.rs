@@ -249,10 +249,48 @@ impl Component for Snake {
                 html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
             }
             State::NotBegun { inner } if inner == NotBegunState::MPCreateLobby => {
-                let onsubmit = |_| unimplemented!();
+                let name_ref = NodeRef::default();
+
+                async fn post_lobby(form: &interfacing::snake::CreateLobby) -> request::SendResult {
+                    Request::post("/api/snake/lobby")
+                        .json(&form)
+                        .unwrap()
+                        .send()
+                        .await
+                }
+
+                let onsubmit = {
+                    let name_ref = name_ref.clone();
+
+                    ctx.link().callback_future(move |event: SubmitEvent| {
+                        event.prevent_default();
+
+                        let name = name_ref.cast::<HtmlInputElement>().unwrap().value();
+
+                        let form = interfacing::snake::CreateLobby { name };
+
+                        async move {
+                            console::log!(format!("submitting: {:?}", form));
+                            let r = post_lobby(&form).await.unwrap();
+                            r.log_status();
+
+                            match r.status() {
+                                200 => {
+                                    console::log!("lobby created");
+
+                                    // TODO implement
+                                    Self::Message::Nothing
+                                }
+                                // TODO handle errors for validation
+                                _ => unimplemented!(),
+                            }
+                        }
+                    })
+                };
+
                 html! {
                     <form {onsubmit} method="post">
-                        <input type="text" name="id"/>
+                        <input type="text" ref={name_ref}/>
                     </form>
                 }
             }

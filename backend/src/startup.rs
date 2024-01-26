@@ -79,7 +79,8 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .route(
             routes.endpoint_hits.github.wsite.get().postfix(),
             get(wsite_github_hit),
-        );
+        )
+        .route("/lobby", post(snake::create_lobby));
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 

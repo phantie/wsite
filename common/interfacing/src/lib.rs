@@ -5,6 +5,7 @@ mod article;
 mod endpoint_hits;
 mod login_form;
 mod password_change_form;
+pub mod snake;
 
 pub use admin_session::AdminSession;
 pub use article::{Article, ArticleWithId};
