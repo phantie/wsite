@@ -61,15 +61,22 @@ pub enum SnakeMsg {
     CameraToggle,
     ThemeContextUpdate(ThemeCtx),
     Nothing,
+    RedirectToLobby { id: String },
     StateChange(State),
     Begin,
     PauseUnpause,
     ToMenu,
 }
 
+#[derive(Properties, PartialEq)]
+pub struct Props {
+    #[prop_or(STATE)]
+    pub state: State,
+}
+
 impl Component for Snake {
     type Message = SnakeMsg;
-    type Properties = ();
+    type Properties = Props;
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
@@ -77,7 +84,7 @@ impl Component for Snake {
         let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
         let adjust_algo = ADJUST_ALGO.into_algo(&domain);
 
-        let state = STATE;
+        let state = ctx.props().state.clone();
 
         let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
         match state {
@@ -87,7 +94,7 @@ impl Component for Snake {
 
         Self {
             domain,
-            state,
+            state: state.clone(),
 
             canvas_requires_fit: match state {
                 State::Begun { .. } => true,
@@ -244,11 +251,34 @@ impl Component for Snake {
             }
         };
 
-        let main_area = match self.state {
+        let main_area = match &self.state {
             State::Begun { .. } => {
                 html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
             }
-            State::NotBegun { inner } if inner == NotBegunState::MPCreateLobby => {
+            // State::NotBegun { inner: _inner }
+            //     if matches!(_inner, NotBegunState::MPLobby { .. }) =>
+            State::NotBegun {
+                inner: NotBegunState::MPLobby { name, state },
+            } => {
+                match state {
+                    MPLobbyState::ToBeLoaded => {
+                        // TODO make request to server
+                        // TODO from this point on WS connection must be kept until you leave the lobby
+                        // TODO implement endpoint
+
+                        html! { <h1> {"Loading..."} </h1> }
+                    }
+                    MPLobbyState::Loaded => {
+                        html! { <> {"Lobby: "} { name } </> }
+                    }
+                    MPLobbyState::DoesNotExist => {
+                        html! { <> {"Lobby does not exist: "} { name }  </> }
+                    }
+                }
+            }
+            State::NotBegun {
+                inner: NotBegunState::MPCreateLobby,
+            } => {
                 let name_ref = NodeRef::default();
 
                 async fn post_lobby(form: &interfacing::snake::CreateLobby) -> request::SendResult {
@@ -267,7 +297,7 @@ impl Component for Snake {
 
                         let name = name_ref.cast::<HtmlInputElement>().unwrap().value();
 
-                        let form = interfacing::snake::CreateLobby { name };
+                        let form = interfacing::snake::CreateLobby { name: name.clone() };
 
                         async move {
                             console::log!(format!("submitting: {:?}", form));
@@ -278,8 +308,13 @@ impl Component for Snake {
                                 200 => {
                                     console::log!("lobby created");
 
-                                    // TODO implement
-                                    Self::Message::Nothing
+                                    Self::Message::RedirectToLobby { id: name }
+                                    // Self::Message::StateChange(State::NotBegun {
+                                    //     inner: NotBegunState::MPLobby {
+                                    //         name,
+                                    //         state: MPLobbyState::ToBeLoaded,
+                                    //     },
+                                    // })
                                 }
                                 // TODO handle errors for validation
                                 _ => unimplemented!(),
@@ -294,7 +329,9 @@ impl Component for Snake {
                     </form>
                 }
             }
-            State::NotBegun { inner } if inner == NotBegunState::ModeSelection => {
+            State::NotBegun {
+                inner: NotBegunState::ModeSelection,
+            } => {
                 let sp_onclick = ctx.link().callback(move |e| {
                     Self::Message::StateChange(State::NotBegun {
                         inner: NotBegunState::Initial,
@@ -314,7 +351,9 @@ impl Component for Snake {
                     </>
                 }
             }
-            State::NotBegun { inner } if inner == NotBegunState::MPCreateJoinLobby => {
+            State::NotBegun {
+                inner: NotBegunState::MPCreateJoinLobby,
+            } => {
                 let create_onclick = ctx.link().callback(move |e| {
                     Self::Message::StateChange(State::NotBegun {
                         inner: NotBegunState::MPCreateLobby,
@@ -389,10 +428,11 @@ impl Component for Snake {
             }
         };
 
-        let body = match self.state {
-            State::NotBegun { inner }
-                if inner == NotBegunState::Initial || inner == NotBegunState::Ended =>
-            {
+        let body = match &self.state {
+            State::NotBegun {
+                inner: NotBegunState::Initial | NotBegunState::Ended,
+            }
+            | State::Begun { .. } => {
                 html! {
                     <div class={ wrapper_style }>
                         { main_area }
@@ -405,7 +445,7 @@ impl Component for Snake {
             _ => {
                 html! {
                     <>
-                    <Global css={"background-color: black;"}/>
+                    <Global css={"background-color: black; color: white;"}/>
                     {main_area}
                     </>
                 }
@@ -457,6 +497,16 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
+            Self::Message::RedirectToLobby { id } => {
+                let navigator = ctx.link().navigator().unwrap();
+                navigator.push(&Route::SnakeLobby { id: id.clone() });
+                // TODO after navigator.push() this should not be needed
+                // TODO investigate browser "back" action
+                // NOTE if issue not resolved this can be inlined where used
+                ctx.link()
+                    .send_message(Self::Message::StateChange(State::to_be_loaded_lobby(id)));
+                true
+            }
             Self::Message::WindowLoaded => {
                 ctx.link().send_message(Self::Message::FitCanvasImmediately);
                 false
@@ -551,7 +601,7 @@ impl Component for Snake {
                 true
             }
             Self::Message::StateChange(new_state) if new_state == self.state => false,
-            Self::Message::StateChange(new_state @ State::Begun { paused }) => {
+            Self::Message::StateChange(ref new_state @ State::Begun { paused }) => {
                 if paused {
                     self.advance_interval.stop();
                 } else {
@@ -565,7 +615,7 @@ impl Component for Snake {
                     }
                 }
 
-                self.state = new_state;
+                self.state = new_state.clone();
                 true
             }
             Self::Message::StateChange(new_state @ State::NotBegun { .. }) => {
@@ -735,19 +785,38 @@ impl Snake {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
+pub enum MPLobbyState {
+    ToBeLoaded,
+    Loaded,
+    DoesNotExist,
+}
+
+#[derive(Clone, PartialEq)]
 pub enum NotBegunState {
     ModeSelection,
     MPCreateJoinLobby,
     MPCreateLobby,
+    MPLobby { name: String, state: MPLobbyState },
     Initial,
     Ended,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum State {
     Begun { paused: bool },
     NotBegun { inner: NotBegunState },
+}
+
+impl State {
+    pub fn to_be_loaded_lobby(id: String) -> Self {
+        State::NotBegun {
+            inner: NotBegunState::MPLobby {
+                name: id,
+                state: MPLobbyState::ToBeLoaded,
+            },
+        }
+    }
 }
 
 pub enum Camera {

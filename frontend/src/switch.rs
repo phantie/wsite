@@ -60,6 +60,12 @@ pub fn switch(routes: Route) -> Html {
                 <Snake/>
             }
         }
+        Route::SnakeLobby { id } => {
+            html! {
+                // TODO refactor
+                <Snake state={snake::comp::State::to_be_loaded_lobby(id) }/>
+            }
+        }
         Route::Ref => {
             html! { <yew_router::prelude::Redirect<Route> to={Route::Home}/> }
         }

@@ -15,7 +15,7 @@ mod markdown_preview_page;
 mod online;
 mod online_ctx;
 mod post;
-mod snake;
+pub mod snake;
 mod title;
 
 pub mod admin;
