@@ -501,8 +501,16 @@ impl Component for Snake {
                 let navigator = ctx.link().navigator().unwrap();
                 navigator.push(&Route::SnakeLobby { id: id.clone() });
                 // TODO after navigator.push() this should not be needed
-                // TODO investigate browser "back" action
                 // NOTE if issue not resolved this can be inlined where used
+                // NOTE I presume, it happens so, because it transitions
+                // to the same component without recreating passing through Switch
+                // since it does not, no action is taken
+                //
+                // TODO investigate browser "back" action
+                // NOTE again since it's trasitioning to the same component,
+                // back button does not nothing, expecting that behaviour
+                // would be added manually
+                //
                 ctx.link()
                     .send_message(Self::Message::StateChange(State::to_be_loaded_lobby(id)));
                 true
