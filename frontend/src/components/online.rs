@@ -1,5 +1,5 @@
-fn msg_stream(r: futures::stream::SplitStream<WebSocket>) -> impl Stream<Item = Msg> {
-    r.map(|i| match i {
+fn read_stream(stream: SplitStream<WebSocket>) -> impl Stream<Item = Msg> {
+    stream.map(|i| match i {
         Ok(msg) => match msg {
             Message::Text(text) => {
                 console::log!(&text);
@@ -43,7 +43,7 @@ impl Component for Online {
         let url = crate::ws::prepare_relative_url("/ws/users_online");
         let ws = WebSocket::open(&url).unwrap();
         let (_write, read) = ws.split();
-        ctx.link().send_stream(msg_stream(read));
+        ctx.link().send_stream(read_stream(read));
         Self {}
     }
 
@@ -63,5 +63,4 @@ impl Component for Online {
 }
 
 use crate::components::imports::*;
-use futures::{Stream, StreamExt};
-use gloo_net::websocket::{futures::WebSocket, Message};
+use crate::ws::imports::*;

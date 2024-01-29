@@ -1,3 +1,5 @@
+// TODO it can be refactor using StateCtd
+
 use crate::components::imports::*;
 
 type Online = i32;
