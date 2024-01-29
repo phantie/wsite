@@ -1013,6 +1013,7 @@ pub struct Listeners {
     kb_listener: EventListener,
     window_load_listener: EventListener,
     window_resize_listener: EventListener,
+    location_listener: LocationHandle,
 }
 
 impl Listeners {
@@ -1075,10 +1076,20 @@ impl Listeners {
             )
         };
 
+        let location_listener = link
+            .add_location_listener(link.callback(|e: Location| {
+                let path = e.path();
+                // console::log!("location changed", path);
+                // TODO implement when needed
+                SnakeMsg::Nothing
+            }))
+            .unwrap();
+
         Self {
             kb_listener,
             window_load_listener,
             window_resize_listener,
+            location_listener,
         }
     }
 }
