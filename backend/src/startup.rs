@@ -80,7 +80,8 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
             routes.endpoint_hits.github.wsite.get().postfix(),
             get(wsite_github_hit),
         )
-        .route("/lobby", post(snake::create_lobby));
+        // TODO investigate why POST on /lobby gives 200
+        .route("/snake/lobby", post(snake::create_lobby));
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 
@@ -114,6 +115,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .layer(CompressionLayer::new())
         .layer(axum::middleware::from_fn(endpoint_hit_middleware))
         .layer(AddExtensionLayer::new(db.clone()))
+        .layer(AddExtensionLayer::new(mp_snake::Lobbies::default()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
@@ -129,6 +131,68 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
 
             SessionLayer::new(store, decoded.as_slice()).with_secure(true)
         })
+}
+
+// TODO move out
+pub mod mp_snake {
+    type LobbyName = String;
+
+    #[derive(Clone)]
+    pub struct Player {
+        name: String,
+    }
+
+    #[derive(Clone)]
+    pub struct Lobby {
+        name: LobbyName,
+        players: Vec<Player>,
+    }
+
+    impl Lobby {
+        pub fn new(name: LobbyName) -> Self {
+            Self {
+                name,
+                players: vec![],
+            }
+        }
+    }
+
+    // TODO Value In HashMap (Lobby) Should be wrapped in RwLock or Something
+    // to increase concurrency by accessing through outer RwLock using read
+    type Inner = std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<LobbyName, Lobby>>>;
+
+    #[derive(Clone, Default)]
+    pub struct Lobbies(Inner);
+
+    impl std::ops::Deref for Lobbies {
+        type Target = Inner;
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl Lobbies {
+        pub async fn get(&self, name: &LobbyName) -> Option<Lobby> {
+            self.read().await.get(name).cloned()
+        }
+
+        pub async fn insert_if_missing(&self, lobby: Lobby) -> Result<(), String> {
+            use std::collections::hash_map::Entry;
+            let mut w_lock = self.write().await;
+
+            match w_lock.entry(lobby.name.clone()) {
+                Entry::Occupied(_) => Err("Lobby with this name already exists".into()),
+                Entry::Vacant(_) => {
+                    w_lock.insert(lobby.name.clone(), lobby);
+                    Ok(())
+                }
+            }
+        }
+
+        async fn insert(&self, lobby: Lobby) {
+            self.write().await.insert(lobby.name.clone(), lobby);
+        }
+    }
 }
 
 async fn endpoint_hit_middleware<B>(

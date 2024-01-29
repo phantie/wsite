@@ -231,7 +231,7 @@ pub fn ensure_sessions_table(db: &DbInstance) -> OpResult {
     op_result(result)
 }
 
-#[tracing::instrument(name = "Put session", ret, skip(db))]
+// #[tracing::instrument(name = "Put session", ret, skip(db))]
 pub fn put_session(db: &DbInstance, id: &str, value: &str) -> OpResult {
     let script = include_str!("sessions/put.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
@@ -242,7 +242,7 @@ pub fn put_session(db: &DbInstance, id: &str, value: &str) -> OpResult {
     op_result(result)
 }
 
-#[tracing::instrument(name = "Find session by id", ret, skip(db))]
+// #[tracing::instrument(name = "Find session by id", ret, skip(db))]
 pub fn find_session_by_id<'de>(db: &DbInstance, id: &str) -> Result<Option<String>> {
     let script = include_str!("sessions/find_by_id.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {
@@ -288,7 +288,7 @@ pub fn ensure_endpoint_hits(db: &DbInstance) -> OpResult {
     op_result(result)
 }
 
-#[tracing::instrument(name = "Put endpoint hit", skip_all)]
+// #[tracing::instrument(name = "Put endpoint hit", skip_all)]
 pub fn put_endpoint_hit(db: &DbInstance, value: interfacing::EndpointHit) -> OpResult {
     let script = include_str!("endpoint_hits/put.cozo");
     let params: BTreeMap<String, DataValue> = map_macro::btree_map! {

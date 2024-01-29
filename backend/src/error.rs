@@ -12,6 +12,10 @@ pub enum ApiError {
     #[error("Bad request")]
     BadRequest,
 
+    // TODO add option to include custom message in response
+    #[error("Conflict")]
+    Conflict(String),
+
     #[error("Database error: {0}")]
     DbError(#[from] crate::db::Error),
 
@@ -27,6 +31,7 @@ impl axum::response::IntoResponse for ApiError {
         let trace_message = match &self {
             Self::AuthError(e) => format!("{}: {}", self, e.root_cause()),
             Self::DbError(e) => format!("{:?}", e),
+            Self::Conflict(e) => format!("{:?}", e),
             _ => self.to_string(),
         };
         tracing::error!("{}", trace_message);
@@ -41,6 +46,7 @@ impl axum::response::IntoResponse for ApiError {
             Self::DbError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             // Self::DatabaseInsertError(_e) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::FutureTimeout => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Conflict(_e) => StatusCode::CONFLICT,
         }
         .into_response()
     }
