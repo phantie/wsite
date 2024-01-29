@@ -345,6 +345,12 @@ impl Component for Snake {
                                     // })
                                 }
                                 // TODO handle errors for validation
+                                409 => {
+                                    web_sys::window()
+                                        .unwrap()
+                                        .alert_with_message("Lobby with this name already exists");
+                                    Self::Message::Nothing
+                                }
                                 _ => unimplemented!(),
                             }
                         }
