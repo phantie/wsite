@@ -92,6 +92,34 @@ impl Component for Snake {
             State::NotBegun { .. } => {}
         }
 
+        {
+            fn read_stream(stream: SplitStream<WebSocket>) -> impl Stream<Item = SnakeMsg> {
+                stream.map(|i| match i {
+                    Ok(msg) => match msg {
+                        Message::Text(text) => {
+                            console::log!("Read stream from Snake", &text);
+                            SnakeMsg::Nothing
+                        }
+                        Message::Bytes(_) => unimplemented!(),
+                    },
+                    // TODO impl reconnect
+                    Err(gloo_net::websocket::WebSocketError::ConnectionClose(e)) => {
+                        console::log!(format!("{} {} {}", e.code, e.reason, e.was_clean));
+                        SnakeMsg::Nothing
+                    }
+                    Err(gloo_net::websocket::WebSocketError::ConnectionError) => SnakeMsg::Nothing,
+                    Err(gloo_net::websocket::WebSocketError::MessageSendError(_)) => unreachable!(),
+                    Err(_) => SnakeMsg::Nothing,
+                })
+            }
+
+            let url = crate::ws::prepare_relative_url("/ws/users_online");
+            let ws = WebSocket::open(&url).unwrap();
+            let (_write, read) = ws.split();
+            ctx.link().send_stream(read_stream(read));
+            use crate::ws::imports::*;
+        }
+
         Self {
             domain,
             state: state.clone(),

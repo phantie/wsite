@@ -33,6 +33,9 @@ pub fn prepare_relative_url(relative_url: &str) -> String {
 }
 
 pub mod imports {
-    pub use futures::{stream::SplitStream, Stream, StreamExt};
+    pub use futures::{
+        stream::{SplitSink, SplitStream},
+        Stream, StreamExt,
+    };
     pub use gloo_net::websocket::{futures::WebSocket, Message};
 }
