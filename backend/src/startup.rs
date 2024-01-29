@@ -81,7 +81,8 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
             get(wsite_github_hit),
         )
         // TODO investigate why POST on /lobby gives 200
-        .route("/snake/lobby", post(snake::create_lobby));
+        .route("/snake/lobby", post(snake::create_lobby))
+        .route("/snake/lobby/:name", get(snake::get_lobby));
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 
@@ -135,7 +136,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
 
 // TODO move out
 pub mod mp_snake {
-    type LobbyName = String;
+    pub type LobbyName = String;
 
     #[derive(Clone)]
     pub struct Player {
@@ -144,7 +145,7 @@ pub mod mp_snake {
 
     #[derive(Clone)]
     pub struct Lobby {
-        name: LobbyName,
+        pub name: LobbyName,
         players: Vec<Player>,
     }
 

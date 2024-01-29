@@ -292,7 +292,33 @@ impl Component for Snake {
                     MPLobbyState::ToBeLoaded => {
                         // TODO make request to server
                         // TODO from this point on WS connection must be kept until you leave the lobby
-                        // TODO implement endpoint
+
+                        pub async fn get_lobby(
+                            name: String,
+                        ) -> Result<interfacing::snake::GetLobby, ()> {
+                            let response = Request::get(&format!("/api/snake/lobby/{}", name))
+                                .send()
+                                .await
+                                .unwrap(); // TODO handle
+
+                            match response.status() {
+                                200 => Ok(response
+                                    .json::<interfacing::snake::GetLobby>()
+                                    .await
+                                    .unwrap()), // TODO handle
+                                _ => unimplemented!(), // TODO handle
+                            }
+                        }
+
+                        // {
+                        //     let name = name.clone();
+                        //     ctx.link().send_future(async move {
+                        //         match get_lobby(name.clone()).await {
+                        //             Ok(lobby) => unimplemented!(),
+                        //             Err(_e) => Self::Message::Nothing,
+                        //         }
+                        //     });
+                        // }
 
                         html! { <h1> {"Loading..."} </h1> }
                     }

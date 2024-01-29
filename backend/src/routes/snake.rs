@@ -17,3 +17,19 @@ pub async fn create_lobby(
         Err(msg) => Err(ApiError::Conflict(msg)),
     }
 }
+
+#[axum_macros::debug_handler]
+pub async fn get_lobby(
+    Extension(lobbies): Extension<mp_snake::Lobbies>,
+    Path(name): Path<mp_snake::LobbyName>,
+) -> ApiResult<impl IntoResponse> {
+    let result = lobbies
+        .get(&name)
+        .await
+        .map(|lobby| interfacing::snake::GetLobby { name: lobby.name });
+
+    match result {
+        Some(lobby) => Ok(Json(lobby)),
+        None => Err(ApiError::EntryNotFound),
+    }
+}
