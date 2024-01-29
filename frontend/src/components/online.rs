@@ -4,7 +4,7 @@ fn read_stream(stream: SplitStream<WebSocket>) -> impl Stream<Item = Msg> {
             Message::Text(text) => {
                 console::log!(&text);
                 match parse_online(&text) {
-                    Ok(online) => Msg::OnlineChanged(online),
+                    Ok((_, online)) => Msg::OnlineChanged(online),
                     Err(_) => unimplemented!(),
                 }
             }
@@ -14,10 +14,10 @@ fn read_stream(stream: SplitStream<WebSocket>) -> impl Stream<Item = Msg> {
     })
 }
 
-fn parse_online(value: &str) -> Result<i32, anyhow::Error> {
-    let r: Result<_, nom::Err<()>> = nom::bytes::complete::tag("users_online:")(value);
-    let (num, _prefix) = r?;
-    Ok(num.parse()?)
+fn parse_online(value: &str) -> nom::IResult<&str, i32> {
+    let (value, _) = nom::bytes::complete::tag("users_online:")(value)?;
+    let (value, result) = nom::character::complete::i32(value)?;
+    Ok((value, result))
 }
 
 type Count = i32;
