@@ -60,10 +60,10 @@ pub fn switch(routes: Route) -> Html {
                 <Snake/>
             }
         }
-        Route::SnakeLobby { id } => {
+        Route::SnakeLobby { lobby_name } => {
             html! {
                 // TODO refactor
-                <Snake state={snake::comp::State::to_be_loaded_lobby(id) }/>
+                <Snake state={snake::comp::State::to_be_loaded_lobby(lobby_name) }/>
             }
         }
         Route::Ref => {

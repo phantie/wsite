@@ -61,7 +61,10 @@ pub enum SnakeMsg {
     CameraToggle,
     ThemeContextUpdate(ThemeCtx),
     Nothing,
-    RedirectToLobby { id: String },
+    RedirectToLobby {
+        lobby_name: LobbyName,
+        joined_as: Option<UserName>,
+    },
     StateChange(State),
     Begin,
     PauseUnpause,
@@ -279,156 +282,205 @@ impl Component for Snake {
             }
         };
 
-        let main_area = match &self.state {
-            State::Begun { .. } => {
-                html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
-            }
-            // State::NotBegun { inner: _inner }
-            //     if matches!(_inner, NotBegunState::MPLobby { .. }) =>
-            State::NotBegun {
-                inner: NotBegunState::MPLobby { name, state },
-            } => {
-                match state {
-                    MPLobbyState::ToBeLoaded => {
-                        // TODO make request to server
-                        // TODO from this point on WS connection must be kept until you leave the lobby
+        let main_area = 'main_area: {
+            match &self.state {
+                State::Begun { .. } => {
+                    html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
+                }
+                State::NotBegun {
+                    inner:
+                        NotBegunState::MPLobby {
+                            joined_as,
+                            lobby_name,
+                            state,
+                        },
+                } => {
+                    match joined_as {
+                        None => {
+                            let name_ref = NodeRef::default();
 
-                        pub async fn get_lobby(
-                            name: String,
-                        ) -> Result<interfacing::snake::GetLobby, ()> {
-                            let response = Request::get(&format!("/api/snake/lobby/{}", name))
-                                .send()
-                                .await
-                                .unwrap(); // TODO handle
+                            let onsubmit = {
+                                let name_ref = name_ref.clone();
+                                let lobby_name = lobby_name.clone();
 
-                            match response.status() {
-                                200 => Ok(response
-                                    .json::<interfacing::snake::GetLobby>()
+                                ctx.link().callback_future(move |event: SubmitEvent| {
+                                    event.prevent_default();
+                                    let lobby_name = lobby_name.clone();
+
+                                    let joined_as =
+                                        name_ref.cast::<HtmlInputElement>().unwrap().value();
+
+                                    async move {
+                                        // TODO must request to join lobby
+                                        Self::Message::RedirectToLobby {
+                                            lobby_name,
+                                            joined_as: Some(joined_as),
+                                        }
+                                    }
+                                })
+                            };
+
+                            // TODO refactor
+                            break 'main_area html! {
+                                <>
+                                {"Join as..."}
+                                <form {onsubmit} method="post">
+                                    <input type="text" ref={name_ref}/>
+                                </form>
+                                </>
+                            };
+                        }
+                        Some(joined_as) => {}
+                    }
+
+                    let joined_as = joined_as.as_ref().unwrap();
+
+                    match state {
+                        MPLobbyState::ToBeLoaded => {
+                            // TODO make request to server
+                            // TODO from this point on WS connection must be kept until you leave the lobby
+
+                            pub async fn get_lobby(
+                                name: String,
+                            ) -> Result<interfacing::snake::GetLobby, ()>
+                            {
+                                let response = Request::get(&format!("/api/snake/lobby/{}", name))
+                                    .send()
                                     .await
-                                    .unwrap()), // TODO handle
-                                _ => unimplemented!(), // TODO handle
-                            }
-                        }
+                                    .unwrap(); // TODO handle
 
-                        // {
-                        //     let name = name.clone();
-                        //     ctx.link().send_future(async move {
-                        //         match get_lobby(name.clone()).await {
-                        //             Ok(lobby) => unimplemented!(),
-                        //             Err(_e) => Self::Message::Nothing,
-                        //         }
-                        //     });
-                        // }
-
-                        html! { <h1> {"Loading..."} </h1> }
-                    }
-                    MPLobbyState::Loaded => {
-                        html! { <> {"Lobby: "} { name } </> }
-                    }
-                    MPLobbyState::DoesNotExist => {
-                        html! { <> {"Lobby does not exist: "} { name }  </> }
-                    }
-                }
-            }
-            State::NotBegun {
-                inner: NotBegunState::MPCreateLobby,
-            } => {
-                let name_ref = NodeRef::default();
-
-                async fn post_lobby(form: &interfacing::snake::CreateLobby) -> request::SendResult {
-                    Request::post("/api/snake/lobby")
-                        .json(&form)
-                        .unwrap()
-                        .send()
-                        .await
-                }
-
-                let onsubmit = {
-                    let name_ref = name_ref.clone();
-
-                    ctx.link().callback_future(move |event: SubmitEvent| {
-                        event.prevent_default();
-
-                        let name = name_ref.cast::<HtmlInputElement>().unwrap().value();
-
-                        let form = interfacing::snake::CreateLobby { name: name.clone() };
-
-                        async move {
-                            console::log!(format!("submitting: {:?}", form));
-                            let r = post_lobby(&form).await.unwrap();
-                            r.log_status();
-
-                            match r.status() {
-                                200 => {
-                                    console::log!("lobby created");
-
-                                    Self::Message::RedirectToLobby { id: name }
-                                    // Self::Message::StateChange(State::NotBegun {
-                                    //     inner: NotBegunState::MPLobby {
-                                    //         name,
-                                    //         state: MPLobbyState::ToBeLoaded,
-                                    //     },
-                                    // })
+                                match response.status() {
+                                    200 => Ok(response
+                                        .json::<interfacing::snake::GetLobby>()
+                                        .await
+                                        .unwrap()), // TODO handle
+                                    _ => unimplemented!(), // TODO handle
                                 }
-                                // TODO handle errors for validation
-                                409 => {
-                                    web_sys::window()
-                                        .unwrap()
-                                        .alert_with_message("Lobby with this name already exists");
-                                    Self::Message::Nothing
-                                }
-                                _ => unimplemented!(),
                             }
+
+                            // {
+                            //     let name = name.clone();
+                            //     ctx.link().send_future(async move {
+                            //         match get_lobby(name.clone()).await {
+                            //             Ok(lobby) => unimplemented!(),
+                            //             Err(_e) => Self::Message::Nothing,
+                            //         }
+                            //     });
+                            // }
+
+                            html! { <h1> {"Loading..."} </h1> }
                         }
-                    })
-                };
-
-                html! {
-                    <form {onsubmit} method="post">
-                        <input type="text" ref={name_ref}/>
-                    </form>
+                        MPLobbyState::Loaded => {
+                            html! { <> {"Lobby: "} { lobby_name } </> }
+                        }
+                        MPLobbyState::DoesNotExist => {
+                            html! { <> {"Lobby does not exist: "} { lobby_name }  </> }
+                        }
+                    }
                 }
-            }
-            State::NotBegun {
-                inner: NotBegunState::ModeSelection,
-            } => {
-                let sp_onclick = ctx.link().callback(move |e| {
-                    Self::Message::StateChange(State::NotBegun {
-                        inner: NotBegunState::Initial,
-                    })
-                });
+                State::NotBegun {
+                    inner: NotBegunState::MPCreateLobby,
+                } => {
+                    let name_ref = NodeRef::default();
 
-                let mp_onclick = ctx.link().callback(move |e| {
-                    Self::Message::StateChange(State::NotBegun {
-                        inner: NotBegunState::MPCreateJoinLobby,
-                    })
-                });
+                    async fn post_lobby(
+                        form: &interfacing::snake::CreateLobby,
+                    ) -> request::SendResult {
+                        Request::post("/api/snake/lobby")
+                            .json(&form)
+                            .unwrap()
+                            .send()
+                            .await
+                    }
 
-                html! {
-                    <>
-                    <button onclick={ sp_onclick }>{ "Singleplayer" }</button>
-                    <button onclick={ mp_onclick }>{ "Multiplayer" }</button>
-                    </>
+                    let onsubmit = {
+                        let name_ref = name_ref.clone();
+
+                        ctx.link().callback_future(move |event: SubmitEvent| {
+                            event.prevent_default();
+
+                            let name = name_ref.cast::<HtmlInputElement>().unwrap().value();
+
+                            let form = interfacing::snake::CreateLobby { name: name.clone() };
+
+                            async move {
+                                console::log!(format!("submitting: {:?}", form));
+                                let r = post_lobby(&form).await.unwrap();
+                                r.log_status();
+
+                                match r.status() {
+                                    200 => {
+                                        console::log!("lobby created");
+
+                                        Self::Message::RedirectToLobby {
+                                            lobby_name: name,
+                                            joined_as: None,
+                                        }
+                                        // Self::Message::StateChange(State::NotBegun {
+                                        //     inner: NotBegunState::MPPrejoinLobby {
+                                        //         lobby_name: form.name,
+                                        //     },
+                                        // })
+                                    }
+                                    // TODO handle errors for validation
+                                    409 => {
+                                        web_sys::window().unwrap().alert_with_message(
+                                            "Lobby with this name already exists",
+                                        );
+                                        Self::Message::Nothing
+                                    }
+                                    _ => unimplemented!(),
+                                }
+                            }
+                        })
+                    };
+
+                    html! {
+                        <form {onsubmit} method="post">
+                            <input type="text" ref={name_ref}/>
+                        </form>
+                    }
                 }
-            }
-            State::NotBegun {
-                inner: NotBegunState::MPCreateJoinLobby,
-            } => {
-                let create_onclick = ctx.link().callback(move |e| {
-                    Self::Message::StateChange(State::NotBegun {
-                        inner: NotBegunState::MPCreateLobby,
-                    })
-                });
+                State::NotBegun {
+                    inner: NotBegunState::ModeSelection,
+                } => {
+                    let sp_onclick = ctx.link().callback(move |e| {
+                        Self::Message::StateChange(State::NotBegun {
+                            inner: NotBegunState::Initial,
+                        })
+                    });
 
-                html! {
-                    <>
-                    <button onclick={create_onclick}>{ "Create server" }</button>
-                    <button>{ "Join server" }</button>
-                    </>
+                    let mp_onclick = ctx.link().callback(move |e| {
+                        Self::Message::StateChange(State::NotBegun {
+                            inner: NotBegunState::MPCreateJoinLobby,
+                        })
+                    });
+
+                    html! {
+                        <>
+                        <button onclick={ sp_onclick }>{ "Singleplayer" }</button>
+                        <button onclick={ mp_onclick }>{ "Multiplayer" }</button>
+                        </>
+                    }
                 }
-            }
-            State::NotBegun { inner } => {
-                let canvas_overlay_style = css! {"
+                State::NotBegun {
+                    inner: NotBegunState::MPCreateJoinLobby,
+                } => {
+                    let create_onclick = ctx.link().callback(move |e| {
+                        Self::Message::StateChange(State::NotBegun {
+                            inner: NotBegunState::MPCreateLobby,
+                        })
+                    });
+
+                    html! {
+                        <>
+                        <button onclick={create_onclick}>{ "Create server" }</button>
+                        <button>{ "Join server" }</button>
+                        </>
+                    }
+                }
+                State::NotBegun { inner } => {
+                    let canvas_overlay_style = css! {"
                     height: 100vh;
                     width: calc(100% - 350px);
                     background-color: ${bg_color};
@@ -439,11 +491,11 @@ impl Component for Snake {
                     font-family: 'Iosevka Web';
                     color: ${text_color};
                 ",
-                    bg_color = bg_color,
-                    text_color = text_color
-                };
+                        bg_color = bg_color,
+                        text_color = text_color
+                    };
 
-                let start_btn_style = css! {"
+                    let start_btn_style = css! {"
                     border: 4px solid ${box_border_color};
                     width: 300px; height: 100px;
                     font-size: 50px;
@@ -457,33 +509,34 @@ impl Component for Snake {
                         opacity: 0.8;
                     }
                 ",
-                    box_border_color = box_border_color
-                };
+                        box_border_color = box_border_color
+                    };
 
-                let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
-                let items = match inner {
-                    NotBegunState::Initial => {
-                        html! {
-                            <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Start" }</div>
+                    let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
+                    let items = match inner {
+                        NotBegunState::Initial => {
+                            html! {
+                                <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Start" }</div>
+                            }
                         }
-                    }
-                    NotBegunState::Ended => {
-                        html! {
-                            <>
-                                <p class={css!{"font-size: 35px;"}}>{"Game over!"}</p>
-                                <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Try again" }</div>
-                            </>
+                        NotBegunState::Ended => {
+                            html! {
+                                <>
+                                    <p class={css!{"font-size: 35px;"}}>{"Game over!"}</p>
+                                    <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Try again" }</div>
+                                </>
+                            }
                         }
-                    }
-                    _ => {
-                        unreachable!("caught before")
-                    }
-                };
+                        _ => {
+                            unreachable!("caught before")
+                        }
+                    };
 
-                html! {
-                    <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
-                        { items }
-                    </div>
+                    html! {
+                        <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
+                            { items }
+                        </div>
+                    }
                 }
             }
         };
@@ -557,9 +610,14 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
-            Self::Message::RedirectToLobby { id } => {
+            Self::Message::RedirectToLobby {
+                lobby_name,
+                joined_as,
+            } => {
                 let navigator = ctx.link().navigator().unwrap();
-                navigator.push(&Route::SnakeLobby { id: id.clone() });
+                navigator.push(&Route::SnakeLobby {
+                    lobby_name: lobby_name.clone(),
+                });
                 // TODO after navigator.push() this should not be needed
                 // NOTE if issue not resolved this can be inlined where used
                 // NOTE I presume, it happens so, because it transitions
@@ -572,7 +630,13 @@ impl Component for Snake {
                 // would be added manually
                 //
                 ctx.link()
-                    .send_message(Self::Message::StateChange(State::to_be_loaded_lobby(id)));
+                    .send_message(Self::Message::StateChange(State::NotBegun {
+                        inner: NotBegunState::MPLobby {
+                            joined_as,
+                            lobby_name,
+                            state: MPLobbyState::ToBeLoaded,
+                        },
+                    }));
                 true
             }
             Self::Message::WindowLoaded => {
@@ -860,12 +924,22 @@ pub enum MPLobbyState {
     DoesNotExist,
 }
 
+type LobbyName = String; // TODO move out
+type UserName = String;
+
 #[derive(Clone, PartialEq)]
 pub enum NotBegunState {
     ModeSelection,
     MPCreateJoinLobby,
     MPCreateLobby,
-    MPLobby { name: String, state: MPLobbyState },
+    // MPPrejoinLobby {
+    //     lobby_name: LobbyName,
+    // }, // enter your name Here
+    MPLobby {
+        joined_as: Option<UserName>,
+        lobby_name: LobbyName,
+        state: MPLobbyState,
+    },
     Initial,
     Ended,
 }
@@ -877,10 +951,11 @@ pub enum State {
 }
 
 impl State {
-    pub fn to_be_loaded_lobby(id: String) -> Self {
+    pub fn to_be_loaded_lobby(lobby_name: LobbyName) -> Self {
         State::NotBegun {
             inner: NotBegunState::MPLobby {
-                name: id,
+                joined_as: None,
+                lobby_name,
                 state: MPLobbyState::ToBeLoaded,
             },
         }

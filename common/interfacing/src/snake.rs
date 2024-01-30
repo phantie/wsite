@@ -9,3 +9,8 @@ pub struct CreateLobby {
 pub struct GetLobby {
     pub name: String,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct JoinLobbyAs {
+    pub name: String,
+}

@@ -140,12 +140,15 @@ pub mod mp_snake {
 
     #[derive(Clone)]
     pub struct Player {
+        #[allow(unused)]
         name: String,
     }
 
     #[derive(Clone)]
     pub struct Lobby {
+        #[allow(unused)]
         pub name: LobbyName,
+        #[allow(unused)]
         players: Vec<Player>,
     }
 
@@ -190,6 +193,7 @@ pub mod mp_snake {
             }
         }
 
+        #[allow(dead_code)]
         async fn insert(&self, lobby: Lobby) {
             self.write().await.insert(lobby.name.clone(), lobby);
         }
