@@ -52,7 +52,7 @@ pub mod ws {
         headers: hyper::HeaderMap,
         Extension(lobbies): Extension<mp_snake::Lobbies>,
         #[allow(unused)] Extension(ws_con_states): Extension<mp_snake::ws::WsConStates>,
-        State(state): State<AppState>,
+        Extension(users_online): Extension<UsersOnline>,
     ) -> Response {
         let ws = match maybe_ws {
             Ok(ws) => ws,
@@ -65,12 +65,12 @@ pub mod ws {
 
         let sock = con_info.socket_addr(&headers);
 
-        ws.on_upgrade(move |socket| handle_socket(socket, state, sock, lobbies))
+        ws.on_upgrade(move |socket| handle_socket(socket, users_online, sock, lobbies))
     }
 
     async fn handle_socket(
         socket: WebSocket,
-        state: AppState,
+        users_online: UsersOnline,
         sock: std::net::SocketAddr,
         #[allow(unused)] lobbies: mp_snake::Lobbies,
     ) {
@@ -81,18 +81,18 @@ pub mod ws {
         }
 
         {
-            let cons = &mut state.users_online.cons.lock().await;
+            let cons = &mut users_online.cons.lock().await;
             let cons_per_ip = *cons.entry(sock).or_default();
             cons.insert(sock, cons_per_ip + 1);
 
             let con_count = cons.len();
-            state.users_online.broadcast_con_count(con_count).await;
+            users_online.broadcast_con_count(con_count).await;
             tracing::info!("Broadcasted con count after add: {con_count}");
         }
 
         let (sender, receiver) = socket.split();
         let rh = tokio::spawn(read(receiver));
-        let con_count_r = state.users_online.con_count_r.clone();
+        let con_count_r = users_online.con_count_r.clone();
         let wh = tokio::spawn(write(sender, con_count_r));
 
         // as soon as a closed channel error returns from any of these procedures,
@@ -103,7 +103,7 @@ pub mod ws {
         };
 
         {
-            let cons = &mut state.users_online.cons.lock().await;
+            let cons = &mut users_online.cons.lock().await;
             let cons_per_ip = *cons.get(&sock).expect("Connect predates disconnect");
             if cons_per_ip == 1 {
                 cons.remove(&sock);
@@ -112,7 +112,7 @@ pub mod ws {
             }
 
             let con_count = cons.len();
-            state.users_online.broadcast_con_count(con_count).await;
+            users_online.broadcast_con_count(con_count).await;
             tracing::info!("Broadcasted con count after delete: {con_count}");
         }
     }

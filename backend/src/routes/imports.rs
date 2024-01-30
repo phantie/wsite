@@ -3,14 +3,14 @@ pub use crate::{
     authentication::{reject_anonymous_users, validate_credentials, Credentials},
     configuration::get_env,
     error::{ApiError, ApiResult},
-    startup::AppState,
+    startup::UsersOnline,
     timeout::TimeoutStrategy,
 };
 pub use anyhow::Context;
 pub use axum::{
     extract::{
         rejection::{FormRejection, JsonRejection},
-        Extension, Form, Json, Path, Query, State,
+        Extension, Form, Json, Path, Query,
     },
     http::{header, StatusCode},
     response::{IntoResponse, Response},

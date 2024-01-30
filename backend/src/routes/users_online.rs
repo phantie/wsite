@@ -12,7 +12,7 @@ pub async fn ws_users_online(
     maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
     ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
     headers: hyper::HeaderMap,
-    State(state): State<AppState>,
+    Extension(users_online): Extension<UsersOnline>,
 ) -> Response {
     let ws = match maybe_ws {
         Ok(ws) => ws,
@@ -25,10 +25,10 @@ pub async fn ws_users_online(
 
     let sock = con_info.socket_addr(&headers);
 
-    ws.on_upgrade(move |socket| handle_socket(socket, state, sock))
+    ws.on_upgrade(move |socket| handle_socket(socket, users_online, sock))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState, sock: std::net::SocketAddr) {
+async fn handle_socket(socket: WebSocket, users_online: UsersOnline, sock: std::net::SocketAddr) {
     if get_env().local() {
         tracing::info!("Client connected: {:?}", sock);
     } else {
@@ -36,18 +36,18 @@ async fn handle_socket(socket: WebSocket, state: AppState, sock: std::net::Socke
     }
 
     {
-        let cons = &mut state.users_online.cons.lock().await;
+        let cons = &mut users_online.cons.lock().await;
         let cons_per_ip = *cons.entry(sock).or_default();
         cons.insert(sock, cons_per_ip + 1);
 
         let con_count = cons.len();
-        state.users_online.broadcast_con_count(con_count).await;
+        users_online.broadcast_con_count(con_count).await;
         tracing::info!("Broadcasted con count after add: {con_count}");
     }
 
     let (sender, receiver) = socket.split();
     let rh = tokio::spawn(read(receiver));
-    let con_count_r = state.users_online.con_count_r.clone();
+    let con_count_r = users_online.con_count_r.clone();
     let wh = tokio::spawn(write(sender, con_count_r));
 
     // as soon as a closed channel error returns from any of these procedures,
@@ -58,7 +58,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, sock: std::net::Socke
     };
 
     {
-        let cons = &mut state.users_online.cons.lock().await;
+        let cons = &mut users_online.cons.lock().await;
         let cons_per_ip = *cons.get(&sock).expect("Connect predates disconnect");
         if cons_per_ip == 1 {
             cons.remove(&sock);
@@ -67,7 +67,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, sock: std::net::Socke
         }
 
         let con_count = cons.len();
-        state.users_online.broadcast_con_count(con_count).await;
+        users_online.broadcast_con_count(con_count).await;
         tracing::info!("Broadcasted con count after delete: {con_count}");
     }
 }

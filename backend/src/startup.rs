@@ -38,7 +38,7 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
+pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -117,6 +117,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .layer(CompressionLayer::new())
         .layer(axum::middleware::from_fn(endpoint_hit_middleware))
         .layer(AddExtensionLayer::new(db.clone()))
+        .layer(AddExtensionLayer::new(UsersOnline::new()))
         .layer(AddExtensionLayer::new(mp_snake::Lobbies::default()))
         .layer(AddExtensionLayer::new(mp_snake::ws::WsConStates::new()))
         .layer(request_tracing_layer)
@@ -340,11 +341,6 @@ impl SessionStore for BonsaiDBSessionStore {
     }
 }
 
-#[derive(Clone)]
-pub struct AppState {
-    pub users_online: UsersOnline,
-}
-
 pub type Cons<S> = Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, S>>>;
 
 #[derive(Clone)]
@@ -394,12 +390,8 @@ impl Application {
         let db = conf.env.db.db_instance();
         let db = crate::db::start_db(db);
 
-        let app_state = AppState {
-            users_online: UsersOnline::new(),
-        };
-
         return Self {
-            server: Box::pin(run(conf, listener, app_state, db.clone())),
+            server: Box::pin(run(conf, listener, db.clone())),
             port,
             host,
             db,
@@ -408,14 +400,11 @@ impl Application {
         pub fn run(
             conf: &Conf,
             listener: std::net::TcpListener,
-            app_state: AppState,
             db: cozo::DbInstance,
         ) -> impl std::future::Future<Output = hyper::Result<()>> {
-            axum::Server::from_tcp(listener).unwrap().serve(
-                router(conf, db)
-                    .with_state(app_state)
-                    .into_make_service_with_connect_info::<UserConnectInfo>(),
-            )
+            axum::Server::from_tcp(listener)
+                .unwrap()
+                .serve(router(conf, db).into_make_service_with_connect_info::<UserConnectInfo>())
         }
     }
 
