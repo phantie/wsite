@@ -1,6 +1,5 @@
 use crate::configuration::get_env;
 use crate::routes::imports::*;
-use crate::startup::ip_address;
 use crate::startup::UserConnectInfo;
 use axum::extract::connect_info::ConnectInfo;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -24,13 +23,7 @@ pub async fn ws_users_online(
         }
     };
 
-    let sock = {
-        let mut sock = con_info.remote_addr;
-        let ip = ip_address(&headers);
-        // rewrite ip address because server may be behind reverse proxy
-        sock.set_ip(ip);
-        sock
-    };
+    let sock = con_info.socket_addr(&headers);
 
     ws.on_upgrade(move |socket| handle_socket(socket, state, sock))
 }

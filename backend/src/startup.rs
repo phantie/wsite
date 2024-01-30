@@ -82,7 +82,8 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         )
         // TODO investigate why POST on /lobby gives 200
         .route("/snake/lobby", post(snake::create_lobby))
-        .route("/snake/lobby/:name", get(snake::get_lobby));
+        .route("/snake/lobby/:name", get(snake::get_lobby))
+        .route("/snake/ws", get(snake::ws::ws));
 
     let ws_router = Router::new().route("/users_online", get(ws_users_online));
 
@@ -117,6 +118,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .layer(axum::middleware::from_fn(endpoint_hit_middleware))
         .layer(AddExtensionLayer::new(db.clone()))
         .layer(AddExtensionLayer::new(mp_snake::Lobbies::default()))
+        .layer(AddExtensionLayer::new(mp_snake::ws::WsConStates::new()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
@@ -196,6 +198,30 @@ pub mod mp_snake {
         #[allow(dead_code)]
         async fn insert(&self, lobby: Lobby) {
             self.write().await.insert(lobby.name.clone(), lobby);
+        }
+    }
+
+    pub mod ws {
+        pub type Cons<S> =
+            std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, S>>>;
+
+        #[derive(Clone)]
+        pub struct State {
+            #[allow(unused)]
+            user_name: String,
+        }
+
+        #[derive(Clone)]
+        pub struct WsConStates {
+            pub cons: Cons<State>,
+        }
+
+        impl WsConStates {
+            pub fn new() -> Self {
+                Self {
+                    cons: Cons::default(),
+                }
+            }
         }
     }
 }
@@ -319,11 +345,11 @@ pub struct AppState {
     pub users_online: UsersOnline,
 }
 
-pub type Cons = Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, i32>>>;
+pub type Cons<S> = Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, S>>>;
 
 #[derive(Clone)]
 pub struct UsersOnline {
-    pub cons: Cons,
+    pub cons: Cons<i32>,
     pub con_count_s: async_broadcast::Sender<usize>,
     pub con_count_r: async_broadcast::Receiver<usize>,
 }
@@ -413,7 +439,17 @@ impl Application {
 
 #[derive(Clone, Debug)]
 pub struct UserConnectInfo {
-    pub remote_addr: std::net::SocketAddr,
+    remote_addr: std::net::SocketAddr,
+}
+
+impl UserConnectInfo {
+    pub fn socket_addr(&self, headers: &hyper::HeaderMap) -> std::net::SocketAddr {
+        let ip = ip_address(headers);
+        let mut sock = self.remote_addr;
+        // rewrite ip address because server may be behind reverse proxy
+        sock.set_ip(ip);
+        sock
+    }
 }
 
 impl axum::extract::connect_info::Connected<&hyper::server::conn::AddrStream> for UserConnectInfo {
