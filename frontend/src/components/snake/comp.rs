@@ -76,7 +76,7 @@ pub enum SnakeMsg {
     Nothing,
     RedirectToLobby {
         lobby_name: LobbyName,
-        joined_as: Option<UserName>,
+        joined_as: Option<interfacing::snake::UserName>,
     },
     StateChange(State),
     Begin,
@@ -124,6 +124,10 @@ impl Component for Snake {
 
                             match msg {
                                 WsMsg(Some(id), WsServerMsg::Ack) => SnakeMsg::WsAck(id),
+                                WsMsg(id, WsServerMsg::UserName(user_name)) => {
+                                    console::log!("Server responded with UserName", user_name);
+                                    SnakeMsg::Nothing
+                                }
                                 WsMsg(None, WsServerMsg::Ack) => {
                                     unreachable!("server should not send this message")
                                 }
@@ -627,9 +631,15 @@ impl Component for Snake {
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
             // ctx.link().send_message(SnakeMsg::WsSend(
-            //     WsMsg::new(interfacing::snake::WsClientMsg::UserName("phantie".into()))
-            //         .id("test-set-username-phantie"),
-            // ))
+            //     WsMsg::new(interfacing::snake::WsClientMsg::SetUserName(
+            //         "phantie".into(),
+            //     ))
+            //     .id("test-set-username-phantie"),
+            // ));
+
+            // ctx.link().send_message(SnakeMsg::WsSend(
+            //     WsMsg::new(interfacing::snake::WsClientMsg::UserName).id("query-username"),
+            // ));
 
             // {
             //     // let (_, r) = futures::channel::mpsc::unbounded::<()>();
@@ -1009,7 +1019,6 @@ pub enum MPLobbyState {
 }
 
 type LobbyName = String; // TODO move out
-type UserName = String;
 
 #[derive(Clone, PartialEq)]
 pub enum NotBegunState {
@@ -1020,7 +1029,7 @@ pub enum NotBegunState {
     //     lobby_name: LobbyName,
     // }, // enter your name Here
     MPLobby {
-        joined_as: Option<UserName>,
+        joined_as: Option<interfacing::snake::UserName>,
         lobby_name: LobbyName,
         state: MPLobbyState,
     },

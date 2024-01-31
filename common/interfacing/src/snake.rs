@@ -15,12 +15,15 @@ pub struct JoinLobbyAs {
     pub name: String,
 }
 
+pub type UserName = String;
+
 pub type MsgId = String; // UUID
 pub type MaybeMsgId = Option<MsgId>;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum WsClientMsg {
-    UserName(String),
+    SetUserName(UserName),
+    UserName,
 }
 
 impl WsMsg<WsClientMsg> {
@@ -34,6 +37,7 @@ impl WsMsg<WsClientMsg> {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum WsServerMsg {
     Ack,
+    UserName(Option<UserName>),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -49,5 +53,9 @@ impl<M> WsMsg<M> {
 
     pub fn id(self, id: impl Into<MsgId>) -> Self {
         Self(Some(id.into()), self.1)
+    }
+
+    pub fn maybe_id(self, maybe_id: impl Into<Option<MsgId>>) -> Self {
+        Self(maybe_id.into(), self.1)
     }
 }

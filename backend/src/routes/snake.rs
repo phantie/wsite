@@ -116,7 +116,7 @@ pub mod ws {
                             let ack = msg.ack();
 
                             match msg {
-                                WsMsg(_, UserName(value)) => {
+                                WsMsg(_, SetUserName(value)) => {
                                     {
                                         con_state.lock().await.user_name.replace(value);
                                     }
@@ -125,6 +125,17 @@ pub mod ws {
                                             server_msg_sender.send(ack).unwrap();
                                         }
                                     }
+                                }
+                                WsMsg(id, UserName) => {
+                                    let user_name = con_state.lock().await.user_name.clone();
+                                    server_msg_sender
+                                        .send(
+                                            WsMsg::new(interfacing::snake::WsServerMsg::UserName(
+                                                user_name,
+                                            ))
+                                            .maybe_id(id),
+                                        )
+                                        .unwrap();
                                 }
                             }
                         }
