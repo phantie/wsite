@@ -45,14 +45,15 @@ pub mod ws {
         sink::SinkExt,
         stream::{SplitSink, SplitStream, StreamExt},
     };
-    use mp_snake::ws::{State, WsConStates};
+    use mp_snake::ws::State;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
 
     pub async fn ws(
         maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
         ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
         headers: hyper::HeaderMap,
         Extension(lobbies): Extension<mp_snake::Lobbies>,
-        Extension(ws_con_states): Extension<WsConStates>,
         Extension(users_online): Extension<UsersOnline>,
     ) -> Response {
         let ws = match maybe_ws {
@@ -66,9 +67,7 @@ pub mod ws {
 
         let sock_addr = con_info.socket_addr(&headers);
 
-        ws.on_upgrade(move |socket| {
-            handle_socket(socket, users_online, sock_addr, lobbies, ws_con_states)
-        })
+        ws.on_upgrade(move |socket| handle_socket(socket, users_online, sock_addr, lobbies))
     }
 
     async fn handle_socket(
@@ -76,7 +75,6 @@ pub mod ws {
         users_online: UsersOnline,
         sock: std::net::SocketAddr,
         #[allow(unused)] lobbies: mp_snake::Lobbies,
-        ws_con_states: WsConStates,
     ) {
         if get_env().local() {
             tracing::info!("Client connected to Snake Ws: {:?}", sock);
@@ -84,20 +82,12 @@ pub mod ws {
             tracing::info!("Client connected to Snake Ws");
         }
 
-        {
-            // TODO maybe storing them together is redundant
-            // read and write only need State of the current connection
-            ws_con_states
-                .cons
-                .lock()
-                .await
-                .insert(sock, State::default());
-        }
+        let con_state = Arc::new(Mutex::new(State::default()));
 
         let (sender, receiver) = socket.split();
-        let rh = tokio::spawn(read(receiver));
+        let rh = tokio::spawn(read(receiver, con_state.clone()));
         let con_count_r = users_online.con_count_r.clone();
-        let wh = tokio::spawn(write(sender, con_count_r));
+        let wh = tokio::spawn(write(sender, con_count_r, con_state.clone()));
 
         // as soon as a closed channel error returns from any of these procedures,
         // cancel the other
@@ -105,14 +95,9 @@ pub mod ws {
             _ = rh => (),
             _ = wh => (),
         };
-
-        {
-            let removed = ws_con_states.cons.lock().await.remove(&sock);
-            assert!(removed.is_some());
-        }
     }
 
-    async fn read(mut receiver: SplitStream<WebSocket>) {
+    async fn read(mut receiver: SplitStream<WebSocket>, con_state: Arc<Mutex<State>>) {
         loop {
             match receiver.next().await {
                 Some(Ok(msg)) => {
@@ -123,7 +108,8 @@ pub mod ws {
 
                             use interfacing::snake::WsClientMsg::*;
                             match msg {
-                                UserName(_user_name) => {
+                                UserName(value) => {
+                                    con_state.lock().await.user_name.replace(value);
                                     unimplemented!()
                                 }
                             }
@@ -148,6 +134,7 @@ pub mod ws {
     async fn write(
         mut sender: SplitSink<WebSocket, Message>,
         mut con_count_r: async_broadcast::Receiver<usize>,
+        #[allow(unused)] con_state: Arc<Mutex<State>>,
     ) {
         loop {
             match con_count_r.recv().await {

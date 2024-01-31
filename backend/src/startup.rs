@@ -119,7 +119,6 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router {
         .layer(AddExtensionLayer::new(db.clone()))
         .layer(AddExtensionLayer::new(UsersOnline::new()))
         .layer(AddExtensionLayer::new(mp_snake::Lobbies::default()))
-        .layer(AddExtensionLayer::new(mp_snake::ws::WsConStates::new()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
@@ -210,19 +209,6 @@ pub mod mp_snake {
         pub struct State {
             #[allow(unused)]
             pub user_name: Option<String>,
-        }
-
-        #[derive(Clone)]
-        pub struct WsConStates {
-            pub cons: Cons<State>,
-        }
-
-        impl WsConStates {
-            pub fn new() -> Self {
-                Self {
-                    cons: Cons::default(),
-                }
-            }
         }
     }
 }
