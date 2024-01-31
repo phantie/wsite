@@ -206,10 +206,10 @@ pub mod mp_snake {
         pub type Cons<S> =
             std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, S>>>;
 
-        #[derive(Clone)]
+        #[derive(Clone, Default)]
         pub struct State {
             #[allow(unused)]
-            user_name: String,
+            pub user_name: Option<String>,
         }
 
         #[derive(Clone)]

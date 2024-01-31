@@ -45,13 +45,14 @@ pub mod ws {
         sink::SinkExt,
         stream::{SplitSink, SplitStream, StreamExt},
     };
+    use mp_snake::ws::{State, WsConStates};
 
     pub async fn ws(
         maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
         ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
         headers: hyper::HeaderMap,
         Extension(lobbies): Extension<mp_snake::Lobbies>,
-        #[allow(unused)] Extension(ws_con_states): Extension<mp_snake::ws::WsConStates>,
+        Extension(ws_con_states): Extension<WsConStates>,
         Extension(users_online): Extension<UsersOnline>,
     ) -> Response {
         let ws = match maybe_ws {
@@ -63,9 +64,11 @@ pub mod ws {
             }
         };
 
-        let sock = con_info.socket_addr(&headers);
+        let sock_addr = con_info.socket_addr(&headers);
 
-        ws.on_upgrade(move |socket| handle_socket(socket, users_online, sock, lobbies))
+        ws.on_upgrade(move |socket| {
+            handle_socket(socket, users_online, sock_addr, lobbies, ws_con_states)
+        })
     }
 
     async fn handle_socket(
@@ -73,21 +76,20 @@ pub mod ws {
         users_online: UsersOnline,
         sock: std::net::SocketAddr,
         #[allow(unused)] lobbies: mp_snake::Lobbies,
+        ws_con_states: WsConStates,
     ) {
         if get_env().local() {
-            tracing::info!("Client connected: {:?}", sock);
+            tracing::info!("Client connected to Snake Ws: {:?}", sock);
         } else {
-            tracing::info!("Client connected");
+            tracing::info!("Client connected to Snake Ws");
         }
 
         {
-            let cons = &mut users_online.cons.lock().await;
-            let cons_per_ip = *cons.entry(sock).or_default();
-            cons.insert(sock, cons_per_ip + 1);
-
-            let con_count = cons.len();
-            users_online.broadcast_con_count(con_count).await;
-            tracing::info!("Broadcasted con count after add: {con_count}");
+            ws_con_states
+                .cons
+                .lock()
+                .await
+                .insert(sock, State::default());
         }
 
         let (sender, receiver) = socket.split();
@@ -103,32 +105,21 @@ pub mod ws {
         };
 
         {
-            let cons = &mut users_online.cons.lock().await;
-            let cons_per_ip = *cons.get(&sock).expect("Connect predates disconnect");
-            if cons_per_ip == 1 {
-                cons.remove(&sock);
-            } else {
-                cons.insert(sock, cons_per_ip - 1);
-            }
-
-            let con_count = cons.len();
-            users_online.broadcast_con_count(con_count).await;
-            tracing::info!("Broadcasted con count after delete: {con_count}");
+            let removed = ws_con_states.cons.lock().await.remove(&sock);
+            assert!(removed.is_some());
         }
     }
 
     async fn read(mut receiver: SplitStream<WebSocket>) {
         loop {
             match receiver.next().await {
-                Some(item) => match item {
-                    Ok(msg) => {
-                        tracing::info!("Received message: {msg:?}");
-                    }
-                    Err(_) => {
-                        tracing::info!("Client disconnected");
-                        return;
-                    }
-                },
+                Some(Ok(msg)) => {
+                    tracing::info!("Received message: {msg:?}");
+                }
+                Some(Err(_)) => {
+                    tracing::info!("Client disconnected");
+                    return;
+                }
                 None => {
                     tracing::info!("Broadcast channel closed");
                     return;
