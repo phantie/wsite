@@ -23,7 +23,9 @@ pub enum WsClientMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub enum WsServerMsg {}
+pub enum WsServerMsg {
+    Ack,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Msg<M>(
