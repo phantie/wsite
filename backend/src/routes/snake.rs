@@ -121,7 +121,9 @@ pub mod ws {
                                         con_state.lock().await.user_name.replace(value);
                                     }
                                     {
-                                        server_msg_sender.send(ack).unwrap();
+                                        if let Some(ack) = ack {
+                                            server_msg_sender.send(ack).unwrap();
+                                        }
                                     }
                                 }
                             }
