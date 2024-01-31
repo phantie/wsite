@@ -150,22 +150,17 @@ pub mod ws {
         mut sender: SplitSink<WebSocket, Message>,
         mut server_msg_receiver: mpsc::UnboundedReceiver<ServerMsg>,
     ) {
-        loop {
-            match server_msg_receiver.recv().await {
-                Some(msg) => {
-                    let msg = Message::Text(serde_json::to_string(&msg).unwrap());
+        while let Some(msg) = server_msg_receiver.recv().await {
+            let msg = Message::Text(serde_json::to_string(&msg).unwrap());
 
-                    match sender.send(msg.clone()).await {
-                        Ok(()) => {
-                            tracing::info!("Sent message: {msg:?}")
-                        }
-                        Err(_) => {
-                            tracing::info!("Client disconnected");
-                            return;
-                        }
-                    }
+            match sender.send(msg.clone()).await {
+                Ok(()) => {
+                    tracing::info!("Sent message: {msg:?}")
                 }
-                None => return,
+                Err(_) => {
+                    tracing::info!("Client disconnected");
+                    return;
+                }
             }
         }
     }
