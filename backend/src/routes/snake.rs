@@ -47,14 +47,13 @@ pub mod ws {
     };
     use mp_snake::ws::State;
     use std::sync::Arc;
-    use tokio::sync::Mutex;
+    use tokio::sync::{mpsc, Mutex};
 
     pub async fn ws(
         maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
         ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
         headers: hyper::HeaderMap,
         Extension(lobbies): Extension<mp_snake::Lobbies>,
-        Extension(users_online): Extension<UsersOnline>,
     ) -> Response {
         let ws = match maybe_ws {
             Ok(ws) => ws,
@@ -67,12 +66,14 @@ pub mod ws {
 
         let sock_addr = con_info.socket_addr(&headers);
 
-        ws.on_upgrade(move |socket| handle_socket(socket, users_online, sock_addr, lobbies))
+        ws.on_upgrade(move |socket| handle_socket(socket, sock_addr, lobbies))
     }
+
+    type ClientMsg = interfacing::snake::Msg<interfacing::snake::WsClientMsg>;
+    type ServerMsg = interfacing::snake::Msg<interfacing::snake::WsServerMsg>;
 
     async fn handle_socket(
         socket: WebSocket,
-        users_online: UsersOnline,
         sock: std::net::SocketAddr,
         #[allow(unused)] lobbies: mp_snake::Lobbies,
     ) {
@@ -84,10 +85,11 @@ pub mod ws {
 
         let con_state = Arc::new(Mutex::new(State::default()));
 
+        let (server_msg_sender, server_msg_receiver) = mpsc::unbounded_channel::<ServerMsg>();
+
         let (sender, receiver) = socket.split();
-        let rh = tokio::spawn(read(receiver, con_state.clone()));
-        let con_count_r = users_online.con_count_r.clone();
-        let wh = tokio::spawn(write(sender, con_count_r, con_state.clone()));
+        let rh = tokio::spawn(read(receiver, con_state.clone(), server_msg_sender.clone()));
+        let wh = tokio::spawn(write(sender, server_msg_receiver));
 
         // as soon as a closed channel error returns from any of these procedures,
         // cancel the other
@@ -97,7 +99,11 @@ pub mod ws {
         };
     }
 
-    async fn read(mut receiver: SplitStream<WebSocket>, con_state: Arc<Mutex<State>>) {
+    async fn read(
+        mut receiver: SplitStream<WebSocket>,
+        con_state: Arc<Mutex<State>>,
+        server_msg_sender: mpsc::UnboundedSender<ServerMsg>,
+    ) {
         loop {
             match receiver.next().await {
                 Some(Ok(msg)) => {
@@ -106,16 +112,20 @@ pub mod ws {
                             use interfacing::snake::Msg;
                             use interfacing::snake::WsClientMsg::*;
 
-                            let msg = serde_json::from_str::<
-                                /* TODO name this type in there */
-                                interfacing::snake::Msg<interfacing::snake::WsClientMsg>,
-                            >(msg)
-                            .unwrap(); // TODO handle
+                            let msg = serde_json::from_str::<ClientMsg>(msg).unwrap(); // TODO handle
 
                             match msg {
-                                Msg(_, UserName(value)) => {
-                                    con_state.lock().await.user_name.replace(value);
-                                    unimplemented!()
+                                Msg(id, UserName(value)) => {
+                                    {
+                                        con_state.lock().await.user_name.replace(value);
+                                    }
+                                    {
+                                        let msg = interfacing::snake::Msg(
+                                            id,
+                                            interfacing::snake::WsServerMsg::Ack,
+                                        );
+                                        server_msg_sender.send(msg).unwrap();
+                                    }
                                 }
                             }
                         }
@@ -138,13 +148,13 @@ pub mod ws {
 
     async fn write(
         mut sender: SplitSink<WebSocket, Message>,
-        mut con_count_r: async_broadcast::Receiver<usize>,
-        #[allow(unused)] con_state: Arc<Mutex<State>>,
+        mut server_msg_receiver: mpsc::UnboundedReceiver<ServerMsg>,
     ) {
         loop {
-            match con_count_r.recv().await {
-                Ok(i) => {
-                    let msg = Message::Text(format!("users_online:{i}"));
+            match server_msg_receiver.recv().await {
+                Some(msg) => {
+                    let msg = Message::Text(serde_json::to_string(&msg).unwrap());
+
                     match sender.send(msg.clone()).await {
                         Ok(()) => {
                             tracing::info!("Sent message: {msg:?}")
@@ -155,8 +165,7 @@ pub mod ws {
                         }
                     }
                 }
-                Err(async_broadcast::RecvError::Overflowed(_)) => {}
-                Err(async_broadcast::RecvError::Closed) => return,
+                None => return,
             }
         }
     }
