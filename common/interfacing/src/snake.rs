@@ -15,6 +15,8 @@ pub struct JoinLobbyAs {
     pub name: String,
 }
 
+pub type MsgId = String; // UUID
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum WsClientMsg {
     UserName(String),
@@ -22,3 +24,9 @@ pub enum WsClientMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum WsServerMsg {}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct Msg<M>(
+    pub MsgId, /* may be used as acknowledgement ID / idempotency key */
+    pub M,
+);

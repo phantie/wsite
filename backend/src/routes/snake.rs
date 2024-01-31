@@ -103,12 +103,17 @@ pub mod ws {
                 Some(Ok(msg)) => {
                     match &msg {
                         Message::Text(msg) => {
-                            let msg = serde_json::from_str::<interfacing::snake::WsClientMsg>(msg)
-                                .unwrap(); // TODO handle
-
+                            use interfacing::snake::Msg;
                             use interfacing::snake::WsClientMsg::*;
+
+                            let msg = serde_json::from_str::<
+                                /* TODO name this type in there */
+                                interfacing::snake::Msg<interfacing::snake::WsClientMsg>,
+                            >(msg)
+                            .unwrap(); // TODO handle
+
                             match msg {
-                                UserName(value) => {
+                                Msg(_, UserName(value)) => {
                                     con_state.lock().await.user_name.replace(value);
                                     unimplemented!()
                                 }
