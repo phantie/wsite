@@ -85,6 +85,8 @@ pub mod ws {
         }
 
         {
+            // TODO maybe storing them together is redundant
+            // read and write only need State of the current connection
             ws_con_states
                 .cons
                 .lock()
@@ -114,6 +116,21 @@ pub mod ws {
         loop {
             match receiver.next().await {
                 Some(Ok(msg)) => {
+                    match &msg {
+                        Message::Text(msg) => {
+                            let msg = serde_json::from_str::<interfacing::snake::WsClientMsg>(msg)
+                                .unwrap(); // TODO handle
+
+                            use interfacing::snake::WsClientMsg::*;
+                            match msg {
+                                UserName(_user_name) => {
+                                    unimplemented!()
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+
                     tracing::info!("Received message: {msg:?}");
                 }
                 Some(Err(_)) => {
