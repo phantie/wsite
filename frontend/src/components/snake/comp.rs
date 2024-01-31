@@ -2,11 +2,15 @@
 use std::collections::HashSet;
 
 use crate::components::imports::*;
+use futures::SinkExt;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
+
+type ClientMsg = interfacing::snake::Msg<interfacing::snake::WsClientMsg>;
+type ServerMsg = interfacing::snake::Msg<interfacing::snake::WsServerMsg>;
 
 use super::domain;
 
@@ -47,6 +51,8 @@ pub struct Snake {
     refs: Refs,
     listeners: Listeners,
 
+    ws_sink: tokio::sync::mpsc::UnboundedSender<ClientMsg>,
+
     theme_ctx: ThemeCtxSub,
 }
 
@@ -69,6 +75,7 @@ pub enum SnakeMsg {
     Begin,
     PauseUnpause,
     ToMenu,
+    WsSend(ClientMsg),
 }
 
 #[derive(Properties, PartialEq)]
@@ -95,12 +102,20 @@ impl Component for Snake {
             State::NotBegun { .. } => {}
         }
 
-        {
+        let ws_sink = {
+            use crate::ws::imports::*;
+
             fn read_stream(stream: SplitStream<WebSocket>) -> impl Stream<Item = SnakeMsg> {
                 stream.map(|i| match i {
                     Ok(msg) => match msg {
                         Message::Text(text) => {
                             console::log!("Read stream from Snake", &text);
+
+                            let msg = serde_json::from_str::<ServerMsg>(&text).unwrap(); // TODO handle
+
+                            // TODO handle msg
+                            // match msg {}
+
                             SnakeMsg::Nothing
                         }
                         Message::Bytes(_) => unimplemented!(),
@@ -110,18 +125,39 @@ impl Component for Snake {
                         console::log!(format!("{} {} {}", e.code, e.reason, e.was_clean));
                         SnakeMsg::Nothing
                     }
-                    Err(gloo_net::websocket::WebSocketError::ConnectionError) => SnakeMsg::Nothing,
+                    Err(gloo_net::websocket::WebSocketError::ConnectionError) => {
+                        console::log!("! read channel ConnectionError");
+                        SnakeMsg::Nothing
+                    }
                     Err(gloo_net::websocket::WebSocketError::MessageSendError(_)) => unreachable!(),
-                    Err(_) => SnakeMsg::Nothing,
+                    Err(_) => unreachable!(),
                 })
             }
 
-            let url = crate::ws::prepare_relative_url("/ws/users_online");
+            async fn write_stream(
+                mut stream: SplitSink<WebSocket, Message>,
+                mut r: tokio::sync::mpsc::UnboundedReceiver<ClientMsg>,
+            ) -> SnakeMsg {
+                while let Some(msg) = r.recv().await {
+                    let msg = Message::Text(serde_json::to_string(&msg).unwrap());
+                    stream.send(msg).await.unwrap(); // TODO handle
+                }
+                console::log!("! write channel closed");
+                SnakeMsg::Nothing
+            }
+
+            // TODO rewrite with futures::channel::mpsc
+            let (s, r) = tokio::sync::mpsc::unbounded_channel::<ClientMsg>();
+
+            let url = crate::ws::prepare_relative_url("/api/snake/ws");
             let ws = WebSocket::open(&url).unwrap();
-            let (_write, read) = ws.split();
-            ctx.link().send_stream(read_stream(read));
-            use crate::ws::imports::*;
-        }
+
+            let (w_ws, r_ws) = ws.split();
+            ctx.link().send_stream(read_stream(r_ws));
+            ctx.link().send_future(write_stream(w_ws, r));
+
+            s
+        };
 
         Self {
             domain,
@@ -140,6 +176,8 @@ impl Component for Snake {
 
             refs: Default::default(),
             listeners: Listeners::init(ctx.link().clone()),
+
+            ws_sink,
 
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
         }
@@ -575,6 +613,26 @@ impl Component for Snake {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        if first_render {
+            // ctx.link()
+            //     .send_message(SnakeMsg::WsSend(interfacing::snake::Msg(
+            //         "".into(),
+            //         interfacing::snake::WsClientMsg::UserName("phantie".into()),
+            //     )))
+
+            // {
+            //     // let (_, r) = futures::channel::mpsc::unbounded::<()>();
+
+            //     ctx.link().send_future(async {
+            //         sleep(2000).await;
+            //         SnakeMsg::WsSend(interfacing::snake::Msg(
+            //             "".into(),
+            //             interfacing::snake::WsClientMsg::UserName("phantie".into()),
+            //         ))
+            //     });
+            // }
+        }
+
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
@@ -610,6 +668,11 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
+            Self::Message::WsSend(msg) => {
+                console::log!(format!("sending {:?}", msg));
+                self.ws_sink.send(msg);
+                false
+            }
             Self::Message::RedirectToLobby {
                 lobby_name,
                 joined_as,
@@ -1575,4 +1638,16 @@ fn calc_px_scale(canvas_dimensions: Dimensions, boundaries: domain::Boundaries) 
         canvas_dimensions.height as f64 / (boundaries.height() + 1) as f64,
         canvas_dimensions.width as f64 / (boundaries.width() + 1) as f64,
     )
+}
+
+pub async fn sleep(delay: i32) {
+    let mut cb = |resolve: js_sys::Function, reject: js_sys::Function| {
+        web_sys::window()
+            .unwrap()
+            .set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, delay);
+    };
+
+    let p = js_sys::Promise::new(&mut cb);
+
+    wasm_bindgen_futures::JsFuture::from(p).await.unwrap();
 }

@@ -30,6 +30,7 @@ gloo-utils = "0.2.0"
 js-sys = "0.3.64"
 wasm-bindgen-futures = "0.4.37"
 derivative = "2.2.0"
+tokio = { version = "1.35.1", default-features = false, features = ["sync"] }
 
 [dependencies.web-sys]
 version = "0.3.61"
