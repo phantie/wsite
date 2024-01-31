@@ -5,7 +5,7 @@ use crate::components::imports::*;
 use futures::SinkExt;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
-use interfacing::snake::{WsMsg, WsServerMsg};
+use interfacing::snake::{WsClientMsg, WsMsg, WsServerMsg};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
@@ -681,20 +681,31 @@ impl Component for Snake {
                 console::log!(format!("recv: {:?}", &msg));
 
                 match msg {
-                    WsMsg(id, WsServerMsg::UserName(user_name)) => {
-                        console::log!("Server responded with UserName", user_name);
-                    }
-                    WsMsg(Some(id), WsServerMsg::Ack) => {
+                    WsMsg(Some(id), msg) => {
+                        let ack_msg = self.acknowledgeable_messages.get(&id).unwrap(); // TODO handle
+
+                        match (ack_msg, msg) {
+                            (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {}
+
+                            (WsClientMsg::SetUserName(_), WsServerMsg::Ack) => {
+                                console::log!("ack:", &id, format!("{ack_msg:?}"));
+                            }
+
+                            (req, res) => {
+                                console::log!(format!(
+                                    "invalid response to request: {req:?} {res:?}"
+                                ));
+                                return false;
+                            }
+                        }
+
                         let msg = self.acknowledgeable_messages.remove(&id);
-                        console::log!(
-                            "ack:",
-                            &id,
-                            msg.map(|v| format!("{v:?}")).unwrap_or("?".into())
-                        );
                     }
-                    WsMsg(None, WsServerMsg::Ack) => {
-                        unreachable!("server should not send this message")
-                    }
+                    WsMsg(None, msg) => match msg {
+                        WsServerMsg::Ack => unreachable!("server should not send this message"),
+
+                        recv => console::log!(format!("invalid recv: {recv:?}")),
+                    },
                 }
 
                 false
