@@ -5,12 +5,13 @@ use crate::components::imports::*;
 use futures::SinkExt;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
+use interfacing::snake::{WsMsg, WsServerMsg};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
 
-type ClientMsg = interfacing::snake::Msg<interfacing::snake::WsClientMsg>;
-type ServerMsg = interfacing::snake::Msg<interfacing::snake::WsServerMsg>;
+type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
+type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
 use super::domain;
 
@@ -52,9 +53,15 @@ pub struct Snake {
     listeners: Listeners,
 
     ws_sink: tokio::sync::mpsc::UnboundedSender<ClientMsg>,
+    acknowledgeable_messages: AcknowledgeableMessages,
 
     theme_ctx: ThemeCtxSub,
 }
+
+#[derive(Default, derived_deref::Deref, derived_deref::DerefMut)]
+struct AcknowledgeableMessages(
+    std::collections::HashMap<interfacing::snake::MsgId, interfacing::snake::WsClientMsg>,
+);
 
 pub enum SnakeMsg {
     Advance,
@@ -75,7 +82,9 @@ pub enum SnakeMsg {
     Begin,
     PauseUnpause,
     ToMenu,
+
     WsSend(ClientMsg),
+    WsAck(interfacing::snake::MsgId),
 }
 
 #[derive(Properties, PartialEq)]
@@ -109,14 +118,16 @@ impl Component for Snake {
                 stream.map(|i| match i {
                     Ok(msg) => match msg {
                         Message::Text(text) => {
-                            console::log!("Read stream from Snake", &text);
+                            console::log!("read_stream:", &text);
 
                             let msg = serde_json::from_str::<ServerMsg>(&text).unwrap(); // TODO handle
 
-                            // TODO handle msg
-                            // match msg {}
-
-                            SnakeMsg::Nothing
+                            match msg {
+                                WsMsg(Some(id), WsServerMsg::Ack) => SnakeMsg::WsAck(id),
+                                WsMsg(None, WsServerMsg::Ack) => {
+                                    unreachable!("server should not send this message")
+                                }
+                            }
                         }
                         Message::Bytes(_) => unimplemented!(),
                     },
@@ -179,6 +190,7 @@ impl Component for Snake {
             listeners: Listeners::init(ctx.link().clone()),
 
             ws_sink,
+            acknowledgeable_messages: Default::default(),
 
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
         }
@@ -377,7 +389,6 @@ impl Component for Snake {
                     match state {
                         MPLobbyState::ToBeLoaded => {
                             // TODO make request to server
-                            // TODO from this point on WS connection must be kept until you leave the lobby
 
                             pub async fn get_lobby(
                                 name: String,
@@ -615,11 +626,10 @@ impl Component for Snake {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            // ctx.link()
-            //     .send_message(SnakeMsg::WsSend(interfacing::snake::Msg(
-            //         "".into(),
-            //         interfacing::snake::WsClientMsg::UserName("phantie".into()),
-            //     )))
+            // ctx.link().send_message(SnakeMsg::WsSend(
+            //     WsMsg::new(interfacing::snake::WsClientMsg::UserName("phantie".into()))
+            //         .id("test-set-username-phantie"),
+            // ))
 
             // {
             //     // let (_, r) = futures::channel::mpsc::unbounded::<()>();
@@ -669,8 +679,23 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
+            Self::Message::WsAck(id) => {
+                let msg = self.acknowledgeable_messages.remove(&id);
+                console::log!(
+                    "acknowledged",
+                    &id,
+                    msg.map(|v| format!("{v:?}")).unwrap_or("?".into())
+                );
+                false
+            }
             Self::Message::WsSend(msg) => {
                 console::log!(format!("sending {:?}", msg));
+
+                if let WsMsg(Some(id), msg) = &msg {
+                    self.acknowledgeable_messages
+                        .insert(id.clone(), msg.clone());
+                }
+
                 () = self.ws_sink.send(msg).unwrap(); // TODO handle
                 false
             }
@@ -682,13 +707,8 @@ impl Component for Snake {
                 navigator.push(&Route::SnakeLobby {
                     lobby_name: lobby_name.clone(),
                 });
-                // TODO after navigator.push() this should not be needed
-                // NOTE if issue not resolved this can be inlined where used
-                // NOTE I presume, it happens so, because it transitions
-                // to the same component without recreating passing through Switch
-                // since it does not, no action is taken
+                // TODO mayne inline where used
                 //
-                // TODO investigate browser "back" action
                 // NOTE again since it's trasitioning to the same component,
                 // back button does not nothing, expecting that behaviour
                 // would be added manually

@@ -23,11 +23,11 @@ pub enum WsClientMsg {
     UserName(String),
 }
 
-impl Msg<WsClientMsg> {
-    pub fn ack(&self) -> Option<Msg<WsServerMsg>> {
+impl WsMsg<WsClientMsg> {
+    pub fn ack(&self) -> Option<WsMsg<WsServerMsg>> {
         self.0
             .as_ref()
-            .map(|id| Msg(Some(id.clone()), WsServerMsg::Ack))
+            .map(|id| WsMsg(Some(id.clone()), WsServerMsg::Ack))
     }
 }
 
@@ -37,17 +37,17 @@ pub enum WsServerMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct Msg<M>(
+pub struct WsMsg<M>(
     pub MaybeMsgId, /* may be used as acknowledgement ID / idempotency key */
     pub M,
 );
 
-impl<M> Msg<M> {
+impl<M> WsMsg<M> {
     pub fn new(msg: M) -> Self {
         Self(None, msg)
     }
 
-    pub fn id(self, id: MsgId) -> Self {
-        Self(Some(id), self.1)
+    pub fn id(self, id: impl Into<MsgId>) -> Self {
+        Self(Some(id.into()), self.1)
     }
 }

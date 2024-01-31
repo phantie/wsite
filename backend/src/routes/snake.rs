@@ -45,6 +45,7 @@ pub mod ws {
         sink::SinkExt,
         stream::{SplitSink, SplitStream, StreamExt},
     };
+    use interfacing::snake::WsMsg;
     use mp_snake::ws::State;
     use std::sync::Arc;
     use tokio::sync::{mpsc, Mutex};
@@ -69,8 +70,8 @@ pub mod ws {
         ws.on_upgrade(move |socket| handle_socket(socket, sock_addr, lobbies))
     }
 
-    type ClientMsg = interfacing::snake::Msg<interfacing::snake::WsClientMsg>;
-    type ServerMsg = interfacing::snake::Msg<interfacing::snake::WsServerMsg>;
+    type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
+    type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
     async fn handle_socket(
         socket: WebSocket,
@@ -109,14 +110,13 @@ pub mod ws {
                 Some(Ok(msg)) => {
                     match &msg {
                         Message::Text(msg) => {
-                            use interfacing::snake::Msg;
                             use interfacing::snake::WsClientMsg::*;
 
                             let msg = serde_json::from_str::<ClientMsg>(msg).unwrap(); // TODO handle
                             let ack = msg.ack();
 
                             match msg {
-                                Msg(_, UserName(value)) => {
+                                WsMsg(_, UserName(value)) => {
                                     {
                                         con_state.lock().await.user_name.replace(value);
                                     }
