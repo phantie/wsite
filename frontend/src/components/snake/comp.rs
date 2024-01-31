@@ -146,7 +146,8 @@ impl Component for Snake {
                 SnakeMsg::Nothing
             }
 
-            // TODO rewrite with futures::channel::mpsc
+            // NOTE do not rewrite with futures::channel::mpsc,
+            // async send makes calling dirtier locally
             let (s, r) = tokio::sync::mpsc::unbounded_channel::<ClientMsg>();
 
             let url = crate::ws::prepare_relative_url("/api/snake/ws");
@@ -670,7 +671,7 @@ impl Component for Snake {
             Self::Message::Nothing => false,
             Self::Message::WsSend(msg) => {
                 console::log!(format!("sending {:?}", msg));
-                self.ws_sink.send(msg);
+                () = self.ws_sink.send(msg).unwrap(); // TODO handle
                 false
             }
             Self::Message::RedirectToLobby {
