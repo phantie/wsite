@@ -113,18 +113,15 @@ pub mod ws {
                             use interfacing::snake::WsClientMsg::*;
 
                             let msg = serde_json::from_str::<ClientMsg>(msg).unwrap(); // TODO handle
+                            let ack = msg.ack();
 
                             match msg {
-                                Msg(id, UserName(value)) => {
+                                Msg(_, UserName(value)) => {
                                     {
                                         con_state.lock().await.user_name.replace(value);
                                     }
                                     {
-                                        let msg = interfacing::snake::Msg(
-                                            id,
-                                            interfacing::snake::WsServerMsg::Ack,
-                                        );
-                                        server_msg_sender.send(msg).unwrap();
+                                        server_msg_sender.send(ack).unwrap();
                                     }
                                 }
                             }

@@ -22,6 +22,12 @@ pub enum WsClientMsg {
     UserName(String),
 }
 
+impl Msg<WsClientMsg> {
+    pub fn ack(&self) -> Msg<WsServerMsg> {
+        Msg(self.0.clone(), WsServerMsg::Ack)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum WsServerMsg {
     Ack,
