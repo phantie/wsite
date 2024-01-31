@@ -84,7 +84,7 @@ pub enum SnakeMsg {
     ToMenu,
 
     WsSend(ClientMsg),
-    WsAck(interfacing::snake::MsgId),
+    WsRecv(ServerMsg),
 }
 
 #[derive(Properties, PartialEq)]
@@ -118,20 +118,8 @@ impl Component for Snake {
                 stream.map(|i| match i {
                     Ok(msg) => match msg {
                         Message::Text(text) => {
-                            console::log!("read_stream:", &text);
-
                             let msg = serde_json::from_str::<ServerMsg>(&text).unwrap(); // TODO handle
-
-                            match msg {
-                                WsMsg(Some(id), WsServerMsg::Ack) => SnakeMsg::WsAck(id),
-                                WsMsg(id, WsServerMsg::UserName(user_name)) => {
-                                    console::log!("Server responded with UserName", user_name);
-                                    SnakeMsg::Nothing
-                                }
-                                WsMsg(None, WsServerMsg::Ack) => {
-                                    unreachable!("server should not send this message")
-                                }
-                            }
+                            SnakeMsg::WsRecv(msg)
                         }
                         Message::Bytes(_) => unimplemented!(),
                     },
@@ -630,16 +618,16 @@ impl Component for Snake {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            // ctx.link().send_message(SnakeMsg::WsSend(
-            //     WsMsg::new(interfacing::snake::WsClientMsg::SetUserName(
-            //         "phantie".into(),
-            //     ))
-            //     .id("test-set-username-phantie"),
-            // ));
+            ctx.link().send_message(SnakeMsg::WsSend(
+                WsMsg::new(interfacing::snake::WsClientMsg::SetUserName(
+                    "phantie".into(),
+                ))
+                .id("test-set-username"),
+            ));
 
-            // ctx.link().send_message(SnakeMsg::WsSend(
-            //     WsMsg::new(interfacing::snake::WsClientMsg::UserName).id("query-username"),
-            // ));
+            ctx.link().send_message(SnakeMsg::WsSend(
+                WsMsg::new(interfacing::snake::WsClientMsg::UserName).id("test-query-username"),
+            ));
 
             // {
             //     // let (_, r) = futures::channel::mpsc::unbounded::<()>();
@@ -689,24 +677,37 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
-            Self::Message::WsAck(id) => {
-                let msg = self.acknowledgeable_messages.remove(&id);
-                console::log!(
-                    "acknowledged",
-                    &id,
-                    msg.map(|v| format!("{v:?}")).unwrap_or("?".into())
-                );
+            Self::Message::WsRecv(msg) => {
+                console::log!(format!("recv: {:?}", &msg));
+
+                match msg {
+                    WsMsg(id, WsServerMsg::UserName(user_name)) => {
+                        console::log!("Server responded with UserName", user_name);
+                    }
+                    WsMsg(Some(id), WsServerMsg::Ack) => {
+                        let msg = self.acknowledgeable_messages.remove(&id);
+                        console::log!(
+                            "ack:",
+                            &id,
+                            msg.map(|v| format!("{v:?}")).unwrap_or("?".into())
+                        );
+                    }
+                    WsMsg(None, WsServerMsg::Ack) => {
+                        unreachable!("server should not send this message")
+                    }
+                }
+
                 false
             }
             Self::Message::WsSend(msg) => {
-                console::log!(format!("sending {:?}", msg));
-
                 if let WsMsg(Some(id), msg) = &msg {
                     self.acknowledgeable_messages
                         .insert(id.clone(), msg.clone());
                 }
 
-                () = self.ws_sink.send(msg).unwrap(); // TODO handle
+                () = self.ws_sink.send(msg.clone()).unwrap(); // TODO handle
+                console::log!(format!("sent: {:?}", msg));
+
                 false
             }
             Self::Message::RedirectToLobby {
