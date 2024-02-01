@@ -138,12 +138,12 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router {
 
 // TODO move out
 pub mod mp_snake {
-    pub type LobbyName = String;
+    use interfacing::snake::{LobbyName, UserName};
 
     #[derive(Clone)]
     pub struct Player {
         #[allow(unused)]
-        name: String,
+        name: UserName,
     }
 
     #[derive(Clone)]
@@ -202,13 +202,15 @@ pub mod mp_snake {
     }
 
     pub mod ws {
+        use interfacing::snake::UserName;
+
         pub type Cons<S> =
             std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<std::net::SocketAddr, S>>>;
 
         #[derive(Clone, Default)]
         pub struct State {
             #[allow(unused)]
-            pub user_name: Option<String>,
+            pub user_name: Option<UserName>,
         }
     }
 }

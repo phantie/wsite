@@ -21,7 +21,7 @@ pub async fn create_lobby(
 #[axum_macros::debug_handler]
 pub async fn get_lobby(
     Extension(lobbies): Extension<mp_snake::Lobbies>,
-    Path(name): Path<mp_snake::LobbyName>,
+    Path(name): Path<interfacing::snake::LobbyName>,
 ) -> ApiResult<impl IntoResponse> {
     let result = lobbies
         .get(&name)

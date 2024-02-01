@@ -16,6 +16,7 @@ pub struct JoinLobbyAs {
 }
 
 pub type UserName = String;
+pub type LobbyName = String;
 
 pub type MsgId = String; // UUID
 pub type MaybeMsgId = Option<MsgId>;

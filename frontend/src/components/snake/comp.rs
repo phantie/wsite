@@ -5,7 +5,7 @@ use crate::components::imports::*;
 use futures::SinkExt;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
-use interfacing::snake::{WsClientMsg, WsMsg, WsServerMsg};
+use interfacing::snake::{LobbyName, UserName, WsClientMsg, WsMsg, WsServerMsg};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
@@ -76,7 +76,7 @@ pub enum SnakeMsg {
     Nothing,
     RedirectToLobby {
         lobby_name: LobbyName,
-        joined_as: Option<interfacing::snake::UserName>,
+        joined_as: Option<UserName>,
     },
     StateChange(State),
     Begin,
@@ -1030,8 +1030,6 @@ pub enum MPLobbyState {
     DoesNotExist,
 }
 
-type LobbyName = String; // TODO move out
-
 #[derive(Clone, PartialEq)]
 pub enum NotBegunState {
     ModeSelection,
@@ -1041,7 +1039,7 @@ pub enum NotBegunState {
     //     lobby_name: LobbyName,
     // }, // enter your name Here
     MPLobby {
-        joined_as: Option<interfacing::snake::UserName>,
+        joined_as: Option<UserName>,
         lobby_name: LobbyName,
         state: MPLobbyState,
     },
