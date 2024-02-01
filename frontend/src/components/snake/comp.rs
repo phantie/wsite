@@ -35,6 +35,16 @@ const PANEL_PX_WIDTH: u32 = 350;
 const SNAKE_BODY_WIDTH: f64 = 0.9;
 const FOOD_DIAMETER: f64 = 0.6;
 
+#[derive(Debug, Default)]
+pub struct WsState {
+    user_name: Option<UserName>,
+    // if both Server/Client default to None this can be removed
+    //
+    // can be useful for debugging
+    // if on connect Server would set a random user_name to the connection
+    synced_user_name: bool,
+}
+
 pub struct Snake {
     domain: Domain,
     state: State,
@@ -53,6 +63,7 @@ pub struct Snake {
     listeners: Listeners,
 
     ws_sink: tokio::sync::mpsc::UnboundedSender<ClientMsg>,
+    ws_state: WsState,
     acknowledgeable_messages: AcknowledgeableMessages,
 
     theme_ctx: ThemeCtxSub,
@@ -182,6 +193,7 @@ impl Component for Snake {
             listeners: Listeners::init(ctx.link().clone()),
 
             ws_sink,
+            ws_state: Default::default(),
             acknowledgeable_messages: Default::default(),
 
             theme_ctx: ThemeCtxSub::subscribe(ctx, Self::Message::ThemeContextUpdate),
@@ -329,6 +341,69 @@ impl Component for Snake {
             match &self.state {
                 State::Begun { .. } => {
                     html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
+                }
+                State::NotBegun {
+                    inner: NotBegunState::MPSetUsername,
+                } => {
+                    if self.ws_state.synced_user_name {
+                        match &self.ws_state.user_name {
+                            None => {
+                                // enter user_name
+
+                                let user_name_ref = NodeRef::default();
+
+                                let onsubmit = {
+                                    let user_name_ref = user_name_ref.clone();
+
+                                    ctx.link().callback(move |event: SubmitEvent| {
+                                        event.prevent_default();
+
+                                        let join_as = user_name_ref
+                                            .cast::<HtmlInputElement>()
+                                            .unwrap()
+                                            .value();
+
+                                        SnakeMsg::WsSend(
+                                            WsMsg::new(WsClientMsg::SetUserName(join_as))
+                                                .id("set-username"),
+                                        )
+                                    })
+                                };
+
+                                html! {
+                                    <>
+                                    {"Join as..."}
+                                    <form {onsubmit} method="post">
+                                        <input type="text" ref={user_name_ref}/>
+                                    </form>
+                                    </>
+                                }
+                            }
+                            Some(user_name) => {
+                                let msg = SnakeMsg::StateChange(State::NotBegun {
+                                    inner: NotBegunState::MPCreateJoinLobby,
+                                });
+
+                                ctx.link().send_message(msg);
+
+                                html! {}
+                            }
+                        }
+                    } else {
+                        match &self.ws_state.user_name {
+                            None => {
+                                let msg = SnakeMsg::WsSend(
+                                    WsMsg::new(WsClientMsg::UserName).id("ask-username"),
+                                );
+
+                                ctx.link().send_message(msg);
+
+                                // should reload this state, but jump to another branch
+                                html! {}
+                            }
+                            Some(_) => unreachable!("cannot be set without sync"),
+                        }
+                    }
                 }
                 State::NotBegun {
                     inner:
@@ -493,8 +568,11 @@ impl Component for Snake {
                     });
 
                     let mp_onclick = ctx.link().callback(move |e| {
+                        // Self::Message::StateChange(State::NotBegun {
+                        //     inner: NotBegunState::MPCreateJoinLobby,
+                        // }) // HERE
                         Self::Message::StateChange(State::NotBegun {
-                            inner: NotBegunState::MPCreateJoinLobby,
+                            inner: NotBegunState::MPSetUsername,
                         })
                     });
 
@@ -618,16 +696,16 @@ impl Component for Snake {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            ctx.link().send_message(SnakeMsg::WsSend(
-                WsMsg::new(interfacing::snake::WsClientMsg::SetUserName(
-                    "phantie".into(),
-                ))
-                .id("test-set-username"),
-            ));
+            // ctx.link().send_message(SnakeMsg::WsSend(
+            //     WsMsg::new(interfacing::snake::WsClientMsg::SetUserName(
+            //         "phantie".into(),
+            //     ))
+            //     .id("test-set-username"),
+            // ));
 
-            ctx.link().send_message(SnakeMsg::WsSend(
-                WsMsg::new(interfacing::snake::WsClientMsg::UserName).id("test-query-username"),
-            ));
+            // ctx.link().send_message(SnakeMsg::WsSend(
+            //     WsMsg::new(interfacing::snake::WsClientMsg::UserName).id("test-query-username"),
+            // ));
 
             // {
             //     // let (_, r) = futures::channel::mpsc::unbounded::<()>();
@@ -692,10 +770,21 @@ impl Component for Snake {
                         };
 
                         match (ack_msg, msg) {
-                            (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {}
+                            (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {
+                                console::log!(format!(
+                                    "setting ws_state.user_name {:?}",
+                                    &user_name
+                                ));
+                                self.ws_state.user_name = user_name;
+                                self.ws_state.synced_user_name = true;
+                                return true;
+                            }
 
-                            (WsClientMsg::SetUserName(_), WsServerMsg::Ack) => {
+                            (WsClientMsg::SetUserName(user_name), WsServerMsg::Ack) => {
                                 console::log!("ack:", &id, format!("{ack_msg:?}"));
+                                self.ws_state.user_name = Some(user_name.clone());
+                                self.ws_state.synced_user_name = true;
+                                return true;
                             }
 
                             (WsClientMsg::JoinLobby(_), WsServerMsg::Ack) => {
@@ -1061,6 +1150,8 @@ pub enum NotBegunState {
         lobby_name: LobbyName,
         state: MPLobbyState,
     },
+    MPSetUsername,
+    MPTryJoinLobby,
     Initial,
     Ended,
 }
