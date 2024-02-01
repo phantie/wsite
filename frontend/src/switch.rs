@@ -60,6 +60,7 @@ pub fn switch(routes: Route) -> Html {
                 <Snake/>
             }
         }
+        // TODO requires user_name setting
         Route::SnakeLobby { lobby_name } => {
             html! {
                 // TODO refactor

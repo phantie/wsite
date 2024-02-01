@@ -85,10 +85,7 @@ pub enum SnakeMsg {
     CameraToggle,
     ThemeContextUpdate(ThemeCtx),
     Nothing,
-    RedirectToLobby {
-        lobby_name: LobbyName,
-        joined_as: Option<UserName>,
-    },
+    RedirectToLobby { lobby_name: LobbyName },
     StateChange(State),
     Begin,
     PauseUnpause,
@@ -406,55 +403,12 @@ impl Component for Snake {
                     }
                 }
                 State::NotBegun {
-                    inner:
-                        NotBegunState::MPLobby {
-                            joined_as,
-                            lobby_name,
-                            state,
-                        },
+                    inner: NotBegunState::MPLobby { lobby_name, state },
                 } => {
-                    match joined_as {
-                        None => {
-                            let name_ref = NodeRef::default();
-
-                            let onsubmit = {
-                                let name_ref = name_ref.clone();
-                                let lobby_name = lobby_name.clone();
-
-                                ctx.link().callback_future(move |event: SubmitEvent| {
-                                    event.prevent_default();
-                                    let lobby_name = lobby_name.clone();
-
-                                    let joined_as =
-                                        name_ref.cast::<HtmlInputElement>().unwrap().value();
-
-                                    async move {
-                                        // TODO must request to join lobby
-                                        Self::Message::RedirectToLobby {
-                                            lobby_name,
-                                            joined_as: Some(joined_as),
-                                        }
-                                    }
-                                })
-                            };
-
-                            // TODO refactor
-                            break 'main_area html! {
-                                <>
-                                {"Join as..."}
-                                <form {onsubmit} method="post">
-                                    <input type="text" ref={name_ref}/>
-                                </form>
-                                </>
-                            };
-                        }
-                        Some(joined_as) => {}
-                    }
-
-                    let joined_as = joined_as.as_ref().unwrap();
-
+                    use MPLobbyState::*;
                     match state {
-                        MPLobbyState::ToBeLoaded => {
+                        ToJoin => unimplemented!(),
+                        ToBeLoaded => {
                             // TODO make request to server
 
                             pub async fn get_lobby(
@@ -487,10 +441,10 @@ impl Component for Snake {
 
                             html! { <h1> {"Loading..."} </h1> }
                         }
-                        MPLobbyState::Loaded => {
+                        Loaded => {
                             html! { <> {"Lobby: "} { lobby_name } </> }
                         }
-                        MPLobbyState::DoesNotExist => {
+                        DoesNotExist => {
                             html! { <> {"Lobby does not exist: "} { lobby_name }  </> }
                         }
                     }
@@ -529,10 +483,7 @@ impl Component for Snake {
                                     200 => {
                                         console::log!("lobby created");
 
-                                        Self::Message::RedirectToLobby {
-                                            lobby_name: name,
-                                            joined_as: None,
-                                        }
+                                        Self::Message::RedirectToLobby { lobby_name: name }
                                         // Self::Message::StateChange(State::NotBegun {
                                         //     inner: NotBegunState::MPPrejoinLobby {
                                         //         lobby_name: form.name,
@@ -828,10 +779,7 @@ impl Component for Snake {
 
                 false
             }
-            Self::Message::RedirectToLobby {
-                lobby_name,
-                joined_as,
-            } => {
+            Self::Message::RedirectToLobby { lobby_name } => {
                 let navigator = ctx.link().navigator().unwrap();
                 navigator.push(&Route::SnakeLobby {
                     lobby_name: lobby_name.clone(),
@@ -845,7 +793,6 @@ impl Component for Snake {
                 ctx.link()
                     .send_message(Self::Message::StateChange(State::NotBegun {
                         inner: NotBegunState::MPLobby {
-                            joined_as,
                             lobby_name,
                             state: MPLobbyState::ToBeLoaded,
                         },
@@ -1132,6 +1079,7 @@ impl Snake {
 
 #[derive(Clone, PartialEq)]
 pub enum MPLobbyState {
+    ToJoin,
     ToBeLoaded,
     Loaded,
     DoesNotExist,
@@ -1146,7 +1094,6 @@ pub enum NotBegunState {
     //     lobby_name: LobbyName,
     // }, // enter your name Here
     MPLobby {
-        joined_as: Option<UserName>,
         lobby_name: LobbyName,
         state: MPLobbyState,
     },
@@ -1166,7 +1113,6 @@ impl State {
     pub fn to_be_loaded_lobby(lobby_name: LobbyName) -> Self {
         State::NotBegun {
             inner: NotBegunState::MPLobby {
-                joined_as: None,
                 lobby_name,
                 state: MPLobbyState::ToBeLoaded,
             },
