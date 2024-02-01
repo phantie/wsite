@@ -49,11 +49,20 @@ pub enum JoinLobbyError {
 
 // TODO forbid deref
 // TODO expose remove lobby
-// TODO expose disjoin player
 impl Lobbies {
-    #[allow(unused)]
     pub async fn disjoin_player(&self, player: Player) {
-        unimplemented!()
+        // while you hold this lock, noone else touches players
+        let mut player_to_lobby = self.1.write().await;
+
+        match player_to_lobby.get(&player) {
+            None => {}
+            Some(_lobby_name) => {
+                let _lock = self.read().await;
+                let lobby = _lock.get(_lobby_name).expect("to be in sync");
+                player_to_lobby.remove(&player);
+                lobby.write().await.disjoin_player(&player);
+            }
+        }
     }
 
     pub async fn join_player(
