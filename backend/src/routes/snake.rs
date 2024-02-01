@@ -1,14 +1,14 @@
-use crate::mp_snake;
+use crate::mp_snake::{Lobbies, Lobby};
 use crate::routes::imports::*;
 
 #[axum_macros::debug_handler]
 pub async fn create_lobby(
-    Extension(lobbies): Extension<mp_snake::Lobbies>,
+    Extension(lobbies): Extension<Lobbies>,
     lobby: Json<interfacing::snake::CreateLobby>,
 ) -> ApiResult<impl IntoResponse> {
     tracing::info!("{:?}", lobby);
 
-    let lobby = mp_snake::Lobby::new(lobby.name.clone());
+    let lobby = Lobby::new(lobby.name.clone());
     let result = lobbies.insert_if_missing(lobby).await;
 
     match result {
@@ -19,23 +19,21 @@ pub async fn create_lobby(
 
 #[axum_macros::debug_handler]
 pub async fn get_lobby(
-    Extension(lobbies): Extension<mp_snake::Lobbies>,
+    Extension(lobbies): Extension<Lobbies>,
     Path(name): Path<interfacing::snake::LobbyName>,
 ) -> ApiResult<impl IntoResponse> {
-    let result = lobbies
-        .get(&name)
-        .await
-        .map(|lobby| interfacing::snake::GetLobby { name: lobby.name });
-
-    match result {
-        Some(lobby) => Ok(Json(lobby)),
+    match lobbies.get(&name).await {
         None => Err(ApiError::EntryNotFound),
+        Some(lobby) => {
+            let Lobby { name, .. } = lobby.read().await.to_owned();
+            Ok(Json(interfacing::snake::GetLobby { name }))
+        }
     }
 }
 
 pub mod ws {
     use crate::configuration::get_env;
-    use crate::mp_snake;
+    use crate::mp_snake::{ws::State, Lobbies, Player};
     use crate::routes::imports::*;
     use crate::startup::UserConnectInfo;
     use axum::extract::connect_info::ConnectInfo;
@@ -45,7 +43,7 @@ pub mod ws {
         stream::{SplitSink, SplitStream, StreamExt},
     };
     use interfacing::snake::WsMsg;
-    use mp_snake::ws::State;
+    use std::net::SocketAddr;
     use std::sync::Arc;
     use tokio::sync::{mpsc, Mutex};
 
@@ -53,7 +51,7 @@ pub mod ws {
         maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
         ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
         headers: hyper::HeaderMap,
-        Extension(lobbies): Extension<mp_snake::Lobbies>,
+        Extension(lobbies): Extension<Lobbies>,
     ) -> Response {
         let ws = match maybe_ws {
             Ok(ws) => ws,
@@ -72,13 +70,9 @@ pub mod ws {
     type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
     type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
-    async fn handle_socket(
-        socket: WebSocket,
-        sock: std::net::SocketAddr,
-        #[allow(unused)] lobbies: mp_snake::Lobbies,
-    ) {
+    async fn handle_socket(socket: WebSocket, sock_addr: SocketAddr, lobbies: Lobbies) {
         if get_env().local() {
-            tracing::info!("Client connected to Snake Ws: {:?}", sock);
+            tracing::info!("Client connected to Snake Ws: {:?}", sock_addr);
         } else {
             tracing::info!("Client connected to Snake Ws");
         }
@@ -88,7 +82,13 @@ pub mod ws {
         let (server_msg_sender, server_msg_receiver) = mpsc::unbounded_channel::<ServerMsg>();
 
         let (sender, receiver) = socket.split();
-        let rh = tokio::spawn(read(receiver, con_state.clone(), server_msg_sender.clone()));
+        let rh = tokio::spawn(read(
+            receiver,
+            con_state.clone(),
+            server_msg_sender.clone(),
+            lobbies.clone(),
+            sock_addr.clone(),
+        ));
         let wh = tokio::spawn(write(sender, server_msg_receiver));
 
         // as soon as a closed channel error returns from any of these procedures,
@@ -97,12 +97,19 @@ pub mod ws {
             _ = rh => (),
             _ = wh => (),
         };
+
+        let player = Player { id: sock_addr };
+
+        // clean up
+        lobbies.disjoin_player(player).await;
     }
 
     async fn read(
         mut receiver: SplitStream<WebSocket>,
         con_state: Arc<Mutex<State>>,
         server_msg_sender: mpsc::UnboundedSender<ServerMsg>,
+        lobbies: Lobbies,
+        sock_addr: SocketAddr,
     ) {
         loop {
             match receiver.next().await {
@@ -125,6 +132,7 @@ pub mod ws {
                                         }
                                     }
                                 }
+
                                 WsMsg(id, UserName) => {
                                     let user_name = con_state.lock().await.user_name.clone();
                                     let send = WsMsg::new(
@@ -133,8 +141,12 @@ pub mod ws {
                                     .maybe_id(id);
                                     server_msg_sender.send(send).unwrap();
                                 }
-                                WsMsg(_, JoinLobby(_lobby_name)) => {
-                                    // unimplemented!();
+
+                                WsMsg(_, JoinLobby(lobby_name)) => {
+                                    let player = Player { id: sock_addr };
+                                    let _result = lobbies.join_player(lobby_name, player).await;
+
+                                    // TODO send result
 
                                     {
                                         if let Some(ack) = ack {

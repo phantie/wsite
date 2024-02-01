@@ -1,9 +1,11 @@
-use interfacing::snake::{LobbyName, UserName};
+use interfacing::snake::LobbyName;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-#[derive(Clone)]
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub struct Player {
-    #[allow(unused)]
-    name: UserName,
+    pub id: std::net::SocketAddr,
 }
 
 #[derive(Clone)]
@@ -11,34 +13,84 @@ pub struct Lobby {
     #[allow(unused)]
     pub name: LobbyName,
     #[allow(unused)]
-    players: Vec<Player>,
+    pub players: HashSet<Player>,
 }
 
 impl Lobby {
     pub fn new(name: LobbyName) -> Self {
         Self {
             name,
-            players: vec![],
+            players: Default::default(),
         }
     }
-}
 
-// TODO Value In HashMap (Lobby) Should be wrapped in RwLock or Something
-// to increase concurrency by accessing through outer RwLock using read
-type Inner = std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<LobbyName, Lobby>>>;
+    fn join_player(&mut self, player: Player) {
+        self.players.insert(player);
+    }
 
-#[derive(Clone, Default)]
-pub struct Lobbies(Inner);
-
-impl std::ops::Deref for Lobbies {
-    type Target = Inner;
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    #[allow(unused)]
+    pub fn disjoin_player(&mut self, player: &Player) {
+        self.players.remove(&player);
     }
 }
 
+#[derive(Clone, Default, derived_deref::Deref)]
+pub struct Lobbies(
+    #[target] Arc<RwLock<HashMap<LobbyName, Arc<RwLock<Lobby>>>>>,
+    Arc<RwLock<HashMap<Player, LobbyName>>>,
+);
+
+pub enum JoinLobbyError {
+    // to the other
+    AlreadyJoined(LobbyName),
+    NotFound,
+    // UserNameNotSet
+}
+
+// TODO forbid deref
+// TODO expose remove lobby
+// TODO expose disjoin player
 impl Lobbies {
-    pub async fn get(&self, name: &LobbyName) -> Option<Lobby> {
+    #[allow(unused)]
+    pub async fn disjoin_player(&self, player: Player) {
+        unimplemented!()
+    }
+
+    pub async fn join_player(
+        &self,
+        lobby_name: LobbyName,
+        player: Player,
+    ) -> Result<(), JoinLobbyError> {
+        // while you hold this lock, noone else touches players
+        let mut player_to_lobby = self.1.write().await;
+
+        match player_to_lobby.get(&player) {
+            None => {
+                let _lock = self.read().await;
+                let lobby = _lock.get(&lobby_name);
+
+                match lobby {
+                    None => Err(JoinLobbyError::NotFound),
+                    Some(lobby) => {
+                        player_to_lobby.insert(player.clone(), lobby_name);
+                        lobby.write().await.join_player(player);
+                        Ok(())
+                    }
+                }
+            }
+            Some(_lobby_name) => {
+                // idempotency
+                if lobby_name == *_lobby_name {
+                    // don't need to check lobby, since it must be in sync
+                    Ok(())
+                } else {
+                    Err(JoinLobbyError::AlreadyJoined(_lobby_name.clone()))
+                }
+            }
+        }
+    }
+
+    pub async fn get(&self, name: &LobbyName) -> Option<Arc<RwLock<Lobby>>> {
         self.read().await.get(name).cloned()
     }
 
@@ -49,7 +101,7 @@ impl Lobbies {
         match w_lock.entry(lobby.name.clone()) {
             Entry::Occupied(_) => Err("Lobby with this name already exists".into()),
             Entry::Vacant(_) => {
-                w_lock.insert(lobby.name.clone(), lobby);
+                w_lock.insert(lobby.name.clone(), Arc::new(RwLock::new(lobby)));
                 Ok(())
             }
         }
@@ -57,7 +109,9 @@ impl Lobbies {
 
     #[allow(dead_code)]
     async fn insert(&self, lobby: Lobby) {
-        self.write().await.insert(lobby.name.clone(), lobby);
+        self.write()
+            .await
+            .insert(lobby.name.clone(), Arc::new(RwLock::new(lobby)));
     }
 }
 
