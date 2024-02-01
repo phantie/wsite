@@ -682,7 +682,14 @@ impl Component for Snake {
 
                 match msg {
                     WsMsg(Some(id), msg) => {
-                        let ack_msg = self.acknowledgeable_messages.get(&id).unwrap(); // TODO handle
+                        let ack_msg = self.acknowledgeable_messages.get(&id);
+
+                        let ack_msg = if let None = ack_msg {
+                            console::log!(format!("dissmiss response: {id} {msg:?}"));
+                            return false;
+                        } else {
+                            ack_msg.unwrap()
+                        };
 
                         match (ack_msg, msg) {
                             (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {}
