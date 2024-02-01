@@ -407,7 +407,17 @@ impl Component for Snake {
                 } => {
                     use MPLobbyState::*;
                     match state {
-                        ToJoin => unimplemented!(),
+                        ToJoin => {
+                            let msg = SnakeMsg::WsSend(
+                                WsMsg::new(WsClientMsg::JoinLobby(lobby_name.clone()))
+                                    .id("join-lobby"),
+                            );
+
+                            ctx.link().send_message(msg);
+
+                            html! { "Joining..." }
+                            // unimplemented!()
+                        }
                         ToBeLoaded => {
                             // TODO make request to server
 
@@ -439,7 +449,12 @@ impl Component for Snake {
                             //     });
                             // }
 
-                            html! { <h1> {"Loading..."} </h1> }
+                            html! {
+                                <>
+                                <h3>{ "Joined "} { lobby_name } { " as " } { self.ws_state.user_name.as_ref().unwrap() } </h3>
+                                <h2> {"Loading..."} </h2>
+                                </>
+                            }
                         }
                         Loaded => {
                             html! { <> {"Lobby: "} { lobby_name } </> }
@@ -504,9 +519,12 @@ impl Component for Snake {
                     };
 
                     html! {
+                        <>
+                        { "Enter new lobby name:" }
                         <form {onsubmit} method="post">
                             <input type="text" ref={name_ref}/>
                         </form>
+                        </>
                     }
                 }
                 State::NotBegun {
@@ -720,6 +738,8 @@ impl Component for Snake {
                             ack_msg.unwrap()
                         };
 
+                        // TODO decouple action to take somehow
+                        //
                         match (ack_msg, msg) {
                             (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {
                                 console::log!(format!(
@@ -738,14 +758,22 @@ impl Component for Snake {
                                 return true;
                             }
 
-                            (WsClientMsg::JoinLobby(_), WsServerMsg::Ack) => {
+                            (WsClientMsg::JoinLobby(lobby_name), WsServerMsg::Ack) => {
                                 console::log!("ack:", &id, format!("{ack_msg:?}"));
-                                unimplemented!(); // TODO
+
+                                ctx.link().send_message(Self::Message::StateChange(
+                                    State::NotBegun {
+                                        inner: NotBegunState::MPLobby {
+                                            lobby_name: lobby_name.clone(),
+                                            state: MPLobbyState::ToBeLoaded,
+                                        },
+                                    },
+                                ));
                             }
 
                             (WsClientMsg::JoinLobby(_), WsServerMsg::JoinLobbyDecline(r)) => {
                                 console::log!("dec:", &id, format!("{ack_msg:?} {r:?}"));
-                                unimplemented!(); // TODO
+                                // unimplemented!(); // TODO
                             }
 
                             (req, res) => {
@@ -791,12 +819,9 @@ impl Component for Snake {
                 // would be added manually
                 //
                 ctx.link()
-                    .send_message(Self::Message::StateChange(State::NotBegun {
-                        inner: NotBegunState::MPLobby {
-                            lobby_name,
-                            state: MPLobbyState::ToBeLoaded,
-                        },
-                    }));
+                    .send_message(Self::Message::StateChange(State::to_be_loaded_lobby(
+                        lobby_name,
+                    )));
                 true
             }
             Self::Message::WindowLoaded => {
@@ -1114,7 +1139,7 @@ impl State {
         State::NotBegun {
             inner: NotBegunState::MPLobby {
                 lobby_name,
-                state: MPLobbyState::ToBeLoaded,
+                state: MPLobbyState::ToJoin,
             },
         }
     }
