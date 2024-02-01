@@ -7,5 +7,6 @@ pub mod startup;
 pub mod telemetry;
 pub mod timeout;
 
+mod mp_snake;
 mod routes;
 mod static_routes;

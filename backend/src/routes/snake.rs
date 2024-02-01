@@ -1,6 +1,5 @@
+use crate::mp_snake;
 use crate::routes::imports::*;
-
-use crate::startup::mp_snake;
 
 #[axum_macros::debug_handler]
 pub async fn create_lobby(
@@ -36,8 +35,8 @@ pub async fn get_lobby(
 
 pub mod ws {
     use crate::configuration::get_env;
+    use crate::mp_snake;
     use crate::routes::imports::*;
-    use crate::startup::mp_snake;
     use crate::startup::UserConnectInfo;
     use axum::extract::connect_info::ConnectInfo;
     use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
