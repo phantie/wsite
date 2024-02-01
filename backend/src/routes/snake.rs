@@ -33,7 +33,7 @@ pub async fn get_lobby(
 
 pub mod ws {
     use crate::configuration::get_env;
-    use crate::mp_snake::{ws::State, Lobbies, Player};
+    use crate::mp_snake::{ws::State, JoinLobbyError, Lobbies, Player};
     use crate::routes::imports::*;
     use crate::startup::UserConnectInfo;
     use axum::extract::connect_info::ConnectInfo;
@@ -142,17 +142,37 @@ pub mod ws {
                                     server_msg_sender.send(send).unwrap();
                                 }
 
-                                WsMsg(_, JoinLobby(lobby_name)) => {
-                                    let player = Player { id: sock_addr };
-                                    let _result = lobbies.join_player(lobby_name, player).await;
+                                WsMsg(None, JoinLobby(_lobby_name)) => {
+                                    unreachable!("ack required")
+                                }
 
-                                    // TODO send result
-
-                                    {
-                                        if let Some(ack) = ack {
-                                            server_msg_sender.send(ack).unwrap();
-                                        }
+                                WsMsg(Some(id), JoinLobby(lobby_name)) => {
+                                    if let None = con_state.lock().await.user_name {
+                                        unimplemented!("return error: UserName not set");
                                     }
+
+                                    let send = match con_state.lock().await.user_name {
+                                        None => {
+                                            WsMsg::new(
+                                                interfacing::snake::WsServerMsg::JoinLobbyDecline(interfacing::snake::JoinLobbyDecline::UserNameNotSet),
+                                            )
+                                            .id(id)
+                                        }
+                                        Some(_) => {
+                                            use interfacing::snake::{JoinLobbyDecline, WsServerMsg};
+
+                                            let player = Player { id: sock_addr };
+
+                                            match lobbies.join_player(lobby_name, player).await
+                                            {
+                                                Ok(()) => ack.unwrap(),
+                                                Err(JoinLobbyError::NotFound) => WsMsg::new(WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound)),
+                                                Err(JoinLobbyError::AlreadyJoined(lobby_name)) => WsMsg::new(WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::AlreadyJoined(lobby_name))),
+                                            }
+                                        }
+                                    };
+
+                                    server_msg_sender.send(send).unwrap();
                                 }
                             }
                         }

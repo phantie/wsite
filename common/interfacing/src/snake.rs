@@ -36,14 +36,18 @@ impl WsMsg<WsClientMsg> {
     }
 }
 
-type Reason = String;
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum WsServerMsg {
     Ack,
     UserName(Option<UserName>),
-    // only reason to decline now is that no username is set
-    JoinLobbyDecline(Reason), // TODO extend to support reason matching if others emerge
+    JoinLobbyDecline(JoinLobbyDecline),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub enum JoinLobbyDecline {
+    AlreadyJoined(LobbyName),
+    NotFound,
+    UserNameNotSet,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -61,7 +65,7 @@ impl<M> WsMsg<M> {
         Self(Some(id.into()), self.1)
     }
 
-    pub fn maybe_id(self, maybe_id: impl Into<Option<MsgId>>) -> Self {
-        Self(maybe_id.into(), self.1)
+    pub fn maybe_id(self, maybe_id: Option<impl Into<MsgId>>) -> Self {
+        Self(maybe_id.map(Into::into), self.1)
     }
 }

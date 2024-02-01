@@ -744,7 +744,7 @@ impl Component for Snake {
                             }
 
                             (WsClientMsg::JoinLobby(_), WsServerMsg::JoinLobbyDecline(r)) => {
-                                console::log!("dec:", &id, format!("{ack_msg:?}"), r);
+                                console::log!("dec:", &id, format!("{ack_msg:?} {r:?}"));
                                 unimplemented!(); // TODO
                             }
 

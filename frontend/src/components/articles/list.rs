@@ -2,11 +2,11 @@
 
 use crate::components::imports::*;
 
-use crate::static_articles::{StaticArticle, static_articles};
+use crate::static_articles::{static_articles, StaticArticle};
 
 enum Article {
     Dynamic(interfacing::ArticleWithId),
-    Static(StaticArticle)
+    Static(StaticArticle),
 }
 
 impl Article {
@@ -259,7 +259,10 @@ async fn fetch_article_list() -> Result<Vec<interfacing::ArticleWithId>, ()> {
     match result {
         Err(_) => Err(()),
         Ok(response) => match response.status() {
-            200 => Ok(response.json::<Vec<interfacing::ArticleWithId>>().await.unwrap()),
+            200 => Ok(response
+                .json::<Vec<interfacing::ArticleWithId>>()
+                .await
+                .unwrap()),
             _ => Err(()),
         },
     }
