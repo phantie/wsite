@@ -147,8 +147,14 @@ pub mod ws {
                                 }
 
                                 WsMsg(Some(id), JoinLobby(lobby_name)) => {
+                                    use interfacing::snake::{JoinLobbyDecline, WsServerMsg};
+
                                     if let None = con_state.lock().await.user_name {
-                                        unimplemented!("return error: UserName not set");
+                                        let send = WsMsg::new(WsServerMsg::JoinLobbyDecline(
+                                            JoinLobbyDecline::UserNameNotSet,
+                                        ));
+                                        server_msg_sender.send(send).unwrap();
+                                        return;
                                     }
 
                                     let send = match con_state.lock().await.user_name {
@@ -159,8 +165,7 @@ pub mod ws {
                                             .id(id)
                                         }
                                         Some(_) => {
-                                            use interfacing::snake::{JoinLobbyDecline, WsServerMsg};
-
+ 
                                             let player = Player { id: sock_addr };
 
                                             match lobbies.join_player(lobby_name, player).await
