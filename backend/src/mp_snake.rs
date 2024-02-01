@@ -34,7 +34,7 @@ impl Lobby {
     }
 }
 
-#[derive(Clone, Default, derived_deref::Deref)]
+#[derive(derived_deref::Deref, Clone, Default)]
 pub struct Lobbies(
     #[target] Arc<RwLock<HashMap<LobbyName, Arc<RwLock<Lobby>>>>>,
     Arc<RwLock<HashMap<Player, LobbyName>>>,
@@ -47,9 +47,26 @@ pub enum JoinLobbyError {
     // UserNameNotSet
 }
 
-// TODO forbid deref
-// TODO expose remove lobby
+// TODO maybe forbid deref
 impl Lobbies {
+    // TODO verify
+    #[allow(unused)]
+    pub async fn remove_lobby(&self, lobby_name: LobbyName) {
+        // while you hold this lock, noone else touches players
+        let mut player_to_lobby = self.1.write().await;
+
+        let _lock = self.read().await;
+        let lobby = _lock.get(&lobby_name).expect("to be in sync");
+
+        let players = &lobby.read().await.players;
+
+        for player in players {
+            player_to_lobby.remove(player);
+        }
+
+        self.write().await.remove(&lobby_name);
+    }
+
     pub async fn disjoin_player(&self, player: Player) {
         // while you hold this lock, noone else touches players
         let mut player_to_lobby = self.1.write().await;
