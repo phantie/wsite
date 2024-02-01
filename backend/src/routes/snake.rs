@@ -127,14 +127,20 @@ pub mod ws {
                                 }
                                 WsMsg(id, UserName) => {
                                     let user_name = con_state.lock().await.user_name.clone();
-                                    server_msg_sender
-                                        .send(
-                                            WsMsg::new(interfacing::snake::WsServerMsg::UserName(
-                                                user_name,
-                                            ))
-                                            .maybe_id(id),
-                                        )
-                                        .unwrap();
+                                    let send = WsMsg::new(
+                                        interfacing::snake::WsServerMsg::UserName(user_name),
+                                    )
+                                    .maybe_id(id);
+                                    server_msg_sender.send(send).unwrap();
+                                }
+                                WsMsg(_, JoinLobby(_lobby_name)) => {
+                                    // unimplemented!();
+
+                                    {
+                                        if let Some(ack) = ack {
+                                            server_msg_sender.send(ack).unwrap();
+                                        }
+                                    }
                                 }
                             }
                         }

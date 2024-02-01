@@ -691,6 +691,16 @@ impl Component for Snake {
                                 console::log!("ack:", &id, format!("{ack_msg:?}"));
                             }
 
+                            (WsClientMsg::JoinLobby(_), WsServerMsg::Ack) => {
+                                console::log!("ack:", &id, format!("{ack_msg:?}"));
+                                unimplemented!(); // TODO
+                            }
+
+                            (WsClientMsg::JoinLobby(_), WsServerMsg::JoinLobbyDecline(r)) => {
+                                console::log!("dec:", &id, format!("{ack_msg:?}"), r);
+                                unimplemented!(); // TODO
+                            }
+
                             (req, res) => {
                                 console::log!(format!(
                                     "invalid response to request: {req:?} {res:?}"
@@ -701,6 +711,7 @@ impl Component for Snake {
 
                         let msg = self.acknowledgeable_messages.remove(&id);
                     }
+
                     WsMsg(None, msg) => match msg {
                         WsServerMsg::Ack => unreachable!("server should not send this message"),
 

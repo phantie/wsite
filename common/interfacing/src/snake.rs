@@ -25,6 +25,7 @@ pub type MaybeMsgId = Option<MsgId>;
 pub enum WsClientMsg {
     SetUserName(UserName),
     UserName,
+    JoinLobby(LobbyName),
 }
 
 impl WsMsg<WsClientMsg> {
@@ -35,10 +36,14 @@ impl WsMsg<WsClientMsg> {
     }
 }
 
+type Reason = String;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum WsServerMsg {
     Ack,
     UserName(Option<UserName>),
+    // only reason to decline now is that no username is set
+    JoinLobbyDecline(Reason), // TODO extend to support reason matching if others emerge
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
