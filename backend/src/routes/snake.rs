@@ -1,6 +1,9 @@
 use crate::mp_snake::{Lobbies, Lobby};
 use crate::routes::imports::*;
 
+// for debugging
+const AUTO_GEN_USER_NAME: bool = true;
+
 #[axum_macros::debug_handler]
 pub async fn create_lobby(
     Extension(lobbies): Extension<Lobbies>,
@@ -47,6 +50,8 @@ pub mod ws {
     use std::sync::Arc;
     use tokio::sync::{mpsc, Mutex};
 
+    use super::AUTO_GEN_USER_NAME;
+
     pub async fn ws(
         maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
         ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
@@ -77,7 +82,18 @@ pub mod ws {
             tracing::info!("Client connected to Snake Ws");
         }
 
-        let con_state = Arc::new(Mutex::new(State::default()));
+
+        let con_state = {
+            let mut state = State::default();
+
+            state.user_name = if AUTO_GEN_USER_NAME {
+                Some(uuid::Uuid::new_v4().to_string())
+            } else {
+                None
+            };
+
+            Arc::new(Mutex::new(state))
+        };
 
         let (server_msg_sender, server_msg_receiver) = mpsc::unbounded_channel::<ServerMsg>();
 
