@@ -340,6 +340,42 @@ impl Component for Snake {
                     html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
                 }
                 State::NotBegun {
+                    inner: NotBegunState::MPLobbyList { lobbies },
+                } => match lobbies {
+                    None => {
+                        ctx.link().send_message(SnakeMsg::WsSend(
+                            WsMsg::new(WsClientMsg::LobbyList).id("lobby-list"),
+                        ));
+
+                        html! {"Loading Lobby list"}
+                    }
+                    Some(lobbies) => {
+                        let onclick = {
+                            let link = ctx.link().clone();
+                            move |name: String| {
+                                let link = link.clone();
+                                move |_| {
+                                    link.send_message(SnakeMsg::RedirectToLobby {
+                                        lobby_name: name.clone(),
+                                    })
+                                }
+                            }
+                        };
+
+                        let lobbies = lobbies
+                            .into_iter()
+                            .map(|lobby| html! { <h1 onclick={onclick(lobby.name.clone())}>{ &lobby.name }</h1> })
+                            .collect::<Html>();
+
+                        html! {
+                            <>
+                            { "Lobbies" }
+                            { lobbies }
+                            </>
+                        }
+                    }
+                },
+                State::NotBegun {
                     inner: NotBegunState::MPSetUsername,
                 } => {
                     if self.ws_state.synced_user_name {
@@ -561,10 +597,16 @@ impl Component for Snake {
                         })
                     });
 
+                    let join_onclick = ctx.link().callback(move |e| {
+                        Self::Message::StateChange(State::NotBegun {
+                            inner: NotBegunState::MPLobbyList { lobbies: None },
+                        })
+                    });
+
                     html! {
                         <>
                         <button onclick={create_onclick}>{ "Create server" }</button>
-                        <button>{ "Join server" }</button>
+                        <button onclick={join_onclick}>{ "Join server" }</button>
                         </>
                     }
                 }
@@ -741,6 +783,17 @@ impl Component for Snake {
                         // TODO decouple action to take somehow
                         //
                         match (ack_msg, msg) {
+                            (WsClientMsg::LobbyList, WsServerMsg::LobbyList(lobby_list)) => {
+                                if let State::NotBegun {
+                                    inner: NotBegunState::MPLobbyList { lobbies },
+                                } = &mut self.state
+                                {
+                                    lobbies.replace(lobby_list);
+
+                                    return true;
+                                }
+                            }
+
                             (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {
                                 console::log!(format!(
                                     "setting ws_state.user_name {:?}",
@@ -1115,15 +1168,14 @@ pub enum NotBegunState {
     ModeSelection,
     MPCreateJoinLobby,
     MPCreateLobby,
-    // MPPrejoinLobby {
-    //     lobby_name: LobbyName,
-    // }, // enter your name Here
     MPLobby {
         lobby_name: LobbyName,
         state: MPLobbyState,
     },
     MPSetUsername,
-    MPTryJoinLobby,
+    MPLobbyList {
+        lobbies: Option<interfacing::snake::LobbyList>,
+    },
     Initial,
     Ended,
 }

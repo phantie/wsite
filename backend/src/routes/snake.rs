@@ -179,6 +179,18 @@ pub mod ws {
 
                                     server_msg_sender.send(send).unwrap();
                                 }
+
+                                WsMsg(id, LobbyList) => {
+                                    use interfacing::snake::WsServerMsg;
+
+                                    let lobby_list = lobbies.read().await.keys().map(|lobby_name| interfacing::snake::list::Lobby {
+                                        name: lobby_name.clone()
+                                    }).collect::<Vec<_>>();
+
+                                    let send = WsMsg::new(WsServerMsg::LobbyList(lobby_list)).maybe_id(id);
+
+                                    server_msg_sender.send(send).unwrap();
+                                }
                             }
                         }
                         _ => {}

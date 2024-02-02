@@ -26,6 +26,7 @@ pub enum WsClientMsg {
     SetUserName(UserName),
     UserName,
     JoinLobby(LobbyName),
+    LobbyList,
 }
 
 impl WsMsg<WsClientMsg> {
@@ -41,6 +42,7 @@ pub enum WsServerMsg {
     Ack,
     UserName(Option<UserName>),
     JoinLobbyDecline(JoinLobbyDecline),
+    LobbyList(LobbyList),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -69,3 +71,17 @@ impl<M> WsMsg<M> {
         Self(maybe_id.map(Into::into), self.1)
     }
 }
+
+pub mod list {
+    use crate::imports::*;
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    pub struct Lobby {
+        pub name: String,
+        // pub player_count: u32,
+    }
+
+    pub type LobbyList = Vec<Lobby>;
+}
+
+pub use list::LobbyList;
