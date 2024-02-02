@@ -119,6 +119,9 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router {
         .layer(AddExtensionLayer::new(db.clone()))
         .layer(AddExtensionLayer::new(UsersOnline::new()))
         .layer(AddExtensionLayer::new(crate::mp_snake::Lobbies::default()))
+        .layer(AddExtensionLayer::new(
+            crate::mp_snake::PlayerUserNames::default(),
+        ))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();

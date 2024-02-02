@@ -1,11 +1,83 @@
-use interfacing::snake::LobbyName;
+use interfacing::snake::{LobbyName, UserName};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
+
+pub type Con = std::net::SocketAddr;
+
+#[derive(Default, Clone)]
+pub struct PlayerUserNames(Arc<Mutex<bidirectional_map::Bimap<Con, UserName>>>);
+
+impl PlayerUserNames {
+    pub async fn try_insert(&self, un: UserName, con: Con) -> Result<(), ()> {
+        // idempotent
+
+        let mut lock = self.0.lock().await;
+
+        if lock.contains_fwd(&con) {
+            if lock.contains_rev(&un) && lock.get_fwd(&con).unwrap() != &un {
+                Err(()) // occupied
+            } else {
+                lock.insert(con, un);
+                Ok(())
+            }
+        } else {
+            if lock.contains_rev(&un) {
+                Err(()) // occupied
+            } else {
+                lock.insert(con, un);
+                Ok(())
+            }
+        }
+    }
+
+    #[allow(unused)]
+    pub async fn free(&self, un: UserName) {
+        let mut lock = self.0.lock().await;
+        if lock.contains_rev(&un) {
+            lock.remove_rev(&un);
+        }
+    }
+
+    pub async fn clean_con(&self, con: Con) {
+        let mut lock = self.0.lock().await;
+        if lock.contains_fwd(&con) {
+            lock.remove_fwd(&con);
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct _PlayerUserNames(Arc<Mutex<(HashMap<Con, UserName>, HashMap<UserName, Con>)>>);
+
+#[allow(dead_code, unused)]
+impl _PlayerUserNames {
+    pub async fn try_insert(&self, un: UserName, con: Con) -> Result<(), ()> {
+        unimplemented!()
+    }
+
+    pub async fn free(&self, un: UserName) {
+        let mut lock = self.0.lock().await;
+
+        match lock.1.entry(un) {
+            std::collections::hash_map::Entry::Occupied(entry) => {
+                let con = entry.get().clone();
+                entry.remove();
+                lock.0.remove(&con);
+            }
+            std::collections::hash_map::Entry::Vacant(_) => {}
+        }
+    }
+
+    pub async fn clean_con(&self, con: Con) {
+        let mut lock = self.0.lock().await;
+        lock.0.remove(&con).map(|un| lock.1.remove(&un));
+    }
+}
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 pub struct Player {
-    pub id: std::net::SocketAddr,
+    pub id: Con,
 }
 
 #[derive(Clone)]

@@ -348,6 +348,7 @@ dependencies = [
  "axum",
  "axum-macros",
  "axum-sessions",
+ "bidirectional-map",
  "bytes",
  "claim",
  "clap",
@@ -434,6 +435,12 @@ name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
+
+[[package]]
+name = "bidirectional-map"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac66a889db5ab98510dff09cd3a92a23653c7d3371f425788e60f651f9184346"
 
 [[package]]
 name = "bincode"

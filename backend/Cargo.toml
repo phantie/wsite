@@ -54,6 +54,7 @@ derivative = "2.2.0"
 url = "2.4.1"
 human_bytes = "0.4.3"
 derived-deref = "2.1.0"
+bidirectional-map = "0.1.4"
 
 [dev-dependencies]
 claim = "0.5.0"

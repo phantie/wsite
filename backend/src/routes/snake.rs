@@ -36,7 +36,7 @@ pub async fn get_lobby(
 
 pub mod ws {
     use crate::configuration::get_env;
-    use crate::mp_snake::{ws::State, JoinLobbyError, Lobbies, Player};
+    use crate::mp_snake::{ws::State, JoinLobbyError, Lobbies, PlayerUserNames, Player};
     use crate::routes::imports::*;
     use crate::startup::UserConnectInfo;
     use axum::extract::connect_info::ConnectInfo;
@@ -57,6 +57,7 @@ pub mod ws {
         ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
         headers: hyper::HeaderMap,
         Extension(lobbies): Extension<Lobbies>,
+        Extension(uns): Extension<PlayerUserNames>,
     ) -> Response {
         let ws = match maybe_ws {
             Ok(ws) => ws,
@@ -69,25 +70,27 @@ pub mod ws {
 
         let sock_addr = con_info.socket_addr(&headers);
 
-        ws.on_upgrade(move |socket| handle_socket(socket, sock_addr, lobbies))
+        ws.on_upgrade(move |socket| handle_socket(socket, sock_addr, lobbies, uns))
     }
 
     type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
     type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
-    async fn handle_socket(socket: WebSocket, sock_addr: SocketAddr, lobbies: Lobbies) {
+    async fn handle_socket(socket: WebSocket, sock_addr: SocketAddr, lobbies: Lobbies, uns: PlayerUserNames) {
         if get_env().local() {
             tracing::info!("Client connected to Snake Ws: {:?}", sock_addr);
         } else {
             tracing::info!("Client connected to Snake Ws");
         }
 
-
         let con_state = {
             let mut state = State::default();
 
             state.user_name = if AUTO_GEN_USER_NAME {
-                Some(uuid::Uuid::new_v4().to_string())
+                let un = uuid::Uuid::new_v4().to_string();
+                // do not handle possible collision, since it's debug only feature
+                uns.try_insert(un.clone(), sock_addr).await.unwrap(); 
+                Some(un)
             } else {
                 None
             };
@@ -104,6 +107,7 @@ pub mod ws {
             server_msg_sender.clone(),
             lobbies.clone(),
             sock_addr.clone(),
+            uns.clone(),
         ));
         let wh = tokio::spawn(write(sender, server_msg_receiver));
 
@@ -114,10 +118,11 @@ pub mod ws {
             _ = wh => (),
         };
 
-        let player = Player { id: sock_addr };
+        let player = Player { id: sock_addr.clone() };
 
         // clean up
         lobbies.disjoin_player(player).await;
+        uns.clean_con(sock_addr).await;
     }
 
     async fn read(
@@ -126,6 +131,7 @@ pub mod ws {
         server_msg_sender: mpsc::UnboundedSender<ServerMsg>,
         lobbies: Lobbies,
         sock_addr: SocketAddr,
+        uns: PlayerUserNames
     ) {
         loop {
             match receiver.next().await {
@@ -138,13 +144,18 @@ pub mod ws {
                             let ack = msg.ack();
 
                             match msg {
-                                WsMsg(_, SetUserName(value)) => {
-                                    {
-                                        con_state.lock().await.user_name.replace(value);
-                                    }
-                                    {
-                                        if let Some(ack) = ack {
-                                            server_msg_sender.send(ack).unwrap();
+                                WsMsg(id, SetUserName(value)) => {
+                                    match uns.try_insert(value.clone(), sock_addr).await {
+                                        Ok(()) => {
+                                            con_state.lock().await.user_name.replace(value);
+
+                                            if let Some(ack) = ack {
+                                                server_msg_sender.send(ack).unwrap();
+                                            }
+                                        }
+                                        Err(()) => {
+                                            let msg = WsMsg::new(interfacing::snake::WsServerMsg::UserNameOccupied).maybe_id(id);
+                                            server_msg_sender.send(msg).unwrap();
                                         }
                                     }
                                 }

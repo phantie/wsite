@@ -18,7 +18,7 @@ pub struct JoinLobbyAs {
 pub type UserName = String;
 pub type LobbyName = String;
 
-pub type MsgId = String; // UUID
+pub type MsgId = String;
 pub type MaybeMsgId = Option<MsgId>;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -41,6 +41,7 @@ impl WsMsg<WsClientMsg> {
 pub enum WsServerMsg {
     Ack,
     UserName(Option<UserName>),
+    UserNameOccupied,
     JoinLobbyDecline(JoinLobbyDecline),
     LobbyList(LobbyList),
 }
