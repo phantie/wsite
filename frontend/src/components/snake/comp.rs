@@ -376,7 +376,7 @@ impl Component for Snake {
                     }
                 },
                 State::NotBegun {
-                    inner: NotBegunState::MPSetUsername,
+                    inner: NotBegunState::MPSetUsername { next_state },
                 } => {
                     if self.ws_state.synced_user_name {
                         match &self.ws_state.user_name {
@@ -414,7 +414,7 @@ impl Component for Snake {
                             }
                             Some(user_name) => {
                                 let msg = SnakeMsg::StateChange(State::NotBegun {
-                                    inner: NotBegunState::MPCreateJoinLobby,
+                                    inner: *next_state.clone(),
                                 });
 
                                 ctx.link().send_message(msg);
@@ -439,8 +439,21 @@ impl Component for Snake {
                     }
                 }
                 State::NotBegun {
-                    inner: NotBegunState::MPLobby { lobby_name, state },
+                    inner: s @ NotBegunState::MPLobby { lobby_name, state },
                 } => {
+                    // at this point set UserName is required to continue
+                    //
+                    if let None = self.ws_state.user_name {
+                        let msg = Self::Message::StateChange(State::NotBegun {
+                            inner: NotBegunState::MPSetUsername {
+                                next_state: Box::new(s.clone()),
+                            },
+                        });
+                        ctx.link().send_message(msg);
+
+                        return html! {};
+                    }
+
                     use MPLobbyState::*;
                     match state {
                         ToJoin => {
@@ -573,11 +586,8 @@ impl Component for Snake {
                     });
 
                     let mp_onclick = ctx.link().callback(move |e| {
-                        // Self::Message::StateChange(State::NotBegun {
-                        //     inner: NotBegunState::MPCreateJoinLobby,
-                        // }) // HERE
                         Self::Message::StateChange(State::NotBegun {
-                            inner: NotBegunState::MPSetUsername,
+                            inner: NotBegunState::MPCreateJoinLobby,
                         })
                     });
 
@@ -1172,7 +1182,9 @@ pub enum NotBegunState {
         lobby_name: LobbyName,
         state: MPLobbyState,
     },
-    MPSetUsername,
+    MPSetUsername {
+        next_state: Box<NotBegunState>,
+    },
     MPLobbyList {
         lobbies: Option<interfacing::snake::LobbyList>,
     },
