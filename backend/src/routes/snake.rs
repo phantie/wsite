@@ -223,14 +223,19 @@ pub mod ws {
                             .await
                         {
                             Ok(()) => WsServerMsg::Ack,
-                            Err(JoinLobbyError::NotFound) => {
-                                WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound)
-                            }
 
-                            Err(JoinLobbyError::AlreadyJoined(lobby_name)) => {
-                                WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::AlreadyJoined(
-                                    lobby_name,
-                                ))
+                            Err(e) => {
+                                // TODO impl From
+                                let e = match e {
+                                    JoinLobbyError::NotFound => JoinLobbyDecline::NotFound,
+                                    JoinLobbyError::AlreadyJoined(lobby_name) => {
+                                        JoinLobbyDecline::AlreadyJoined(lobby_name)
+                                    }
+                                    JoinLobbyError::AlreadyStarted => {
+                                        JoinLobbyDecline::AlreadyStarted
+                                    }
+                                };
+                                WsServerMsg::JoinLobbyDecline(e)
                             }
                         }
                     }

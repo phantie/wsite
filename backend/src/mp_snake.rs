@@ -79,26 +79,27 @@ type ServerMsg = interfacing::snake::WsMsg<interfacing::snake::WsServerMsg>;
 type Ch = tokio::sync::mpsc::UnboundedSender<ServerMsg>;
 
 pub struct LobbyConState {
-    pub ch: Ch,
-    pub user_name: UserName,
-    vote_start: bool,
+    ch: Ch,
+    user_name: UserName,
 }
 
 impl LobbyConState {
     pub fn new(ch: Ch, un: UserName) -> Self {
-        Self {
-            ch,
-            user_name: un,
-            vote_start: false,
-        }
+        Self { ch, user_name: un }
     }
 }
 
+#[allow(unused)]
+pub enum LobbyState {
+    Prep { start_votes: HashMap<Con, bool> },
+    Running,
+}
+
 pub struct Lobby {
-    #[allow(unused)]
     pub name: LobbyName,
-    #[allow(unused)]
     pub players: HashMap<Con, LobbyConState>,
+    #[allow(unused)]
+    pub state: LobbyState,
 }
 
 impl Lobby {
@@ -106,16 +107,32 @@ impl Lobby {
         Self {
             name,
             players: Default::default(),
+            state: LobbyState::Prep {
+                start_votes: Default::default(),
+            },
         }
     }
 
-    fn join_player(&mut self, con: Con, ch: Ch, un: UserName) {
-        self.players.insert(con, LobbyConState::new(ch, un));
+    fn join_player(&mut self, con: Con, ch: Ch, un: UserName) -> Result<(), String> {
+        match &mut self.state {
+            LobbyState::Prep { start_votes } => {
+                self.players.insert(con, LobbyConState::new(ch, un));
+                start_votes.insert(con, false);
+                Ok(())
+            }
+            _ => Err("Illegal state".into()),
+        }
     }
 
     #[allow(unused)]
-    pub fn disjoin_player(&mut self, player: &Con) {
-        self.players.remove(&player);
+    pub fn disjoin_player(&mut self, con: &Con) {
+        self.players.remove(&con);
+        match &mut self.state {
+            LobbyState::Prep { start_votes } => {
+                start_votes.remove(&con);
+            }
+            _ => {}
+        }
     }
 
     #[allow(unused)]
@@ -148,34 +165,53 @@ impl Lobby {
     }
 
     pub fn state(&self) -> interfacing::snake::lobby_state::LobbyState {
-        use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant, LobbyState};
+        use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant};
 
-        LobbyState::Prep(LobbyPrep {
-            participants: self
-                .players
-                .values()
-                .map(
-                    |LobbyConState {
-                         user_name,
-                         vote_start,
-                         ..
-                     }| LobbyPrepParticipant {
-                        user_name: user_name.clone(),
-                        vote_start: *vote_start,
-                    },
-                )
-                .collect(),
-        })
+        match &self.state {
+            LobbyState::Prep { start_votes } => {
+                interfacing::snake::lobby_state::LobbyState::Prep(LobbyPrep {
+                    participants: self
+                        .players
+                        .iter()
+                        .map(
+                            |(con, LobbyConState { user_name, .. })| LobbyPrepParticipant {
+                                user_name: user_name.clone(),
+                                vote_start: *start_votes.get(&con).expect("to be in sync"),
+                            },
+                        )
+                        .collect(),
+                })
+            }
+            LobbyState::Running => interfacing::snake::lobby_state::LobbyState::Running,
+        }
+    }
+
+    fn all_voted_to_start(&self) -> Result<bool, String> {
+        match &self.state {
+            LobbyState::Prep { start_votes } => {
+                Ok(start_votes.values().cloned().all(std::convert::identity))
+            }
+            _ => Err("Illegal state".into()),
+        }
     }
 
     pub fn vote_start(&mut self, con: Con, value: bool) -> Result<(), String> {
         use std::collections::hash_map::Entry;
-        match self.players.entry(con) {
-            Entry::Vacant(_) => Err("Player not found".into()),
-            Entry::Occupied(mut entry) => {
-                entry.get_mut().vote_start = value;
-                Ok(())
-            }
+
+        match &mut self.state {
+            LobbyState::Prep { start_votes } => match start_votes.entry(con) {
+                Entry::Vacant(_) => Err("Player not found".into()),
+                Entry::Occupied(mut entry) => {
+                    entry.insert(value);
+
+                    if self.all_voted_to_start().unwrap() {
+                        self.state = LobbyState::Running;
+                    }
+
+                    Ok(())
+                }
+            },
+            _ => Err("Illegal state".into()),
         }
     }
 }
@@ -190,7 +226,7 @@ pub enum JoinLobbyError {
     // to the other
     AlreadyJoined(LobbyName),
     NotFound,
-    // UserNameNotSet
+    AlreadyStarted,
 }
 
 // TODO maybe forbid deref
@@ -224,17 +260,17 @@ impl Lobbies {
         self.write().await.remove(&lobby_name);
     }
 
-    pub async fn disjoin_player(&self, player: Con) {
+    pub async fn disjoin_player(&self, con: Con) {
         // while you hold this lock, noone else touches players
         let mut player_to_lobby = self.1.write().await;
 
-        match player_to_lobby.get(&player) {
+        match player_to_lobby.get(&con) {
             None => {}
             Some(_lobby_name) => {
                 let _lock = self.read().await;
                 let lobby = _lock.get(_lobby_name).expect("to be in sync");
-                player_to_lobby.remove(&player);
-                lobby.write().await.disjoin_player(&player);
+                player_to_lobby.remove(&con);
+                lobby.write().await.disjoin_player(&con);
             }
         }
     }
@@ -242,14 +278,14 @@ impl Lobbies {
     pub async fn join_player(
         &self,
         lobby_name: LobbyName,
-        player: Con,
+        con: Con,
         ch: Ch,
         un: UserName,
     ) -> Result<(), JoinLobbyError> {
         // while you hold this lock, noone else touches players
         let mut player_to_lobby = self.1.write().await;
 
-        match player_to_lobby.get(&player) {
+        match player_to_lobby.get(&con) {
             None => {
                 let _lock = self.read().await;
                 let lobby = _lock.get(&lobby_name);
@@ -257,9 +293,11 @@ impl Lobbies {
                 match lobby {
                     None => Err(JoinLobbyError::NotFound),
                     Some(lobby) => {
-                        player_to_lobby.insert(player.clone(), lobby_name);
-                        lobby.write().await.join_player(player, ch, un);
-                        Ok(())
+                        player_to_lobby.insert(con.clone(), lobby_name);
+                        match lobby.write().await.join_player(con, ch, un) {
+                            Ok(()) => Ok(()),
+                            Err(_m) => Err(JoinLobbyError::AlreadyStarted),
+                        }
                     }
                 }
             }
@@ -275,10 +313,12 @@ impl Lobbies {
         }
     }
 
+    /// Get lobby by name
     pub async fn get(&self, name: &LobbyName) -> Option<Arc<RwLock<Lobby>>> {
         self.read().await.get(name).cloned()
     }
 
+    /// Create lobby only if it's not already created
     pub async fn insert_if_missing(&self, lobby: Lobby) -> Result<(), String> {
         use std::collections::hash_map::Entry;
         let mut w_lock = self.write().await;

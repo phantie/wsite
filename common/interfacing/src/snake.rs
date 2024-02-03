@@ -56,6 +56,7 @@ pub enum JoinLobbyDecline {
     AlreadyJoined(LobbyName),
     NotFound,
     UserNameNotSet,
+    AlreadyStarted,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -100,6 +101,7 @@ pub mod lobby_state {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
     pub enum LobbyState {
         Prep(LobbyPrep),
+        Running,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
