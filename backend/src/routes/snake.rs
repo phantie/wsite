@@ -256,25 +256,29 @@ pub mod ws {
             WsMsg(Some(id), VoteStart(value)) => {
                 let lobby = lobbies.joined_lobby(con).await;
 
-                let send = match lobby {
-                    None => WsServerMsg::Err("lobby does not exist".into()),
+                match lobby {
+                    None => {
+                        let send = WsServerMsg::Err("lobby does not exist".into());
+                        server_msg_sender.send(id.pinned_msg(send)).unwrap();
+                    }
                     Some(lobby) => {
                         let mut lock = lobby.write().await;
                         let result = lock.vote_start(con, value);
 
                         match result {
-                            Ok(()) => WsServerMsg::LobbyState(lock.state()),
+                            Ok(()) => {
+                                lock.broadcast_state(Some(id));
+                            }
                             Err(m) => {
                                 // this branch handling is required because
                                 // it's possible that between lobbies.joined_lobby and lobby.vote_start
                                 // player leaves the lobby
-                                WsServerMsg::Err(m)
+                                let send = WsServerMsg::Err(m);
+                                server_msg_sender.send(id.pinned_msg(send)).unwrap();
                             }
-                        }
+                        };
                     }
                 };
-
-                server_msg_sender.send(id.pinned_msg(send)).unwrap();
             }
 
             WsMsg(None, JoinLobby(_) | UserName | LobbyList | SetUserName(_) | VoteStart(_)) => {

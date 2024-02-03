@@ -65,7 +65,6 @@ pub struct WsMsg<M>(
 );
 
 impl<M> WsMsg<M> {
-    #[deprecated]
     pub fn new(msg: M) -> Self {
         Self(None, msg)
     }
@@ -75,7 +74,6 @@ impl<M> WsMsg<M> {
         Self(Some(id.into()), self.1)
     }
 
-    #[deprecated]
     pub fn maybe_id(self, maybe_id: Option<impl Into<MsgId>>) -> Self {
         Self(maybe_id.map(Into::into), self.1)
     }

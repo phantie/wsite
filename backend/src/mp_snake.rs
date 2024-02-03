@@ -1,4 +1,4 @@
-use interfacing::snake::{LobbyName, UserName};
+use interfacing::snake::{LobbyName, MaybeMsgId, MsgId, UserName, WsMsg};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -118,6 +118,12 @@ impl Lobby {
         self.players.remove(&player);
     }
 
+    pub fn broadcast_state(&self, msg_id: MaybeMsgId) {
+        self.broadcast(
+            WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state())).maybe_id(msg_id),
+        );
+    }
+
     pub fn state(&self) -> interfacing::snake::lobby_state::LobbyState {
         use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant, LobbyState};
 
@@ -140,14 +146,12 @@ impl Lobby {
     }
 
     /// Broadcast message to all lobby participants
-    #[allow(unused)]
-    pub fn broadcast(&self, msg: ServerMsg) {
+    fn broadcast(&self, msg: ServerMsg) {
         self.players
             .values()
             .for_each(|LobbyConState { ch, .. }| ch.send(msg.clone()).unwrap_or(()));
     }
 
-    #[allow(unused)]
     pub fn vote_start(&mut self, con: Con, value: bool) -> Result<(), String> {
         use std::collections::hash_map::Entry;
         match self.players.entry(con) {
