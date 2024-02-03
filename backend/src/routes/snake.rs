@@ -77,7 +77,12 @@ pub mod ws {
     type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
     type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
-    async fn handle_socket(socket: WebSocket, sock_addr: SocketAddr, lobbies: Lobbies, uns: PlayerUserNames) {
+    async fn handle_socket(
+        socket: WebSocket,
+        sock_addr: SocketAddr,
+        lobbies: Lobbies,
+        uns: PlayerUserNames,
+    ) {
         if get_env().local() {
             tracing::info!("Client connected to Snake Ws: {:?}", sock_addr);
         } else {
@@ -90,7 +95,7 @@ pub mod ws {
             state.user_name = if AUTO_GEN_USER_NAME {
                 let un = uuid::Uuid::new_v4().to_string();
                 // do not handle possible collision, since it's debug only feature
-                uns.try_insert(un.clone(), sock_addr).await.unwrap(); 
+                uns.try_insert(un.clone(), sock_addr).await.unwrap();
                 Some(un)
             } else {
                 None
@@ -130,96 +135,29 @@ pub mod ws {
         server_msg_sender: mpsc::UnboundedSender<ServerMsg>,
         lobbies: Lobbies,
         sock_addr: SocketAddr,
-        uns: PlayerUserNames
+        uns: PlayerUserNames,
     ) {
         loop {
-             match receiver.next().await {
-                Some(Ok(msg)) => {
-                    match &msg {
-                        Message::Text(msg) => {
-                            use interfacing::snake::WsClientMsg::*;
-
-                            let msg = serde_json::from_str::<ClientMsg>(msg).unwrap(); // TODO handle
-                            let ack = msg.ack();
-
-                            match msg {
-                                WsMsg(id, SetUserName(value)) => {
-                                    if lobbies.joined_any(sock_addr).await {
-                                        // forbid name changing when joined lobby
-                                        let msg = WsMsg::new(interfacing::snake::WsServerMsg::ForbiddenWhenJoined).maybe_id(id);
-                                        server_msg_sender.send(msg).unwrap();
-                                    } else {
-                                        match uns.try_insert(value.clone(), sock_addr).await {
-                                            Ok(()) => {
-                                                con_state.lock().await.user_name.replace(value);
-
-                                                if let Some(ack) = ack {
-                                                    server_msg_sender.send(ack).unwrap();
-                                                }
-                                            }
-                                            Err(()) => {
-                                                let msg = WsMsg::new(interfacing::snake::WsServerMsg::UserNameOccupied).maybe_id(id);
-                                                server_msg_sender.send(msg).unwrap();
-                                            }
-                                        }
-                                    }
-                                }
-
-                                WsMsg(id, UserName) => {
-                                    let user_name = con_state.lock().await.user_name.clone();
-                                    let send = WsMsg::new(
-                                        interfacing::snake::WsServerMsg::UserName(user_name),
-                                    )
-                                    .maybe_id(id);
-                                    server_msg_sender.send(send).unwrap();
-                                }
-
-                                WsMsg(None, JoinLobby(_lobby_name)) => {
-                                    unreachable!("ack required")
-                                }
-
-                                WsMsg(Some(id), JoinLobby(lobby_name)) => {
-                                    use interfacing::snake::{JoinLobbyDecline, WsServerMsg};
-
-                                    let send = match &con_state.lock().await.user_name {
-                                        None => {
-                                            WsMsg::new(
-                                                interfacing::snake::WsServerMsg::JoinLobbyDecline(interfacing::snake::JoinLobbyDecline::UserNameNotSet),
-                                            )
-                                            .id(id)
-                                        }
-                                        Some(un) => {
-                                            // here
- 
-                                            match lobbies.join_player(lobby_name, sock_addr, server_msg_sender.clone(), un.clone()).await
-                                            {
-                                                Ok(()) => ack.unwrap(),
-                                                Err(JoinLobbyError::NotFound) => WsMsg::new(WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound)),
-                                                Err(JoinLobbyError::AlreadyJoined(lobby_name)) => WsMsg::new(WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::AlreadyJoined(lobby_name))),
-                                            }
-                                        }
-                                    };
-
-                                    server_msg_sender.send(send).unwrap();
-                                }
-
-                                WsMsg(id, LobbyList) => {
-                                    use interfacing::snake::WsServerMsg;
-
-                                    let lobby_list = lobbies.read().await.keys().map(|lobby_name| interfacing::snake::list::Lobby {
-                                        name: lobby_name.clone()
-                                    }).collect::<Vec<_>>();
-
-                                    let send = WsMsg::new(WsServerMsg::LobbyList(lobby_list)).maybe_id(id);
-
-                                    server_msg_sender.send(send).unwrap();
-                                }
-                            }
-                        }
-                        _ => {}
+            match receiver.next().await {
+                Some(Ok(Message::Text(text))) => match serde_json::from_str::<ClientMsg>(&text) {
+                    Ok(msg) => {
+                        tracing::info!("Received message: {text:?}");
+                        handle_received_message(
+                            msg,
+                            con_state.clone(),
+                            server_msg_sender.clone(),
+                            lobbies.clone(),
+                            sock_addr,
+                            uns.clone(),
+                        )
+                        .await;
                     }
-
-                    tracing::info!("Received message: {msg:?}");
+                    Err(_) => {
+                        tracing::info!("Received unexpected message: {text:?}");
+                    }
+                },
+                Some(Ok(msg)) => {
+                    tracing::info!("Received unhandled message: {msg:?}");
                 }
                 Some(Err(_)) => {
                     tracing::info!("Client disconnected");
@@ -229,6 +167,107 @@ pub mod ws {
                     tracing::info!("Broadcast channel closed");
                     return;
                 }
+            }
+        }
+    }
+
+    async fn handle_received_message(
+        msg: ClientMsg,
+        con_state: Arc<Mutex<State>>,
+        server_msg_sender: mpsc::UnboundedSender<ServerMsg>,
+        lobbies: Lobbies,
+        sock_addr: SocketAddr,
+        uns: PlayerUserNames,
+    ) {
+        let ack = msg.ack();
+        use interfacing::snake::WsClientMsg::*;
+
+        match msg {
+            WsMsg(Some(id), SetUserName(value)) => {
+                if lobbies.joined_any(sock_addr).await {
+                    // forbid name changing when joined lobby
+                    let msg =
+                        WsMsg::new(interfacing::snake::WsServerMsg::ForbiddenWhenJoined).id(id);
+                    server_msg_sender.send(msg).unwrap();
+                } else {
+                    match uns.try_insert(value.clone(), sock_addr).await {
+                        Ok(()) => {
+                            con_state.lock().await.user_name.replace(value);
+
+                            if let Some(ack) = ack {
+                                server_msg_sender.send(ack).unwrap();
+                            }
+                        }
+                        Err(()) => {
+                            let msg = WsMsg::new(interfacing::snake::WsServerMsg::UserNameOccupied)
+                                .id(id);
+                            server_msg_sender.send(msg).unwrap();
+                        }
+                    }
+                }
+            }
+
+            WsMsg(Some(id), UserName) => {
+                let user_name = con_state.lock().await.user_name.clone();
+                let send = WsMsg::new(interfacing::snake::WsServerMsg::UserName(user_name)).id(id);
+                server_msg_sender.send(send).unwrap();
+            }
+
+            WsMsg(Some(id), JoinLobby(lobby_name)) => {
+                use interfacing::snake::{JoinLobbyDecline, WsServerMsg};
+
+                let send = match &con_state.lock().await.user_name {
+                    None => WsMsg::new(interfacing::snake::WsServerMsg::JoinLobbyDecline(
+                        interfacing::snake::JoinLobbyDecline::UserNameNotSet,
+                    ))
+                    .id(id),
+                    Some(un) => {
+                        // here
+
+                        match lobbies
+                            .join_player(
+                                lobby_name,
+                                sock_addr,
+                                server_msg_sender.clone(),
+                                un.clone(),
+                            )
+                            .await
+                        {
+                            Ok(()) => ack.unwrap(),
+                            Err(JoinLobbyError::NotFound) => WsMsg::new(
+                                WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound),
+                            ),
+                            Err(JoinLobbyError::AlreadyJoined(lobby_name)) => {
+                                WsMsg::new(WsServerMsg::JoinLobbyDecline(
+                                    JoinLobbyDecline::AlreadyJoined(lobby_name),
+                                ))
+                            }
+                        }
+                    }
+                };
+
+                server_msg_sender.send(send).unwrap();
+            }
+
+            WsMsg(Some(id), LobbyList) => {
+                use interfacing::snake::WsServerMsg;
+
+                let lobby_list = lobbies
+                    .read()
+                    .await
+                    .keys()
+                    .map(|lobby_name| interfacing::snake::list::Lobby {
+                        name: lobby_name.clone(),
+                    })
+                    .collect::<Vec<_>>();
+
+                let send = WsMsg::new(WsServerMsg::LobbyList(lobby_list)).id(id);
+
+                server_msg_sender.send(send).unwrap();
+            }
+
+            WsMsg(None, JoinLobby(_) | UserName | LobbyList | SetUserName(_)) => {
+                unreachable!("ack expected")
             }
         }
     }
