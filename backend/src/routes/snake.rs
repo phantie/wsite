@@ -178,49 +178,41 @@ pub mod ws {
         sock_addr: SocketAddr,
         uns: PlayerUserNames,
     ) {
-        use interfacing::snake::{Ack, WsClientMsg::*, WsServerMsg};
+        use interfacing::snake::{PinnedMessage, WsClientMsg::*, WsServerMsg};
 
         let con = sock_addr;
 
         match msg {
             WsMsg(Some(id), SetUserName(value)) => {
-                if lobbies.joined_any(sock_addr).await {
+                let send = if lobbies.joined_any(sock_addr).await {
                     // forbid name changing when joined lobby
-                    let msg =
-                        WsMsg::new(interfacing::snake::WsServerMsg::ForbiddenWhenJoined).id(id);
-                    server_msg_sender.send(msg).unwrap();
+                    interfacing::snake::WsServerMsg::ForbiddenWhenJoined
                 } else {
                     match uns.try_insert(value.clone(), sock_addr).await {
                         Ok(()) => {
                             con_state.lock().await.user_name.replace(value);
-                            server_msg_sender.send(id.ack()).unwrap();
+                            WsServerMsg::Ack
                         }
-                        Err(()) => {
-                            let msg = WsMsg::new(interfacing::snake::WsServerMsg::UserNameOccupied)
-                                .id(id);
-                            server_msg_sender.send(msg).unwrap();
-                        }
+                        Err(()) => interfacing::snake::WsServerMsg::UserNameOccupied,
                     }
-                }
+                };
+                server_msg_sender.send(id.pinned_msg(send)).unwrap();
             }
 
             WsMsg(Some(id), UserName) => {
                 let user_name = con_state.lock().await.user_name.clone();
-                let send = WsMsg::new(interfacing::snake::WsServerMsg::UserName(user_name)).id(id);
-                server_msg_sender.send(send).unwrap();
+                let send = interfacing::snake::WsServerMsg::UserName(user_name);
+                server_msg_sender.send(id.pinned_msg(send)).unwrap();
             }
 
             WsMsg(Some(id), JoinLobby(lobby_name)) => {
                 use interfacing::snake::JoinLobbyDecline;
 
                 let send = match &con_state.lock().await.user_name {
-                    None => WsMsg::new(interfacing::snake::WsServerMsg::JoinLobbyDecline(
+                    None => interfacing::snake::WsServerMsg::JoinLobbyDecline(
                         interfacing::snake::JoinLobbyDecline::UserNameNotSet,
-                    ))
-                    .id(id),
+                    ),
                     Some(un) => {
-                        // here
-
                         match lobbies
                             .join_player(
                                 lobby_name,
@@ -230,22 +222,21 @@ pub mod ws {
                             )
                             .await
                         {
-                            Ok(()) => id.ack(),
-                            Err(JoinLobbyError::NotFound) => WsMsg::new(
-                                WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound),
-                            )
-                            .id(id),
+                            Ok(()) => WsServerMsg::Ack,
+                            Err(JoinLobbyError::NotFound) => {
+                                WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound)
+                            }
+
                             Err(JoinLobbyError::AlreadyJoined(lobby_name)) => {
-                                WsMsg::new(WsServerMsg::JoinLobbyDecline(
-                                    JoinLobbyDecline::AlreadyJoined(lobby_name),
+                                WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::AlreadyJoined(
+                                    lobby_name,
                                 ))
                             }
-                            .id(id),
                         }
                     }
                 };
 
-                server_msg_sender.send(send).unwrap();
+                server_msg_sender.send(id.pinned_msg(send)).unwrap();
             }
 
             WsMsg(Some(id), LobbyList) => {
@@ -258,8 +249,8 @@ pub mod ws {
                     })
                     .collect::<Vec<_>>();
 
-                let send = WsMsg::new(WsServerMsg::LobbyList(lobby_list)).id(id);
-                server_msg_sender.send(send).unwrap();
+                let send = WsServerMsg::LobbyList(lobby_list);
+                server_msg_sender.send(id.pinned_msg(send)).unwrap();
             }
 
             WsMsg(Some(id), VoteStart(value)) => {
@@ -287,10 +278,8 @@ pub mod ws {
                         }
                     }
                 };
-                tracing::info!("Sent response");
 
-                // TODO refactor WsMsg::new, WsMsg::id, Ack trait
-                server_msg_sender.send(WsMsg::new(send).id(id)).unwrap();
+                server_msg_sender.send(id.pinned_msg(send)).unwrap();
             }
 
             WsMsg(None, JoinLobby(_) | UserName | LobbyList | SetUserName(_) | VoteStart(_)) => {

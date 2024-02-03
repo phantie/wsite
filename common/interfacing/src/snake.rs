@@ -65,14 +65,17 @@ pub struct WsMsg<M>(
 );
 
 impl<M> WsMsg<M> {
+    #[deprecated]
     pub fn new(msg: M) -> Self {
         Self(None, msg)
     }
 
+    #[deprecated]
     pub fn id(self, id: impl Into<MsgId>) -> Self {
         Self(Some(id.into()), self.1)
     }
 
+    #[deprecated]
     pub fn maybe_id(self, maybe_id: Option<impl Into<MsgId>>) -> Self {
         Self(maybe_id.map(Into::into), self.1)
     }
@@ -116,12 +119,18 @@ pub mod lobby_change {
 
 pub use lobby_change::LobbyChange;
 
-pub trait Ack {
-    fn ack(self) -> WsMsg<WsServerMsg>;
+pub trait PinnedMessage<T> {
+    fn pinned_msg(self, msg: T) -> WsMsg<T>;
 }
 
-impl Ack for String {
-    fn ack(self) -> WsMsg<WsServerMsg> {
-        WsMsg(Some(self), WsServerMsg::Ack)
+impl<T> PinnedMessage<T> for MsgId {
+    fn pinned_msg(self, msg: T) -> WsMsg<T> {
+        WsMsg(Some(self), msg)
+    }
+}
+
+impl<T> PinnedMessage<T> for &str /* &MsgId does not work for &str */ {
+    fn pinned_msg(self, msg: T) -> WsMsg<T> {
+        self.to_owned().pinned_msg(msg)
     }
 }

@@ -334,6 +334,8 @@ impl Component for Snake {
             }
         };
 
+        use interfacing::snake::PinnedMessage;
+
         let main_area = 'main_area: {
             match &self.state {
                 State::Begun { .. } => {
@@ -344,7 +346,7 @@ impl Component for Snake {
                 } => match lobbies {
                     None => {
                         ctx.link().send_message(SnakeMsg::WsSend(
-                            WsMsg::new(WsClientMsg::LobbyList).id("lobby-list"),
+                            "lobby-list".pinned_msg(WsClientMsg::LobbyList),
                         ));
 
                         html! {"Loading Lobby list"}
@@ -397,8 +399,8 @@ impl Component for Snake {
                                             .value();
 
                                         SnakeMsg::WsSend(
-                                            WsMsg::new(WsClientMsg::SetUserName(join_as))
-                                                .id("set-username"),
+                                            "set-username"
+                                                .pinned_msg(WsClientMsg::SetUserName(join_as)),
                                         )
                                     })
                                 };
@@ -426,7 +428,7 @@ impl Component for Snake {
                         match &self.ws_state.user_name {
                             None => {
                                 let msg = SnakeMsg::WsSend(
-                                    WsMsg::new(WsClientMsg::UserName).id("ask-username"),
+                                    "ask-username".pinned_msg(WsClientMsg::UserName),
                                 );
 
                                 ctx.link().send_message(msg);
@@ -458,8 +460,7 @@ impl Component for Snake {
                     match state {
                         ToJoin => {
                             let msg = SnakeMsg::WsSend(
-                                WsMsg::new(WsClientMsg::JoinLobby(lobby_name.clone()))
-                                    .id("join-lobby"),
+                                "join-lobby".pinned_msg(WsClientMsg::JoinLobby(lobby_name.clone())),
                             );
 
                             ctx.link().send_message(msg);
@@ -498,12 +499,12 @@ impl Component for Snake {
                             //     });
                             // }
 
-                            let onclick = ctx.link().callback(move |e| {
-                                Self::Message::WsSend(
-                                    WsMsg::new(interfacing::snake::WsClientMsg::VoteStart(true))
-                                        .id("vote-start"),
-                                )
-                            });
+                            let onclick =
+                                ctx.link().callback(move |e| {
+                                    Self::Message::WsSend("vote-start".pinned_msg(
+                                        interfacing::snake::WsClientMsg::VoteStart(true),
+                                    ))
+                                });
 
                             html! {
                                 <>
