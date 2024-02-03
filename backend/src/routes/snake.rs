@@ -179,8 +179,7 @@ pub mod ws {
         sock_addr: SocketAddr,
         uns: PlayerUserNames,
     ) {
-        let ack = msg.ack();
-        use interfacing::snake::WsClientMsg::*;
+        use interfacing::snake::{Ack, WsClientMsg::*};
 
         match msg {
             WsMsg(Some(id), SetUserName(value)) => {
@@ -193,10 +192,7 @@ pub mod ws {
                     match uns.try_insert(value.clone(), sock_addr).await {
                         Ok(()) => {
                             con_state.lock().await.user_name.replace(value);
-
-                            if let Some(ack) = ack {
-                                server_msg_sender.send(ack).unwrap();
-                            }
+                            server_msg_sender.send(id.ack()).unwrap();
                         }
                         Err(()) => {
                             let msg = WsMsg::new(interfacing::snake::WsServerMsg::UserNameOccupied)
@@ -233,7 +229,7 @@ pub mod ws {
                             )
                             .await
                         {
-                            Ok(()) => ack.unwrap(),
+                            Ok(()) => id.ack(),
                             Err(JoinLobbyError::NotFound) => WsMsg::new(
                                 WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound),
                             ),

@@ -30,6 +30,7 @@ pub enum WsClientMsg {
 }
 
 impl WsMsg<WsClientMsg> {
+    #[deprecated]
     pub fn ack(&self) -> Option<WsMsg<WsServerMsg>> {
         self.0
             .as_ref()
@@ -107,5 +108,15 @@ pub mod lobby_change {
     pub struct Participant {
         pub user_name: UserName,
         pub vote_start: bool,
+    }
+}
+
+pub trait Ack {
+    fn ack(self) -> WsMsg<WsServerMsg>;
+}
+
+impl Ack for String {
+    fn ack(self) -> WsMsg<WsServerMsg> {
+        WsMsg(Some(self), WsServerMsg::Ack)
     }
 }
