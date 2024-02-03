@@ -69,7 +69,6 @@ impl<M> WsMsg<M> {
         Self(None, msg)
     }
 
-    #[deprecated]
     pub fn id(self, id: impl Into<MsgId>) -> Self {
         Self(Some(id.into()), self.1)
     }

@@ -267,7 +267,7 @@ pub mod ws {
 
                         match result {
                             Ok(()) => {
-                                lock.broadcast_state(Some(id));
+                                lock.pinned_broadcast_state(id, con);
                             }
                             Err(m) => {
                                 // this branch handling is required because

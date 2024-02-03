@@ -1,4 +1,4 @@
-use interfacing::snake::{LobbyName, MaybeMsgId, MsgId, UserName, WsMsg};
+use interfacing::snake::{LobbyName, MsgId, UserName, WsMsg};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -118,10 +118,33 @@ impl Lobby {
         self.players.remove(&player);
     }
 
-    pub fn broadcast_state(&self, msg_id: MaybeMsgId) {
-        self.broadcast(
-            WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state())).maybe_id(msg_id),
-        );
+    #[allow(unused)]
+    pub fn broadcast_state(&self) {
+        self.broadcast(WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(
+            self.state(),
+        )))
+    }
+
+    // include Id for the participant who's request triggered broadcast
+    pub fn pinned_broadcast_state(&self, pin: MsgId, con: Con) {
+        let send = WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state()));
+        self.players
+            .iter()
+            .filter(|(_con, _)| con == **_con)
+            .for_each(|(_, LobbyConState { ch, .. })| {
+                ch.send(send.clone().id(pin.clone())).unwrap_or(())
+            });
+        self.players
+            .iter()
+            .filter(|(_con, _)| con != **_con)
+            .for_each(|(_, LobbyConState { ch, .. })| ch.send(send.clone()).unwrap_or(()));
+    }
+
+    /// Broadcast message to all lobby participants
+    fn broadcast(&self, msg: ServerMsg) {
+        self.players
+            .values()
+            .for_each(|LobbyConState { ch, .. }| ch.send(msg.clone()).unwrap_or(()));
     }
 
     pub fn state(&self) -> interfacing::snake::lobby_state::LobbyState {
@@ -143,13 +166,6 @@ impl Lobby {
                 )
                 .collect(),
         })
-    }
-
-    /// Broadcast message to all lobby participants
-    fn broadcast(&self, msg: ServerMsg) {
-        self.players
-            .values()
-            .for_each(|LobbyConState { ch, .. }| ch.send(msg.clone()).unwrap_or(()));
     }
 
     pub fn vote_start(&mut self, con: Con, value: bool) -> Result<(), String> {
