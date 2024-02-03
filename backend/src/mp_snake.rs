@@ -119,7 +119,7 @@ impl Lobby {
     }
 
     #[allow(unused)]
-    fn prep(&self) -> interfacing::snake::lobby_change::LobbyPrep {
+    pub fn prep(&self) -> interfacing::snake::lobby_change::LobbyPrep {
         use interfacing::snake::lobby_change::{LobbyPrep, Participant};
 
         LobbyPrep {
@@ -147,6 +147,18 @@ impl Lobby {
             .values()
             .for_each(|LobbyConState { ch, .. }| ch.send(msg.clone()).unwrap_or(()));
     }
+
+    #[allow(unused)]
+    pub fn vote_start(&mut self, con: Con, value: bool) -> Result<(), String> {
+        use std::collections::hash_map::Entry;
+        match self.players.entry(con) {
+            Entry::Vacant(_) => Err("Player not found".into()),
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().vote_start = value;
+                Ok(())
+            }
+        }
+    }
 }
 
 #[derive(derived_deref::Deref, Clone, Default)]
@@ -164,8 +176,15 @@ pub enum JoinLobbyError {
 
 // TODO maybe forbid deref
 impl Lobbies {
+    pub async fn joined_lobby(&self, con: Con) -> Option<Arc<RwLock<Lobby>>> {
+        match self.1.read().await.get(&con) {
+            None => None,
+            Some(ln) => Some(self.read().await[ln].clone()),
+        }
+    }
+
     pub async fn joined_any(&self, con: Con) -> bool {
-        self.1.read().await.get(&con).is_some()
+        self.joined_lobby(con).await.is_some()
     }
 
     // TODO verify

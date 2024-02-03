@@ -27,6 +27,7 @@ pub enum WsClientMsg {
     UserName,
     JoinLobby(LobbyName),
     LobbyList,
+    VoteStart(bool),
 }
 
 impl WsMsg<WsClientMsg> {
@@ -46,6 +47,8 @@ pub enum WsServerMsg {
     ForbiddenWhenJoined,
     JoinLobbyDecline(JoinLobbyDecline),
     LobbyList(LobbyList),
+    Err(String),
+    LobbyChange(LobbyChange),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -110,6 +113,8 @@ pub mod lobby_change {
         pub vote_start: bool,
     }
 }
+
+pub use lobby_change::LobbyChange;
 
 pub trait Ack {
     fn ack(self) -> WsMsg<WsServerMsg>;

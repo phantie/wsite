@@ -498,10 +498,18 @@ impl Component for Snake {
                             //     });
                             // }
 
+                            let onclick = ctx.link().callback(move |e| {
+                                Self::Message::WsSend(
+                                    WsMsg::new(interfacing::snake::WsClientMsg::VoteStart(true))
+                                        .id("vote-start"),
+                                )
+                            });
+
                             html! {
                                 <>
                                 <h3>{ "Joined "} { lobby_name } { " as " } { self.ws_state.user_name.as_ref().unwrap() } </h3>
                                 <h2> {"Loading..."} </h2>
+                                <button {onclick}> { "Vote start" } </button>
                                 </>
                             }
                         }
@@ -836,6 +844,11 @@ impl Component for Snake {
 
                             (WsClientMsg::JoinLobby(_), WsServerMsg::JoinLobbyDecline(r)) => {
                                 console::log!("dec:", &id, format!("{ack_msg:?} {r:?}"));
+                                // unimplemented!(); // TODO
+                            }
+
+                            (WsClientMsg::VoteStart(_), WsServerMsg::LobbyChange(l)) => {
+                                console::log!(format!("state change: {l:?}"));
                                 // unimplemented!(); // TODO
                             }
 

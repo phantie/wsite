@@ -178,7 +178,9 @@ pub mod ws {
         sock_addr: SocketAddr,
         uns: PlayerUserNames,
     ) {
-        use interfacing::snake::{Ack, WsClientMsg::*};
+        use interfacing::snake::{Ack, WsClientMsg::*, WsServerMsg};
+
+        let con = sock_addr;
 
         match msg {
             WsMsg(Some(id), SetUserName(value)) => {
@@ -209,7 +211,7 @@ pub mod ws {
             }
 
             WsMsg(Some(id), JoinLobby(lobby_name)) => {
-                use interfacing::snake::{JoinLobbyDecline, WsServerMsg};
+                use interfacing::snake::JoinLobbyDecline;
 
                 let send = match &con_state.lock().await.user_name {
                     None => WsMsg::new(interfacing::snake::WsServerMsg::JoinLobbyDecline(
@@ -231,12 +233,14 @@ pub mod ws {
                             Ok(()) => id.ack(),
                             Err(JoinLobbyError::NotFound) => WsMsg::new(
                                 WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound),
-                            ),
+                            )
+                            .id(id),
                             Err(JoinLobbyError::AlreadyJoined(lobby_name)) => {
                                 WsMsg::new(WsServerMsg::JoinLobbyDecline(
                                     JoinLobbyDecline::AlreadyJoined(lobby_name),
                                 ))
                             }
+                            .id(id),
                         }
                     }
                 };
@@ -245,8 +249,6 @@ pub mod ws {
             }
 
             WsMsg(Some(id), LobbyList) => {
-                use interfacing::snake::WsServerMsg;
-
                 let lobby_list = lobbies
                     .read()
                     .await
@@ -257,11 +259,42 @@ pub mod ws {
                     .collect::<Vec<_>>();
 
                 let send = WsMsg::new(WsServerMsg::LobbyList(lobby_list)).id(id);
-
                 server_msg_sender.send(send).unwrap();
             }
 
-            WsMsg(None, JoinLobby(_) | UserName | LobbyList | SetUserName(_)) => {
+            WsMsg(Some(id), VoteStart(value)) => {
+                let lobby = lobbies.joined_lobby(con).await;
+
+                let send = match lobby {
+                    None => WsServerMsg::Err("lobby does not exist".into()),
+                    Some(lobby) => {
+                        let mut lock = lobby.write().await;
+                        let result = lock.vote_start(con, value);
+
+                        match result {
+                            Ok(()) => {
+                                // TODO maybe expose "state" method that produces a message
+                                // returning the whole ser/de state
+                                use interfacing::snake::lobby_change::LobbyChange;
+                                WsServerMsg::LobbyChange(LobbyChange::Prep(lock.prep()))
+                            }
+                            Err(m) => {
+                                // this branch handling is required because
+                                // it's possible that between lobbies.joined_lobby and lobby.vote_start
+                                // player leaves the lobby
+                                WsServerMsg::Err(m)
+                            }
+                        }
+                    }
+                };
+                tracing::info!("Sent response");
+
+                // TODO refactor WsMsg::new, WsMsg::id, Ack trait
+                server_msg_sender.send(WsMsg::new(send).id(id)).unwrap();
+            }
+
+            WsMsg(None, JoinLobby(_) | UserName | LobbyList | SetUserName(_) | VoteStart(_)) => {
+                // TODO do not panic in prod
                 unreachable!("ack expected")
             }
         }
