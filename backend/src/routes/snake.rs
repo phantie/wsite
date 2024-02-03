@@ -142,15 +142,14 @@ pub mod ws {
                 Some(Ok(Message::Text(text))) => match serde_json::from_str::<ClientMsg>(&text) {
                     Ok(msg) => {
                         tracing::info!("Received message: {text:?}");
-                        handle_received_message(
+                        tokio::task::spawn(handle_received_message(
                             msg,
                             con_state.clone(),
                             server_msg_sender.clone(),
                             lobbies.clone(),
                             sock_addr,
                             uns.clone(),
-                        )
-                        .await;
+                        ));
                     }
                     Err(_) => {
                         tracing::info!("Received unexpected message: {text:?}");
