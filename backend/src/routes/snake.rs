@@ -133,7 +133,7 @@ pub mod ws {
         uns: PlayerUserNames
     ) {
         loop {
-            match receiver.next().await {
+             match receiver.next().await {
                 Some(Ok(msg)) => {
                     match &msg {
                         Message::Text(msg) => {
@@ -144,17 +144,23 @@ pub mod ws {
 
                             match msg {
                                 WsMsg(id, SetUserName(value)) => {
-                                    match uns.try_insert(value.clone(), sock_addr).await {
-                                        Ok(()) => {
-                                            con_state.lock().await.user_name.replace(value);
+                                    if lobbies.joined_any(sock_addr).await {
+                                        // forbid name changing when joined lobby
+                                        let msg = WsMsg::new(interfacing::snake::WsServerMsg::ForbiddenWhenJoined).maybe_id(id);
+                                        server_msg_sender.send(msg).unwrap();
+                                    } else {
+                                        match uns.try_insert(value.clone(), sock_addr).await {
+                                            Ok(()) => {
+                                                con_state.lock().await.user_name.replace(value);
 
-                                            if let Some(ack) = ack {
-                                                server_msg_sender.send(ack).unwrap();
+                                                if let Some(ack) = ack {
+                                                    server_msg_sender.send(ack).unwrap();
+                                                }
                                             }
-                                        }
-                                        Err(()) => {
-                                            let msg = WsMsg::new(interfacing::snake::WsServerMsg::UserNameOccupied).maybe_id(id);
-                                            server_msg_sender.send(msg).unwrap();
+                                            Err(()) => {
+                                                let msg = WsMsg::new(interfacing::snake::WsServerMsg::UserNameOccupied).maybe_id(id);
+                                                server_msg_sender.send(msg).unwrap();
+                                            }
                                         }
                                     }
                                 }

@@ -164,6 +164,10 @@ pub enum JoinLobbyError {
 
 // TODO maybe forbid deref
 impl Lobbies {
+    pub async fn joined_any(&self, con: Con) -> bool {
+        self.1.read().await.get(&con).is_some()
+    }
+
     // TODO verify
     #[allow(unused)]
     pub async fn remove_lobby(&self, lobby_name: LobbyName) {

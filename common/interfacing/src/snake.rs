@@ -42,6 +42,7 @@ pub enum WsServerMsg {
     Ack,
     UserName(Option<UserName>),
     UserNameOccupied,
+    ForbiddenWhenJoined,
     JoinLobbyDecline(JoinLobbyDecline),
     LobbyList(LobbyList),
 }
