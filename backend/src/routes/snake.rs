@@ -263,12 +263,7 @@ pub mod ws {
                         let result = lock.vote_start(con, value);
 
                         match result {
-                            Ok(()) => {
-                                // TODO maybe expose "state" method that produces a message
-                                // returning the whole ser/de state
-                                use interfacing::snake::lobby_change::LobbyChange;
-                                WsServerMsg::LobbyChange(LobbyChange::Prep(lock.prep()))
-                            }
+                            Ok(()) => WsServerMsg::LobbyState(lock.state()),
                             Err(m) => {
                                 // this branch handling is required because
                                 // it's possible that between lobbies.joined_lobby and lobby.vote_start

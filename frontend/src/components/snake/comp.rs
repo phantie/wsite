@@ -848,7 +848,7 @@ impl Component for Snake {
                                 // unimplemented!(); // TODO
                             }
 
-                            (WsClientMsg::VoteStart(_), WsServerMsg::LobbyChange(l)) => {
+                            (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(l)) => {
                                 console::log!(format!("state change: {l:?}"));
                                 // unimplemented!(); // TODO
                             }

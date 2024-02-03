@@ -48,7 +48,7 @@ pub enum WsServerMsg {
     JoinLobbyDecline(JoinLobbyDecline),
     LobbyList(LobbyList),
     Err(String),
-    LobbyChange(LobbyChange),
+    LobbyState(LobbyState),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -95,29 +95,29 @@ pub mod list {
 
 pub use list::LobbyList;
 
-pub mod lobby_change {
+pub mod lobby_state {
     use crate::imports::*;
 
     use super::UserName;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-    pub enum LobbyChange {
+    pub enum LobbyState {
         Prep(LobbyPrep),
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
     pub struct LobbyPrep {
-        pub participants: Vec<Participant>,
+        pub participants: Vec<LobbyPrepParticipant>,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-    pub struct Participant {
+    pub struct LobbyPrepParticipant {
         pub user_name: UserName,
         pub vote_start: bool,
     }
 }
 
-pub use lobby_change::LobbyChange;
+pub use lobby_state::LobbyState;
 
 pub trait PinnedMessage<T> {
     fn pinned_msg(self, msg: T) -> WsMsg<T>;

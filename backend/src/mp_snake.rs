@@ -118,11 +118,10 @@ impl Lobby {
         self.players.remove(&player);
     }
 
-    #[allow(unused)]
-    pub fn prep(&self) -> interfacing::snake::lobby_change::LobbyPrep {
-        use interfacing::snake::lobby_change::{LobbyPrep, Participant};
+    pub fn state(&self) -> interfacing::snake::lobby_state::LobbyState {
+        use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant, LobbyState};
 
-        LobbyPrep {
+        LobbyState::Prep(LobbyPrep {
             participants: self
                 .players
                 .values()
@@ -131,13 +130,13 @@ impl Lobby {
                          user_name,
                          vote_start,
                          ..
-                     }| Participant {
+                     }| LobbyPrepParticipant {
                         user_name: user_name.clone(),
                         vote_start: *vote_start,
                     },
                 )
                 .collect(),
-        }
+        })
     }
 
     /// Broadcast message to all lobby participants
