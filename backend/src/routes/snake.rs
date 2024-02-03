@@ -28,15 +28,16 @@ pub async fn get_lobby(
     match lobbies.get(&name).await {
         None => Err(ApiError::EntryNotFound),
         Some(lobby) => {
-            let Lobby { name, .. } = lobby.read().await.to_owned();
+            let name = lobby.read().await.name.clone();
             Ok(Json(interfacing::snake::GetLobby { name }))
         }
     }
 }
 
+// TODO make consistent naming: sock_addr, con, player. They refer to the same thing.
 pub mod ws {
     use crate::configuration::get_env;
-    use crate::mp_snake::{ws::State, JoinLobbyError, Lobbies, PlayerUserNames, Player};
+    use crate::mp_snake::{ws::State, JoinLobbyError, Lobbies, PlayerUserNames};
     use crate::routes::imports::*;
     use crate::startup::UserConnectInfo;
     use axum::extract::connect_info::ConnectInfo;
@@ -118,10 +119,8 @@ pub mod ws {
             _ = wh => (),
         };
 
-        let player = Player { id: sock_addr.clone() };
-
         // clean up
-        lobbies.disjoin_player(player).await;
+        lobbies.disjoin_player(sock_addr).await;
         uns.clean_con(sock_addr).await;
     }
 
@@ -176,18 +175,17 @@ pub mod ws {
                                 WsMsg(Some(id), JoinLobby(lobby_name)) => {
                                     use interfacing::snake::{JoinLobbyDecline, WsServerMsg};
 
-                                    let send = match con_state.lock().await.user_name {
+                                    let send = match &con_state.lock().await.user_name {
                                         None => {
                                             WsMsg::new(
                                                 interfacing::snake::WsServerMsg::JoinLobbyDecline(interfacing::snake::JoinLobbyDecline::UserNameNotSet),
                                             )
                                             .id(id)
                                         }
-                                        Some(_) => {
+                                        Some(un) => {
+                                            // here
  
-                                            let player = Player { id: sock_addr };
-
-                                            match lobbies.join_player(lobby_name, player).await
+                                            match lobbies.join_player(lobby_name, sock_addr, server_msg_sender.clone(), un.clone()).await
                                             {
                                                 Ok(()) => ack.unwrap(),
                                                 Err(JoinLobbyError::NotFound) => WsMsg::new(WsServerMsg::JoinLobbyDecline(JoinLobbyDecline::NotFound)),

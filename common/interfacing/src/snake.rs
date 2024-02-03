@@ -86,3 +86,25 @@ pub mod list {
 }
 
 pub use list::LobbyList;
+
+pub mod lobby_change {
+    use crate::imports::*;
+
+    use super::UserName;
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    pub enum LobbyChange {
+        Prep(LobbyPrep),
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    pub struct LobbyPrep {
+        pub participants: Vec<Participant>,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    pub struct Participant {
+        pub user_name: UserName,
+        pub vote_start: bool,
+    }
+}

@@ -1,5 +1,5 @@
 use interfacing::snake::{LobbyName, UserName};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
@@ -75,17 +75,30 @@ impl _PlayerUserNames {
     }
 }
 
-#[derive(Clone, Hash, PartialEq, Eq)]
-pub struct Player {
-    pub id: Con,
+type ServerMsg = interfacing::snake::WsMsg<interfacing::snake::WsServerMsg>;
+type Ch = tokio::sync::mpsc::UnboundedSender<ServerMsg>;
+
+pub struct LobbyConState {
+    pub ch: Ch,
+    pub user_name: UserName,
+    vote_start: bool,
 }
 
-#[derive(Clone)]
+impl LobbyConState {
+    pub fn new(ch: Ch, un: UserName) -> Self {
+        Self {
+            ch,
+            user_name: un,
+            vote_start: false,
+        }
+    }
+}
+
 pub struct Lobby {
     #[allow(unused)]
     pub name: LobbyName,
     #[allow(unused)]
-    pub players: HashSet<Player>,
+    pub players: HashMap<Con, LobbyConState>,
 }
 
 impl Lobby {
@@ -96,20 +109,50 @@ impl Lobby {
         }
     }
 
-    fn join_player(&mut self, player: Player) {
-        self.players.insert(player);
+    fn join_player(&mut self, con: Con, ch: Ch, un: UserName) {
+        self.players.insert(con, LobbyConState::new(ch, un));
     }
 
     #[allow(unused)]
-    pub fn disjoin_player(&mut self, player: &Player) {
+    pub fn disjoin_player(&mut self, player: &Con) {
         self.players.remove(&player);
+    }
+
+    #[allow(unused)]
+    fn prep(&self) -> interfacing::snake::lobby_change::LobbyPrep {
+        use interfacing::snake::lobby_change::{LobbyPrep, Participant};
+
+        LobbyPrep {
+            participants: self
+                .players
+                .values()
+                .map(
+                    |LobbyConState {
+                         user_name,
+                         vote_start,
+                         ..
+                     }| Participant {
+                        user_name: user_name.clone(),
+                        vote_start: *vote_start,
+                    },
+                )
+                .collect(),
+        }
+    }
+
+    /// Broadcast message to all lobby participants
+    #[allow(unused)]
+    pub fn broadcast(&self, msg: ServerMsg) {
+        self.players
+            .values()
+            .for_each(|LobbyConState { ch, .. }| ch.send(msg.clone()).unwrap_or(()));
     }
 }
 
 #[derive(derived_deref::Deref, Clone, Default)]
 pub struct Lobbies(
     #[target] Arc<RwLock<HashMap<LobbyName, Arc<RwLock<Lobby>>>>>,
-    Arc<RwLock<HashMap<Player, LobbyName>>>,
+    Arc<RwLock<HashMap<Con, LobbyName>>>,
 );
 
 pub enum JoinLobbyError {
@@ -132,14 +175,14 @@ impl Lobbies {
 
         let players = &lobby.read().await.players;
 
-        for player in players {
-            player_to_lobby.remove(player);
+        for (con, _) in players {
+            player_to_lobby.remove(con);
         }
 
         self.write().await.remove(&lobby_name);
     }
 
-    pub async fn disjoin_player(&self, player: Player) {
+    pub async fn disjoin_player(&self, player: Con) {
         // while you hold this lock, noone else touches players
         let mut player_to_lobby = self.1.write().await;
 
@@ -157,7 +200,9 @@ impl Lobbies {
     pub async fn join_player(
         &self,
         lobby_name: LobbyName,
-        player: Player,
+        player: Con,
+        ch: Ch,
+        un: UserName,
     ) -> Result<(), JoinLobbyError> {
         // while you hold this lock, noone else touches players
         let mut player_to_lobby = self.1.write().await;
@@ -171,7 +216,7 @@ impl Lobbies {
                     None => Err(JoinLobbyError::NotFound),
                     Some(lobby) => {
                         player_to_lobby.insert(player.clone(), lobby_name);
-                        lobby.write().await.join_player(player);
+                        lobby.write().await.join_player(player, ch, un);
                         Ok(())
                     }
                 }
@@ -182,7 +227,7 @@ impl Lobbies {
                     // don't need to check lobby, since it must be in sync
                     Ok(())
                 } else {
-                    Err(JoinLobbyError::AlreadyJoined(_lobby_name.clone()))
+                    Err(JoinLobbyError::AlreadyJoined(lobby_name.clone()))
                 }
             }
         }
