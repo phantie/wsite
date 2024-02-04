@@ -5,7 +5,9 @@ use crate::components::imports::*;
 use futures::SinkExt;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
-use interfacing::snake::{LobbyName, UserName, WsClientMsg, WsMsg, WsServerMsg};
+use interfacing::snake::{
+    lobby_state::LobbyPrep, LobbyName, LobbyState, UserName, WsClientMsg, WsMsg, WsServerMsg,
+};
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
@@ -468,7 +470,7 @@ impl Component for Snake {
                             html! { "Joining..." }
                             // unimplemented!()
                         }
-                        ToBeLoaded => {
+                        Joined(state) => {
                             // TODO make request to server
 
                             pub async fn get_lobby(
@@ -506,19 +508,33 @@ impl Component for Snake {
                                     ))
                                 });
 
+                            let block = match state {
+                                LobbyState::Prep(LobbyPrep { participants }) => participants
+                                    .into_iter()
+                                    .map(|p| {
+                                        html! {
+                                            <>
+                                            <h3>{&p.user_name} {" voted: "} {p.vote_start} </h3>
+                                            </>
+                                        }
+                                    })
+                                    .collect::<Html>(),
+                                LobbyState::Running => {
+                                    html! { <h1>{"Running"}</h1>}
+                                }
+                            };
+
                             html! {
                                 <>
-                                <h3>{ "Joined "} { lobby_name } { " as " } { self.ws_state.user_name.as_ref().unwrap() } </h3>
-                                <h2> {"Loading..."} </h2>
+                                <h2>{ "Joined "} { lobby_name } { " as " } { self.ws_state.user_name.as_ref().unwrap() } </h2>
+                                { block }
                                 <button {onclick}> { "Vote start" } </button>
                                 </>
                             }
                         }
-                        Loaded => {
-                            html! { <> {"Lobby: "} { lobby_name } </> }
-                        }
-                        DoesNotExist => {
-                            html! { <> {"Lobby does not exist: "} { lobby_name }  </> }
+
+                        JoinError(e) => {
+                            html! { <> {"Join error: "} { e }  </> }
                         }
                     }
                 }
@@ -1095,9 +1111,8 @@ impl Snake {
 #[derive(Clone, PartialEq)]
 pub enum MPLobbyState {
     ToJoin,
-    ToBeLoaded,
-    Loaded,
-    DoesNotExist,
+    Joined(interfacing::snake::LobbyState),
+    JoinError(String),
 }
 
 #[derive(Clone, PartialEq)]
@@ -1808,21 +1823,28 @@ impl Snake {
                         return UPDATE;
                     }
 
-                    (WsClientMsg::JoinLobby(lobby_name), WsServerMsg::Ack) => {
+                    (WsClientMsg::JoinLobby(lobby_name), WsServerMsg::LobbyState(s)) => {
                         console::log!("ack:", &id, format!("{ack_msg:?}"));
 
                         ctx.link()
                             .send_message(SnakeMsg::StateChange(State::NotBegun {
                                 inner: NotBegunState::MPLobby {
                                     lobby_name: lobby_name.clone(),
-                                    state: MPLobbyState::ToBeLoaded,
+                                    state: MPLobbyState::Joined(s),
                                 },
                             }));
                     }
 
-                    (WsClientMsg::JoinLobby(_), WsServerMsg::JoinLobbyDecline(r)) => {
+                    (WsClientMsg::JoinLobby(ln), WsServerMsg::JoinLobbyDecline(r)) => {
                         console::log!("dec:", &id, format!("{ack_msg:?} {r:?}"));
-                        // unimplemented!(); // TODO
+
+                        ctx.link()
+                            .send_message(SnakeMsg::StateChange(State::NotBegun {
+                                inner: NotBegunState::MPLobby {
+                                    lobby_name: ln.clone(),
+                                    state: MPLobbyState::JoinError(format!("{r:?}")),
+                                },
+                            }));
                     }
 
                     (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(s)) => {

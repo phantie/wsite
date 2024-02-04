@@ -153,25 +153,23 @@ impl Lobby {
             .for_each(|LobbyConState { ch, .. }| ch.send(msg.clone()).unwrap_or(()));
     }
 
-    pub fn state(&self) -> interfacing::snake::lobby_state::LobbyState {
+    pub fn state(&self) -> interfacing::snake::LobbyState {
         use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant};
 
         match &self.state {
-            LobbyState::Prep { start_votes } => {
-                interfacing::snake::lobby_state::LobbyState::Prep(LobbyPrep {
-                    participants: self
-                        .players
-                        .iter()
-                        .map(
-                            |(con, LobbyConState { user_name, .. })| LobbyPrepParticipant {
-                                user_name: user_name.clone(),
-                                vote_start: *start_votes.get(&con).expect("to be in sync"),
-                            },
-                        )
-                        .collect(),
-                })
-            }
-            LobbyState::Running => interfacing::snake::lobby_state::LobbyState::Running,
+            LobbyState::Prep { start_votes } => interfacing::snake::LobbyState::Prep(LobbyPrep {
+                participants: self
+                    .players
+                    .iter()
+                    .map(
+                        |(con, LobbyConState { user_name, .. })| LobbyPrepParticipant {
+                            user_name: user_name.clone(),
+                            vote_start: *start_votes.get(&con).expect("to be in sync"),
+                        },
+                    )
+                    .collect(),
+            }),
+            LobbyState::Running => interfacing::snake::LobbyState::Running,
         }
     }
 
@@ -231,9 +229,17 @@ pub enum JoinLobbyError {
 
 // TODO maybe forbid deref
 impl Lobbies {
+    #[allow(dead_code)]
+    pub async fn lobby_state(&self, con: Con) -> Option<interfacing::snake::LobbyState> {
+        match self.joined_lobby(con).await {
+            None => None, // player not in any lobby
+            Some(lobby) => Some(lobby.read().await.state()),
+        }
+    }
+
     pub async fn joined_lobby(&self, con: Con) -> Option<Arc<RwLock<Lobby>>> {
         match self.1.read().await.get(&con) {
-            None => None,
+            None => None, // player not in any lobby
             Some(ln) => Some(self.read().await[ln].clone()),
         }
     }
@@ -275,13 +281,18 @@ impl Lobbies {
         }
     }
 
+    /// Try join con to specified lobby
+    /// Con associates with
+    ///     - Ch (WsServerMessage channel)
+    ///     - UserName (Cannot be changed while in lobby)
+    /// On success return lobby state, as an informative Ack
     pub async fn join_con(
         &self,
         lobby_name: LobbyName,
         con: Con,
         ch: Ch,
         un: UserName,
-    ) -> Result<(), JoinLobbyError> {
+    ) -> Result<interfacing::snake::LobbyState, JoinLobbyError> {
         // while you hold this lock, noone else touches players
         let mut con_to_lobby = self.1.write().await;
 
@@ -294,8 +305,9 @@ impl Lobbies {
                     None => Err(JoinLobbyError::NotFound),
                     Some(lobby) => {
                         con_to_lobby.insert(con.clone(), lobby_name);
-                        match lobby.write().await.join_con(con, ch, un) {
-                            Ok(()) => Ok(()),
+                        let mut lock = lobby.write().await;
+                        match lock.join_con(con, ch, un) {
+                            Ok(()) => Ok(lock.state()),
                             Err(_m) => Err(JoinLobbyError::AlreadyStarted),
                         }
                     }
@@ -305,7 +317,15 @@ impl Lobbies {
                 // idempotency
                 if lobby_name == *_lobby_name {
                     // don't need to check lobby, since it must be in sync
-                    Ok(())
+
+                    Ok(self
+                        .read()
+                        .await
+                        .get(_lobby_name)
+                        .unwrap() // TODO verify no in between changes
+                        .read()
+                        .await
+                        .state())
                 } else {
                     Err(JoinLobbyError::AlreadyJoined(lobby_name.clone()))
                 }

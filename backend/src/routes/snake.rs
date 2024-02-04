@@ -215,7 +215,7 @@ pub mod ws {
                             .join_con(lobby_name, con, server_msg_sender.clone(), un.clone())
                             .await
                         {
-                            Ok(()) => WsServerMsg::Ack,
+                            Ok(s) => WsServerMsg::LobbyState(s),
 
                             Err(e) => {
                                 // TODO impl From
