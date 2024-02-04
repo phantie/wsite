@@ -34,10 +34,8 @@ pub async fn get_lobby(
     }
 }
 
-// TODO make consistent naming: sock_addr, con, player. They refer to the same thing.
 pub mod ws {
     use crate::configuration::get_env;
-    use crate::mp_snake::{ws::State, JoinLobbyError, Lobbies, PlayerUserNames};
     use crate::routes::imports::*;
     use crate::startup::UserConnectInfo;
     use axum::extract::connect_info::ConnectInfo;
@@ -47,11 +45,10 @@ pub mod ws {
         stream::{SplitSink, SplitStream, StreamExt},
     };
     use interfacing::snake::WsMsg;
-    use std::net::SocketAddr;
     use std::sync::Arc;
     use tokio::sync::{mpsc, Mutex};
 
-    use super::AUTO_GEN_USER_NAME;
+    use crate::mp_snake::{ws::State, Con, JoinLobbyError, Lobbies, PlayerUserNames};
 
     pub async fn ws(
         maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
@@ -63,39 +60,37 @@ pub mod ws {
         let ws = match maybe_ws {
             Ok(ws) => ws,
             Err(e) => {
-                tracing::trace!("{:?}", headers);
-                tracing::error!("{}", &e);
+                tracing::trace!("{headers:?}");
+                tracing::error!("{e}");
                 return e.into_response();
             }
         };
 
         let sock_addr = con_info.socket_addr(&headers);
-
-        ws.on_upgrade(move |socket| handle_socket(socket, sock_addr, lobbies, uns))
-    }
-
-    type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
-    type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
-
-    async fn handle_socket(
-        socket: WebSocket,
-        sock_addr: SocketAddr,
-        lobbies: Lobbies,
-        uns: PlayerUserNames,
-    ) {
         if get_env().local() {
             tracing::info!("Client connected to Snake Ws: {:?}", sock_addr);
         } else {
             tracing::info!("Client connected to Snake Ws");
         }
 
+        // connection identifier,
+        // expected to be unique across current state
+        let con = sock_addr.port();
+
+        ws.on_upgrade(move |socket| handle_socket(socket, con, lobbies, uns))
+    }
+
+    type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
+    type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
+
+    async fn handle_socket(socket: WebSocket, con: Con, lobbies: Lobbies, uns: PlayerUserNames) {
         let con_state = {
             let mut state = State::default();
 
-            state.user_name = if AUTO_GEN_USER_NAME {
-                let un = uuid::Uuid::new_v4().to_string();
+            state.user_name = if super::AUTO_GEN_USER_NAME {
+                let un = format!("Player {con}");
                 // do not handle possible collision, since it's debug only feature
-                uns.try_insert(un.clone(), sock_addr).await.unwrap();
+                uns.try_insert(un.clone(), con).await.unwrap();
                 Some(un)
             } else {
                 None
@@ -112,21 +107,24 @@ pub mod ws {
             con_state.clone(),
             server_msg_sender.clone(),
             lobbies.clone(),
-            sock_addr.clone(),
+            con.clone(),
             uns.clone(),
         ));
         let wh = tokio::spawn(write(sender, server_msg_receiver));
 
         // as soon as a closed channel error returns from any of these procedures,
         // cancel the other
-        let () = tokio::select! {
+        () = tokio::select! {
             _ = rh => (),
             _ = wh => (),
         };
 
+        // TODO investigate when port becomes free
+        // undefined behavior is possible, if port can become free before this sections running
+        //
         // clean up
-        lobbies.disjoin_player(sock_addr).await;
-        uns.clean_con(sock_addr).await;
+        lobbies.disjoin_con(con).await;
+        uns.clean_con(con).await;
     }
 
     async fn read(
@@ -134,7 +132,7 @@ pub mod ws {
         con_state: Arc<Mutex<State>>,
         server_msg_sender: mpsc::UnboundedSender<ServerMsg>,
         lobbies: Lobbies,
-        sock_addr: SocketAddr,
+        con: Con,
         uns: PlayerUserNames,
     ) {
         loop {
@@ -147,7 +145,7 @@ pub mod ws {
                             con_state.clone(),
                             server_msg_sender.clone(),
                             lobbies.clone(),
-                            sock_addr,
+                            con.clone(),
                             uns.clone(),
                         ));
                     }
@@ -175,20 +173,20 @@ pub mod ws {
         con_state: Arc<Mutex<State>>,
         server_msg_sender: mpsc::UnboundedSender<ServerMsg>,
         lobbies: Lobbies,
-        sock_addr: SocketAddr,
+        con: Con,
         uns: PlayerUserNames,
     ) {
         use interfacing::snake::{PinnedMessage, WsClientMsg::*, WsServerMsg};
 
-        let con = sock_addr;
+        let con = con;
 
         match msg {
             WsMsg(Some(id), SetUserName(value)) => {
-                let send = if lobbies.joined_any(sock_addr).await {
+                let send = if lobbies.joined_any(con).await {
                     // forbid name changing when joined lobby
                     interfacing::snake::WsServerMsg::ForbiddenWhenJoined
                 } else {
-                    match uns.try_insert(value.clone(), sock_addr).await {
+                    match uns.try_insert(value.clone(), con).await {
                         Ok(()) => {
                             con_state.lock().await.user_name.replace(value);
                             WsServerMsg::Ack
@@ -214,12 +212,7 @@ pub mod ws {
                     ),
                     Some(un) => {
                         match lobbies
-                            .join_player(
-                                lobby_name,
-                                sock_addr,
-                                server_msg_sender.clone(),
-                                un.clone(),
-                            )
+                            .join_con(lobby_name, con, server_msg_sender.clone(), un.clone())
                             .await
                         {
                             Ok(()) => WsServerMsg::Ack,

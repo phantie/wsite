@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
-pub type Con = std::net::SocketAddr;
+pub type Con = u16;
 
 #[derive(Default, Clone)]
 pub struct PlayerUserNames(Arc<Mutex<bidirectional_map::Bimap<Con, UserName>>>);
@@ -113,7 +113,7 @@ impl Lobby {
         }
     }
 
-    fn join_player(&mut self, con: Con, ch: Ch, un: UserName) -> Result<(), String> {
+    fn join_con(&mut self, con: Con, ch: Ch, un: UserName) -> Result<(), String> {
         match &mut self.state {
             LobbyState::Prep { start_votes } => {
                 self.players.insert(con, LobbyConState::new(ch, un));
@@ -121,17 +121,6 @@ impl Lobby {
                 Ok(())
             }
             _ => Err("Illegal state".into()),
-        }
-    }
-
-    #[allow(unused)]
-    pub fn disjoin_player(&mut self, con: &Con) {
-        self.players.remove(&con);
-        match &mut self.state {
-            LobbyState::Prep { start_votes } => {
-                start_votes.remove(&con);
-            }
-            _ => {}
         }
     }
 
@@ -214,6 +203,17 @@ impl Lobby {
             _ => Err("Illegal state".into()),
         }
     }
+
+    #[allow(unused)]
+    pub fn disjoin_con(&mut self, con: &Con) {
+        self.players.remove(&con);
+        match &mut self.state {
+            LobbyState::Prep { start_votes } => {
+                start_votes.remove(&con);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(derived_deref::Deref, Clone, Default)]
@@ -246,7 +246,7 @@ impl Lobbies {
     #[allow(unused)]
     pub async fn remove_lobby(&self, lobby_name: LobbyName) {
         // while you hold this lock, noone else touches players
-        let mut player_to_lobby = self.1.write().await;
+        let mut con_to_lobby = self.1.write().await;
 
         let _lock = self.read().await;
         let lobby = _lock.get(&lobby_name).expect("to be in sync");
@@ -254,28 +254,28 @@ impl Lobbies {
         let players = &lobby.read().await.players;
 
         for (con, _) in players {
-            player_to_lobby.remove(con);
+            con_to_lobby.remove(con);
         }
 
         self.write().await.remove(&lobby_name);
     }
 
-    pub async fn disjoin_player(&self, con: Con) {
+    pub async fn disjoin_con(&self, con: Con) {
         // while you hold this lock, noone else touches players
-        let mut player_to_lobby = self.1.write().await;
+        let mut con_to_lobby = self.1.write().await;
 
-        match player_to_lobby.get(&con) {
+        match con_to_lobby.get(&con) {
             None => {}
             Some(_lobby_name) => {
                 let _lock = self.read().await;
                 let lobby = _lock.get(_lobby_name).expect("to be in sync");
-                player_to_lobby.remove(&con);
-                lobby.write().await.disjoin_player(&con);
+                con_to_lobby.remove(&con);
+                lobby.write().await.disjoin_con(&con);
             }
         }
     }
 
-    pub async fn join_player(
+    pub async fn join_con(
         &self,
         lobby_name: LobbyName,
         con: Con,
@@ -283,9 +283,9 @@ impl Lobbies {
         un: UserName,
     ) -> Result<(), JoinLobbyError> {
         // while you hold this lock, noone else touches players
-        let mut player_to_lobby = self.1.write().await;
+        let mut con_to_lobby = self.1.write().await;
 
-        match player_to_lobby.get(&con) {
+        match con_to_lobby.get(&con) {
             None => {
                 let _lock = self.read().await;
                 let lobby = _lock.get(&lobby_name);
@@ -293,8 +293,8 @@ impl Lobbies {
                 match lobby {
                     None => Err(JoinLobbyError::NotFound),
                     Some(lobby) => {
-                        player_to_lobby.insert(con.clone(), lobby_name);
-                        match lobby.write().await.join_player(con, ch, un) {
+                        con_to_lobby.insert(con.clone(), lobby_name);
+                        match lobby.write().await.join_con(con, ch, un) {
                             Ok(()) => Ok(()),
                             Err(_m) => Err(JoinLobbyError::AlreadyStarted),
                         }
