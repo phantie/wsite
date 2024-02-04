@@ -239,12 +239,10 @@ pub mod ws {
 
             WsMsg(Some(id), LobbyList) => {
                 let lobby_list = lobbies
-                    .read()
+                    .lobby_names()
                     .await
-                    .keys()
-                    .map(|lobby_name| interfacing::snake::list::Lobby {
-                        name: lobby_name.clone(),
-                    })
+                    .into_iter()
+                    .map(|name| interfacing::snake::list::Lobby { name })
                     .collect::<Vec<_>>();
 
                 let send = WsServerMsg::LobbyList(lobby_list);
@@ -279,7 +277,17 @@ pub mod ws {
                 };
             }
 
-            WsMsg(None, JoinLobby(_) | UserName | LobbyList | SetUserName(_) | VoteStart(_)) => {
+            WsMsg(Some(id), LeaveLobby) => {
+                lobbies.disjoin_con(con).await;
+                server_msg_sender
+                    .send(id.pinned_msg(WsServerMsg::Ack))
+                    .unwrap();
+            }
+
+            WsMsg(
+                None,
+                JoinLobby(_) | UserName | LobbyList | SetUserName(_) | VoteStart(_) | LeaveLobby,
+            ) => {
                 // TODO do not panic in prod
                 unreachable!("ack expected")
             }

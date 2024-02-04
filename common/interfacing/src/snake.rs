@@ -28,6 +28,7 @@ pub enum WsClientMsg {
     JoinLobby(LobbyName),
     LobbyList,
     VoteStart(bool),
+    LeaveLobby,
 }
 
 impl WsMsg<WsClientMsg> {
@@ -49,6 +50,7 @@ pub enum WsServerMsg {
     LobbyList(LobbyList),
     Err(String),
     LobbyState(LobbyState),
+    LeaveLobbyDecline(LeaveLobbyDecline),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -57,6 +59,11 @@ pub enum JoinLobbyDecline {
     NotFound,
     UserNameNotSet,
     AlreadyStarted,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub enum LeaveLobbyDecline {
+    NotFound,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

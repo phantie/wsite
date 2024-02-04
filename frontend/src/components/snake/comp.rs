@@ -534,12 +534,29 @@ impl Component for Snake {
                                 }
 
                                 LobbyState::Running => {
-                                    html! { <h1>{"Running"}</h1>}
+                                    html! {
+                                        <>
+                                        <h1>{"Running"}</h1>
+                                        </>
+                                    }
                                 }
+                            };
+
+                            let leave_lobby = {
+                                let onclick =
+                                    ctx.link().callback(move |e| {
+                                        Self::Message::WsSend("leave-lobby".pinned_msg(
+                                            interfacing::snake::WsClientMsg::LeaveLobby,
+                                        ))
+                                    });
+
+                                html! { <button {onclick}>{ "Leave" }</button> }
                             };
 
                             html! {
                                 <>
+                                <p></p>
+                                { leave_lobby }
                                 <h2>{ "Joined "} { lobby_name } { " as " } { self.ws_state.user_name.as_ref().unwrap() } </h2>
                                 { block }
                                 </>
@@ -1885,6 +1902,20 @@ impl Snake {
 
                     (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(s)) => {
                         return self.handle_state_change(ctx, s);
+                    }
+
+                    (WsClientMsg::LeaveLobby, WsServerMsg::Ack) => {
+                        self.ws_state.joined_lobby_name = None;
+                        self.ws_state.joined_lobby_state = None;
+
+                        ctx.link()
+                            .send_message(SnakeMsg::StateChange(State::NotBegun {
+                                inner: NotBegunState::MPLobbyList { lobbies: None },
+                            }));
+                    }
+
+                    (WsClientMsg::LeaveLobby, WsServerMsg::LeaveLobbyDecline(_)) => {
+                        unreachable!("server should not send this message")
                     }
 
                     (req, res) => {

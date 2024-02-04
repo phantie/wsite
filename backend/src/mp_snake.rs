@@ -214,9 +214,9 @@ impl Lobby {
     }
 }
 
-#[derive(derived_deref::Deref, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct Lobbies(
-    #[target] Arc<RwLock<HashMap<LobbyName, Arc<RwLock<Lobby>>>>>,
+    Arc<RwLock<HashMap<LobbyName, Arc<RwLock<Lobby>>>>>,
     Arc<RwLock<HashMap<Con, LobbyName>>>,
 );
 
@@ -227,8 +227,11 @@ pub enum JoinLobbyError {
     AlreadyStarted,
 }
 
-// TODO maybe forbid deref
 impl Lobbies {
+    pub async fn lobby_names(&self) -> Vec<LobbyName> {
+        self.0.read().await.keys().cloned().into_iter().collect()
+    }
+
     #[allow(dead_code)]
     pub async fn lobby_state(&self, con: Con) -> Option<interfacing::snake::LobbyState> {
         match self.joined_lobby(con).await {
@@ -240,7 +243,7 @@ impl Lobbies {
     pub async fn joined_lobby(&self, con: Con) -> Option<Arc<RwLock<Lobby>>> {
         match self.1.read().await.get(&con) {
             None => None, // player not in any lobby
-            Some(ln) => Some(self.read().await[ln].clone()),
+            Some(ln) => Some(self.0.read().await[ln].clone()),
         }
     }
 
@@ -254,7 +257,7 @@ impl Lobbies {
         // while you hold this lock, noone else touches players
         let mut con_to_lobby = self.1.write().await;
 
-        let _lock = self.read().await;
+        let _lock = self.0.read().await;
         let lobby = _lock.get(&lobby_name).expect("to be in sync");
 
         let players = &lobby.read().await.players;
@@ -263,7 +266,7 @@ impl Lobbies {
             con_to_lobby.remove(con);
         }
 
-        self.write().await.remove(&lobby_name);
+        self.0.write().await.remove(&lobby_name);
     }
 
     pub async fn disjoin_con(&self, con: Con) {
@@ -273,7 +276,7 @@ impl Lobbies {
         match con_to_lobby.get(&con) {
             None => {}
             Some(_lobby_name) => {
-                let _lock = self.read().await;
+                let _lock = self.0.read().await;
                 let lobby = _lock.get(_lobby_name).expect("to be in sync");
                 con_to_lobby.remove(&con);
                 lobby.write().await.disjoin_con(&con);
@@ -298,7 +301,7 @@ impl Lobbies {
 
         match con_to_lobby.get(&con) {
             None => {
-                let _lock = self.read().await;
+                let _lock = self.0.read().await;
                 let lobby = _lock.get(&lobby_name);
 
                 match lobby {
@@ -319,9 +322,8 @@ impl Lobbies {
                     // don't need to check lobby, since it must be in sync
 
                     Ok(self
-                        .read()
-                        .await
                         .get(_lobby_name)
+                        .await
                         .unwrap() // TODO verify no in between changes
                         .read()
                         .await
@@ -335,13 +337,13 @@ impl Lobbies {
 
     /// Get lobby by name
     pub async fn get(&self, name: &LobbyName) -> Option<Arc<RwLock<Lobby>>> {
-        self.read().await.get(name).cloned()
+        self.0.read().await.get(name).cloned()
     }
 
     /// Create lobby only if it's not already created
     pub async fn insert_if_missing(&self, lobby: Lobby) -> Result<(), String> {
         use std::collections::hash_map::Entry;
-        let mut w_lock = self.write().await;
+        let mut w_lock = self.0.write().await;
 
         match w_lock.entry(lobby.name.clone()) {
             Entry::Occupied(_) => Err("Lobby with this name already exists".into()),
@@ -354,7 +356,8 @@ impl Lobbies {
 
     #[allow(dead_code)]
     async fn insert(&self, lobby: Lobby) {
-        self.write()
+        self.0
+            .write()
             .await
             .insert(lobby.name.clone(), Arc::new(RwLock::new(lobby)));
     }
