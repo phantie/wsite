@@ -533,10 +533,10 @@ impl Component for Snake {
                                     }
                                 }
 
-                                LobbyState::Running => {
+                                LobbyState::Running { counter } => {
                                     html! {
                                         <>
-                                        <h1>{"Running"}</h1>
+                                        <h1>{"Running: "} { counter }</h1>
                                         </>
                                     }
                                 }
