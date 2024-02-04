@@ -848,8 +848,8 @@ impl Component for Snake {
                                 // unimplemented!(); // TODO
                             }
 
-                            (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(l)) => {
-                                console::log!(format!("state change: {l:?}"));
+                            (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(s)) => {
+                                console::log!(format!("state change: {s:?}"));
                                 // unimplemented!(); // TODO
                             }
 
@@ -866,6 +866,11 @@ impl Component for Snake {
 
                     WsMsg(None, msg) => match msg {
                         WsServerMsg::Ack => unreachable!("server should not send this message"),
+
+                        WsServerMsg::LobbyState(s) => {
+                            console::log!(format!("state change: {s:?}"));
+                            // unimplemented!(); // TODO
+                        }
 
                         recv => console::log!(format!("invalid recv: {recv:?}")),
                     },
