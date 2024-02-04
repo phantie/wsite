@@ -785,99 +785,7 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
-            Self::Message::WsRecv(msg) => {
-                console::log!(format!("recv: {:?}", &msg));
-
-                match msg {
-                    WsMsg(Some(id), msg) => {
-                        let ack_msg = self.acknowledgeable_messages.get(&id);
-
-                        let ack_msg = if let None = ack_msg {
-                            console::log!(format!("dissmiss response: {id} {msg:?}"));
-                            return false;
-                        } else {
-                            ack_msg.unwrap()
-                        };
-
-                        // TODO decouple action to take somehow
-                        //
-                        match (ack_msg, msg) {
-                            (WsClientMsg::LobbyList, WsServerMsg::LobbyList(lobby_list)) => {
-                                if let State::NotBegun {
-                                    inner: NotBegunState::MPLobbyList { lobbies },
-                                } = &mut self.state
-                                {
-                                    lobbies.replace(lobby_list);
-
-                                    return true;
-                                }
-                            }
-
-                            (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {
-                                console::log!(format!(
-                                    "setting ws_state.user_name {:?}",
-                                    &user_name
-                                ));
-                                self.ws_state.user_name = user_name;
-                                self.ws_state.synced_user_name = true;
-                                return true;
-                            }
-
-                            (WsClientMsg::SetUserName(user_name), WsServerMsg::Ack) => {
-                                console::log!("ack:", &id, format!("{ack_msg:?}"));
-                                self.ws_state.user_name = Some(user_name.clone());
-                                self.ws_state.synced_user_name = true;
-                                return true;
-                            }
-
-                            (WsClientMsg::JoinLobby(lobby_name), WsServerMsg::Ack) => {
-                                console::log!("ack:", &id, format!("{ack_msg:?}"));
-
-                                ctx.link().send_message(Self::Message::StateChange(
-                                    State::NotBegun {
-                                        inner: NotBegunState::MPLobby {
-                                            lobby_name: lobby_name.clone(),
-                                            state: MPLobbyState::ToBeLoaded,
-                                        },
-                                    },
-                                ));
-                            }
-
-                            (WsClientMsg::JoinLobby(_), WsServerMsg::JoinLobbyDecline(r)) => {
-                                console::log!("dec:", &id, format!("{ack_msg:?} {r:?}"));
-                                // unimplemented!(); // TODO
-                            }
-
-                            (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(s)) => {
-                                console::log!(format!("state change: {s:?}"));
-                                // unimplemented!(); // TODO
-                            }
-
-                            (req, res) => {
-                                console::log!(format!(
-                                    "invalid response to request: {req:?} {res:?}"
-                                ));
-                                return false;
-                            }
-                        }
-
-                        let msg = self.acknowledgeable_messages.remove(&id);
-                    }
-
-                    WsMsg(None, msg) => match msg {
-                        WsServerMsg::Ack => unreachable!("server should not send this message"),
-
-                        WsServerMsg::LobbyState(s) => {
-                            console::log!(format!("state change: {s:?}"));
-                            // unimplemented!(); // TODO
-                        }
-
-                        recv => console::log!(format!("invalid recv: {recv:?}")),
-                    },
-                }
-
-                false
-            }
+            Self::Message::WsRecv(msg) => self.handle_received_message(ctx, msg),
             Self::Message::WsSend(msg) => {
                 if let WsMsg(Some(id), msg) = &msg {
                     self.acknowledgeable_messages
@@ -1853,4 +1761,96 @@ pub async fn sleep(delay: i32) {
     let p = js_sys::Promise::new(&mut cb);
 
     wasm_bindgen_futures::JsFuture::from(p).await.unwrap();
+}
+
+impl Snake {
+    fn handle_received_message(&mut self, ctx: &Context<Self>, msg: WsMsg<WsServerMsg>) -> bool {
+        const UPDATE: bool = true;
+
+        console::log!(format!("recv: {msg:?}"));
+
+        match msg {
+            WsMsg(Some(id), msg) => {
+                let ack_msg = self.acknowledgeable_messages.get(&id);
+
+                let ack_msg = if let None = ack_msg {
+                    console::log!(format!("dissmiss response: {id} {msg:?}"));
+                    return !UPDATE;
+                } else {
+                    ack_msg.unwrap()
+                };
+
+                // TODO decouple action to take somehow
+                //
+                match (ack_msg, msg) {
+                    (WsClientMsg::LobbyList, WsServerMsg::LobbyList(lobby_list)) => {
+                        if let State::NotBegun {
+                            inner: NotBegunState::MPLobbyList { lobbies },
+                        } = &mut self.state
+                        {
+                            lobbies.replace(lobby_list);
+
+                            return UPDATE;
+                        }
+                    }
+
+                    (WsClientMsg::UserName, WsServerMsg::UserName(user_name)) => {
+                        console::log!(format!("setting ws_state.user_name {:?}", &user_name));
+                        self.ws_state.user_name = user_name;
+                        self.ws_state.synced_user_name = true;
+                        return UPDATE;
+                    }
+
+                    (WsClientMsg::SetUserName(user_name), WsServerMsg::Ack) => {
+                        console::log!("ack:", &id, format!("{ack_msg:?}"));
+                        self.ws_state.user_name = Some(user_name.clone());
+                        self.ws_state.synced_user_name = true;
+                        return UPDATE;
+                    }
+
+                    (WsClientMsg::JoinLobby(lobby_name), WsServerMsg::Ack) => {
+                        console::log!("ack:", &id, format!("{ack_msg:?}"));
+
+                        ctx.link()
+                            .send_message(SnakeMsg::StateChange(State::NotBegun {
+                                inner: NotBegunState::MPLobby {
+                                    lobby_name: lobby_name.clone(),
+                                    state: MPLobbyState::ToBeLoaded,
+                                },
+                            }));
+                    }
+
+                    (WsClientMsg::JoinLobby(_), WsServerMsg::JoinLobbyDecline(r)) => {
+                        console::log!("dec:", &id, format!("{ack_msg:?} {r:?}"));
+                        // unimplemented!(); // TODO
+                    }
+
+                    (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(s)) => {
+                        console::log!(format!("state change: {s:?}"));
+                        // unimplemented!(); // TODO
+                    }
+
+                    (req, res) => {
+                        console::log!(format!("invalid response to request: {req:?} {res:?}"));
+                        return UPDATE;
+                    }
+                }
+
+                let msg = self.acknowledgeable_messages.remove(&id);
+            }
+
+            WsMsg(None, msg) => match msg {
+                WsServerMsg::Ack => unreachable!("server should not send this message"),
+
+                WsServerMsg::LobbyState(s) => {
+                    console::log!(format!("state change: {s:?}"));
+                    // unimplemented!(); // TODO
+                }
+
+                recv => console::log!(format!("invalid recv: {recv:?}")),
+            },
+        }
+
+        !UPDATE
+    }
 }
