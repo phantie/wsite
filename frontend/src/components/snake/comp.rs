@@ -45,6 +45,8 @@ pub struct WsState {
     // can be useful for debugging
     // if on connect Server would set a random user_name to the connection
     synced_user_name: bool,
+    joined_lobby_name: Option<LobbyName>,
+    joined_lobby_state: Option<interfacing::snake::LobbyState>,
 }
 
 pub struct Snake {
@@ -443,7 +445,7 @@ impl Component for Snake {
                     }
                 }
                 State::NotBegun {
-                    inner: s @ NotBegunState::MPLobby { lobby_name, state },
+                    inner: s @ NotBegunState::MPLobby { state },
                 } => {
                     // at this point set UserName is required to continue
                     //
@@ -460,7 +462,7 @@ impl Component for Snake {
 
                     use MPLobbyState::*;
                     match state {
-                        ToJoin => {
+                        ToJoin { lobby_name } => {
                             let msg = SnakeMsg::WsSend(
                                 "join-lobby".pinned_msg(WsClientMsg::JoinLobby(lobby_name.clone())),
                             );
@@ -470,9 +472,12 @@ impl Component for Snake {
                             html! { "Joining..." }
                             // unimplemented!()
                         }
-                        Joined(state) => {
-                            // TODO make request to server
+                        Joined => {
+                            let ls = self.ws_state.joined_lobby_state.as_ref().expect("to exist");
+                            let lobby_name =
+                                self.ws_state.joined_lobby_name.as_ref().expect("to exist");
 
+                            // TODO make request to server
                             pub async fn get_lobby(
                                 name: String,
                             ) -> Result<interfacing::snake::GetLobby, ()>
@@ -501,24 +506,33 @@ impl Component for Snake {
                             //     });
                             // }
 
-                            let onclick =
-                                ctx.link().callback(move |e| {
-                                    Self::Message::WsSend("vote-start".pinned_msg(
-                                        interfacing::snake::WsClientMsg::VoteStart(true),
-                                    ))
-                                });
+                            let block = match ls {
+                                LobbyState::Prep(LobbyPrep { participants }) => {
+                                    let onclick = ctx.link().callback(move |e| {
+                                        Self::Message::WsSend("vote-start".pinned_msg(
+                                            interfacing::snake::WsClientMsg::VoteStart(true),
+                                        ))
+                                    });
 
-                            let block = match state {
-                                LobbyState::Prep(LobbyPrep { participants }) => participants
-                                    .into_iter()
-                                    .map(|p| {
-                                        html! {
-                                            <>
-                                            <h3>{&p.user_name} {" voted: "} {p.vote_start} </h3>
-                                            </>
-                                        }
-                                    })
-                                    .collect::<Html>(),
+                                    let part = participants
+                                        .into_iter()
+                                        .map(|p| {
+                                            html! {
+                                                <>
+                                                <h3>{&p.user_name} {" voted: "} {p.vote_start} </h3>
+                                                </>
+                                            }
+                                        })
+                                        .collect::<Html>();
+
+                                    html! {
+                                        <>
+                                        {part}
+                                        <button {onclick}> { "Vote start" } </button>
+                                        </>
+                                    }
+                                }
+
                                 LobbyState::Running => {
                                     html! { <h1>{"Running"}</h1>}
                                 }
@@ -528,13 +542,15 @@ impl Component for Snake {
                                 <>
                                 <h2>{ "Joined "} { lobby_name } { " as " } { self.ws_state.user_name.as_ref().unwrap() } </h2>
                                 { block }
-                                <button {onclick}> { "Vote start" } </button>
                                 </>
                             }
                         }
 
-                        JoinError(e) => {
-                            html! { <> {"Join error: "} { e }  </> }
+                        JoinError {
+                            lobby_name,
+                            message,
+                        } => {
+                            html! { <> {"Join "} { lobby_name } {" error: "} { message }  </> }
                         }
                     }
                 }
@@ -1110,9 +1126,14 @@ impl Snake {
 
 #[derive(Clone, PartialEq)]
 pub enum MPLobbyState {
-    ToJoin,
-    Joined(interfacing::snake::LobbyState),
-    JoinError(String),
+    ToJoin {
+        lobby_name: LobbyName,
+    },
+    JoinError {
+        lobby_name: LobbyName,
+        message: String,
+    },
+    Joined,
 }
 
 #[derive(Clone, PartialEq)]
@@ -1121,7 +1142,6 @@ pub enum NotBegunState {
     MPCreateJoinLobby,
     MPCreateLobby,
     MPLobby {
-        lobby_name: LobbyName,
         state: MPLobbyState,
     },
     MPSetUsername {
@@ -1144,8 +1164,7 @@ impl State {
     pub fn to_be_loaded_lobby(lobby_name: LobbyName) -> Self {
         State::NotBegun {
             inner: NotBegunState::MPLobby {
-                lobby_name,
-                state: MPLobbyState::ToJoin,
+                state: MPLobbyState::ToJoin { lobby_name },
             },
         }
     }
@@ -1778,10 +1797,22 @@ pub async fn sleep(delay: i32) {
     wasm_bindgen_futures::JsFuture::from(p).await.unwrap();
 }
 
-impl Snake {
-    fn handle_received_message(&mut self, ctx: &Context<Self>, msg: WsMsg<WsServerMsg>) -> bool {
-        const UPDATE: bool = true;
+const UPDATE: bool = true;
 
+impl Snake {
+    fn handle_state_change(
+        &mut self,
+        ctx: &Context<Self>,
+        s: interfacing::snake::LobbyState,
+    ) -> bool {
+        console::log!(format!("state change: {s:?}"));
+
+        self.ws_state.joined_lobby_state.replace(s);
+
+        UPDATE
+    }
+
+    fn handle_received_message(&mut self, ctx: &Context<Self>, msg: WsMsg<WsServerMsg>) -> bool {
         console::log!(format!("recv: {msg:?}"));
 
         match msg {
@@ -1804,7 +1835,6 @@ impl Snake {
                         } = &mut self.state
                         {
                             lobbies.replace(lobby_list);
-
                             return UPDATE;
                         }
                     }
@@ -1826,11 +1856,13 @@ impl Snake {
                     (WsClientMsg::JoinLobby(lobby_name), WsServerMsg::LobbyState(s)) => {
                         console::log!("ack:", &id, format!("{ack_msg:?}"));
 
+                        self.ws_state.joined_lobby_name = Some(lobby_name.clone());
+                        self.ws_state.joined_lobby_state = Some(s);
+
                         ctx.link()
                             .send_message(SnakeMsg::StateChange(State::NotBegun {
                                 inner: NotBegunState::MPLobby {
-                                    lobby_name: lobby_name.clone(),
-                                    state: MPLobbyState::Joined(s),
+                                    state: MPLobbyState::Joined,
                                 },
                             }));
                     }
@@ -1838,18 +1870,21 @@ impl Snake {
                     (WsClientMsg::JoinLobby(ln), WsServerMsg::JoinLobbyDecline(r)) => {
                         console::log!("dec:", &id, format!("{ack_msg:?} {r:?}"));
 
+                        // TODO handle self.ws_state.joined_lobby if needed
+
                         ctx.link()
                             .send_message(SnakeMsg::StateChange(State::NotBegun {
                                 inner: NotBegunState::MPLobby {
-                                    lobby_name: ln.clone(),
-                                    state: MPLobbyState::JoinError(format!("{r:?}")),
+                                    state: MPLobbyState::JoinError {
+                                        lobby_name: ln.clone(),
+                                        message: format!("{r:?}"),
+                                    },
                                 },
                             }));
                     }
 
                     (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(s)) => {
-                        console::log!(format!("state change: {s:?}"));
-                        // unimplemented!(); // TODO
+                        return self.handle_state_change(ctx, s);
                     }
 
                     (req, res) => {
@@ -1865,8 +1900,7 @@ impl Snake {
                 WsServerMsg::Ack => unreachable!("server should not send this message"),
 
                 WsServerMsg::LobbyState(s) => {
-                    console::log!(format!("state change: {s:?}"));
-                    // unimplemented!(); // TODO
+                    return self.handle_state_change(ctx, s);
                 }
 
                 recv => console::log!(format!("invalid recv: {recv:?}")),
