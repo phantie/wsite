@@ -140,7 +140,6 @@ impl Lobby {
         }
     }
 
-    #[allow(unused)]
     pub fn broadcast_state(&self) {
         self.broadcast(WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(
             self.state(),
@@ -156,6 +155,14 @@ impl Lobby {
             .for_each(|(_, LobbyConState { ch, .. })| {
                 ch.send(send.clone().id(pin.clone())).unwrap_or(())
             });
+        self.players
+            .iter()
+            .filter(|(_con, _)| con != **_con)
+            .for_each(|(_, LobbyConState { ch, .. })| ch.send(send.clone()).unwrap_or(()));
+    }
+
+    pub fn broadcast_state_except(&self, con: Con) {
+        let send = WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state()));
         self.players
             .iter()
             .filter(|(_con, _)| con != **_con)
@@ -372,7 +379,10 @@ impl Lobbies {
                         con_to_lobby.insert(con.clone(), lobby_name);
                         let mut lock = lobby.write().await;
                         match lock.join_con(con, ch, un) {
-                            Ok(()) => Ok(lock.state()),
+                            Ok(()) => {
+                                lock.broadcast_state_except(con);
+                                Ok(lock.state())
+                            }
                             Err(_m) => Err(JoinLobbyError::AlreadyStarted),
                         }
                     }
