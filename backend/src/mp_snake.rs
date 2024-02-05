@@ -341,6 +341,7 @@ impl Lobbies {
                 let lobby = _lock.get(_lobby_name).expect("to be in sync");
                 con_to_lobby.remove(&con);
                 lobby.write().await.disjoin_con(&con);
+                lobby.read().await.broadcast_state();
             }
         }
     }
