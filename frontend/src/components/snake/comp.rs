@@ -1,16 +1,17 @@
 #![allow(unused, non_upper_case_globals)]
-use std::collections::HashSet;
-
 use crate::components::imports::*;
 use futures::SinkExt;
 use gloo_events::{EventListener, EventListenerOptions};
 use gloo_timers::callback::Interval;
-use interfacing::snake::{
-    lobby_state::LobbyPrep, LobbyName, LobbyState, UserName, WsClientMsg, WsMsg, WsServerMsg,
-};
+use std::collections::HashSet;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
+
+use interfacing::snake::{
+    lobby_state::LobbyPrep, JoinLobbyDecline, LobbyName, LobbyState, UserName, WsClientMsg, WsMsg,
+    WsServerMsg,
+};
 
 type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
 type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
@@ -963,6 +964,8 @@ impl Component for Snake {
             }
             Self::Message::StateChange(new_state) if new_state == self.state => false,
             Self::Message::StateChange(ref new_state @ State::Begun { paused }) => {
+                // TODO map state to address bar
+                //
                 if paused {
                     self.advance_interval.stop();
                 } else {
@@ -1894,15 +1897,21 @@ impl Snake {
 
                         // TODO handle self.ws_state.joined_lobby if needed
 
-                        ctx.link()
-                            .send_message(SnakeMsg::StateChange(State::NotBegun {
-                                inner: NotBegunState::MPLobby {
-                                    state: MPLobbyState::JoinError {
-                                        lobby_name: ln.clone(),
-                                        message: format!("{r:?}"),
-                                    },
+                        let s = match r {
+                            JoinLobbyDecline::NotFound => {
+                                console::log!("Lobby ", ln, " does not exist. Redirecting.");
+                                NotBegunState::MPCreateJoinLobby
+                            }
+                            _ => NotBegunState::MPLobby {
+                                state: MPLobbyState::JoinError {
+                                    lobby_name: ln.clone(),
+                                    message: format!("{r:?}"),
                                 },
-                            }));
+                            },
+                        };
+
+                        ctx.link()
+                            .send_message(SnakeMsg::StateChange(State::NotBegun { inner: s }));
                     }
 
                     (WsClientMsg::VoteStart(_), WsServerMsg::LobbyState(s)) => {
