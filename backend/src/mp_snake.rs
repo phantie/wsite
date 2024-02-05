@@ -93,6 +93,8 @@ impl LobbyConState {
 pub enum LobbyState {
     Prep { start_votes: HashMap<Con, bool> },
     Running { counter: u32 },
+    // terminated is scheduled for clean up
+    Terminated,
 }
 
 pub struct Lobby {
@@ -101,12 +103,22 @@ pub struct Lobby {
     #[allow(unused)]
     pub state: LobbyState,
 
-    ch: Option<tokio::sync::mpsc::UnboundedSender<LobbyMsg>>,
+    ch: Option<tokio::sync::mpsc::UnboundedSender<LobbyCtrlMsg>>,
     _loop_handle: Option<tokio::task::AbortHandle>,
 }
 
+#[derive(Debug)]
 pub enum LobbyMsg {
     Advance,
+}
+
+pub enum LobbiesMsg {
+    RemoveLobby(LobbyName),
+}
+
+pub enum LobbyCtrlMsg {
+    LobbyMsg(LobbyMsg),
+    LobbiesMsg(LobbiesMsg),
 }
 
 impl Lobby {
@@ -124,7 +136,7 @@ impl Lobby {
     }
 
     #[must_use = "to use message passing"]
-    pub fn set_ch(mut self, ch: tokio::sync::mpsc::UnboundedSender<LobbyMsg>) -> Self {
+    pub fn set_ch(mut self, ch: tokio::sync::mpsc::UnboundedSender<LobbyCtrlMsg>) -> Self {
         self.ch.replace(ch);
         self
     }
@@ -196,6 +208,8 @@ impl Lobby {
             LobbyState::Running { counter } => {
                 interfacing::snake::LobbyState::Running { counter: *counter }
             }
+
+            LobbyState::Terminated => interfacing::snake::LobbyState::Terminated,
         }
     }
 
@@ -217,7 +231,7 @@ impl Lobby {
                 self._loop_handle.replace(
                     tokio::spawn(async move {
                         loop {
-                            ch.send(LobbyMsg::Advance).unwrap();
+                            ch.send(LobbyCtrlMsg::LobbyMsg(LobbyMsg::Advance)).unwrap();
                             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                         }
                     })
@@ -227,6 +241,17 @@ impl Lobby {
                 Ok(())
             }
             _ => Err("Illegal state".into()),
+        }
+    }
+
+    pub fn stop(&mut self) {
+        match &mut self.state {
+            LobbyState::Running { .. } => {
+                self._loop_handle.take().unwrap().abort();
+                _ = self.ch.take();
+                self.state = LobbyState::Terminated;
+            }
+            _ => {}
         }
     }
 
@@ -256,19 +281,38 @@ impl Lobby {
             LobbyState::Prep { start_votes } => {
                 start_votes.remove(&con);
             }
-            _ => {}
+
+            LobbyState::Running { .. } => {
+                // when everyone quits from running game, remove lobby
+                if self.players.is_empty() {
+                    self.ch
+                        .as_ref()
+                        .unwrap()
+                        .send(LobbyCtrlMsg::LobbiesMsg(LobbiesMsg::RemoveLobby(
+                            self.name.clone(),
+                        )))
+                        .unwrap();
+                }
+            }
+
+            LobbyState::Terminated => {}
         }
     }
 
     pub fn handle_message(&mut self, msg: LobbyMsg) {
         match &mut self.state {
-            LobbyState::Prep { .. } => {}
+            LobbyState::Prep { .. } => {
+                tracing::warn!("unhandled message {msg:?}")
+            }
             LobbyState::Running { counter } => match msg {
                 LobbyMsg::Advance => {
                     *counter += 1;
                     self.broadcast_state();
                 }
             },
+            LobbyState::Terminated => {
+                tracing::warn!("unhandled message {msg:?}")
+            }
         }
     }
 }
@@ -313,19 +357,28 @@ impl Lobbies {
         self.joined_lobby(con).await.is_some()
     }
 
-    // TODO verify
-    #[allow(unused)]
+    // Remove lobby if exists
     pub async fn remove_lobby(&self, lobby_name: LobbyName) {
         // while you hold this lock, noone else touches players
         let mut con_to_lobby = self.1.write().await;
 
-        let _lock = self.0.read().await;
-        let lobby = _lock.get(&lobby_name).expect("to be in sync");
+        {
+            let _lock = self.0.read().await;
 
-        let players = &lobby.read().await.players;
+            let lobby = match _lock.get(&lobby_name) {
+                None => return,
+                Some(lobby) => lobby,
+            };
 
-        for (con, _) in players {
-            con_to_lobby.remove(con);
+            let mut _lobby_lock = lobby.write().await;
+
+            _lobby_lock.stop();
+
+            let players = &_lobby_lock.players;
+
+            for (con, _) in players {
+                con_to_lobby.remove(con);
+            }
         }
 
         self.0.write().await.remove(&lobby_name);
@@ -422,7 +475,7 @@ impl Lobbies {
             Entry::Vacant(_) => {
                 let lobby_name = lobby.name.clone();
 
-                let (s, mut r) = tokio::sync::mpsc::unbounded_channel::<LobbyMsg>();
+                let (s, mut r) = tokio::sync::mpsc::unbounded_channel::<LobbyCtrlMsg>();
                 let lobby = Arc::new(RwLock::new(lobby.set_ch(s)));
 
                 {
@@ -430,9 +483,19 @@ impl Lobbies {
                 }
 
                 {
+                    let lobbies = self.clone();
                     let lobby_msg_passer_handle = tokio::spawn(async move {
                         while let Some(msg) = r.recv().await {
-                            lobby.write().await.handle_message(msg);
+                            match msg {
+                                LobbyCtrlMsg::LobbyMsg(msg) => {
+                                    lobby.write().await.handle_message(msg)
+                                }
+                                LobbyCtrlMsg::LobbiesMsg(msg) => match msg {
+                                    LobbiesMsg::RemoveLobby(ln) => {
+                                        lobbies.remove_lobby(ln).await;
+                                    }
+                                },
+                            }
                         }
                     })
                     .abort_handle();

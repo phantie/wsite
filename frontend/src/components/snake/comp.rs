@@ -540,6 +540,11 @@ impl Component for Snake {
                                         </>
                                     }
                                 }
+
+                                LobbyState::Terminated => {
+                                    // currently this state does not reach a client
+                                    html! {<h1>{ "Terminated, you should have been redirected" }</h1>}
+                                }
                             };
 
                             let leave_lobby = {

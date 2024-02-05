@@ -109,6 +109,7 @@ pub mod lobby_state {
     pub enum LobbyState {
         Prep(LobbyPrep),
         Running { counter: u32 },
+        Terminated,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
