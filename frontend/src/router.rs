@@ -1,7 +1,7 @@
 use yew_router::prelude::*;
 
 // Router accepts only literals, so static_routes are used in tests
-#[derive(Clone, Routable, PartialEq)]
+#[derive(Clone, Routable, PartialEq, Debug)]
 pub enum Route {
     #[at("/")]
     Home,
@@ -21,10 +21,6 @@ pub enum Route {
     CreateArticle,
     #[at("/admin/articles/:public_id/edit")]
     EditArticle { public_id: String },
-    #[at("/snake")]
-    Snake,
-    #[at("/snake/lobby/:lobby_name")]
-    SnakeLobby { lobby_name: String },
     #[at("/i/")]
     Ref,
     #[not_found]
@@ -32,6 +28,17 @@ pub enum Route {
     NotFound,
     #[at("/401")]
     Unauthorized,
+
+    #[at("/snake")]
+    Snake,
+    #[at("/snake/lobbies/create-join")]
+    SnakeCreateJoinLobby,
+    #[at("/snake/lobbies/create")]
+    SnakeCreateLobby,
+    #[at("/snake/lobbies")]
+    SnakeLobbies,
+    #[at("/snake/lobby/:lobby_name")]
+    SnakeLobby { lobby_name: String },
 }
 
 #[cfg(test)]

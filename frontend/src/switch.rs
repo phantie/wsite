@@ -50,6 +50,8 @@ pub fn switch(routes: Route) -> Html {
 
     const HOME: Home = Home::Snake;
 
+    use snake::comp::{NotBegunState, State};
+
     match routes {
         Route::Home => match HOME {
             Home::ArticleList => article_list.clone(),
@@ -58,6 +60,32 @@ pub fn switch(routes: Route) -> Html {
         Route::Snake => {
             html! {
                 <Snake/>
+            }
+        }
+        Route::SnakeCreateJoinLobby => {
+            let state = State::NotBegun {
+                inner: NotBegunState::MPCreateJoinLobby,
+            };
+            html! {
+                <Snake {state}/>
+            }
+        }
+        Route::SnakeLobbies => {
+            let state = State::NotBegun {
+                inner: NotBegunState::MPSetUsername {
+                    next_state: Box::new(NotBegunState::MPCreateJoinLobby),
+                },
+            };
+            html! {
+                <Snake {state}/>
+            }
+        }
+        Route::SnakeCreateLobby => {
+            let state = State::NotBegun {
+                inner: NotBegunState::MPCreateLobby,
+            };
+            html! {
+                <Snake {state}/>
             }
         }
         // TODO requires user_name setting

@@ -853,21 +853,13 @@ impl Component for Snake {
                 false
             }
             Self::Message::RedirectToLobby { lobby_name } => {
-                let navigator = ctx.link().navigator().unwrap();
-                navigator.push(&Route::SnakeLobby {
-                    lobby_name: lobby_name.clone(),
-                });
-                // TODO mayne inline where used
-                //
-                // NOTE again since it's trasitioning to the same component,
-                // back button does not nothing, expecting that behaviour
-                // would be added manually
+                // TODO maybe inline where used
                 //
                 ctx.link()
                     .send_message(Self::Message::StateChange(State::to_be_loaded_lobby(
                         lobby_name,
                     )));
-                true
+                false
             }
             Self::Message::WindowLoaded => {
                 ctx.link().send_message(Self::Message::FitCanvasImmediately);
@@ -964,8 +956,6 @@ impl Component for Snake {
             }
             Self::Message::StateChange(new_state) if new_state == self.state => false,
             Self::Message::StateChange(ref new_state @ State::Begun { paused }) => {
-                // TODO map state to address bar
-                //
                 if paused {
                     self.advance_interval.stop();
                 } else {
@@ -983,6 +973,45 @@ impl Component for Snake {
                 true
             }
             Self::Message::StateChange(new_state @ State::NotBegun { .. }) => {
+                {
+                    use crate::router::Route;
+
+                    // HERE: routing
+                    let route = match &new_state {
+                        State::Begun { .. } => None,
+                        State::NotBegun { inner } => match inner {
+                            NotBegunState::MPLobby { state } => {
+                                match state {
+                                    MPLobbyState::ToJoin { lobby_name } => {
+                                        Some(Route::SnakeLobby {
+                                            lobby_name: lobby_name.clone(),
+                                        })
+                                    }
+                                    MPLobbyState::Joined | MPLobbyState::JoinError { .. } => {
+                                        // should transition only from ToJoin, so ...
+                                        None
+                                    }
+                                }
+                            }
+                            NotBegunState::MPCreateJoinLobby => Some(Route::SnakeCreateJoinLobby),
+                            NotBegunState::MPCreateLobby => Some(Route::SnakeCreateLobby),
+                            NotBegunState::MPLobbyList { .. } => Some(Route::SnakeLobbies),
+                            NotBegunState::ModeSelection => Some(Route::Home),
+                            _ => None,
+                        },
+                    };
+
+                    // console::log!("!!!!", format!("{route:?}"));
+
+                    if let Some(route) = route {
+                        let path = ctx.link().location().unwrap().path().to_string();
+                        if route.to_path() != path {
+                            let navigator = ctx.link().navigator().unwrap();
+                            navigator.push(&route);
+                        }
+                    }
+                }
+
                 self.advance_interval.stop();
                 self.domain = Domain::default();
                 assert_eq!(self.canvas_requires_fit, false);
@@ -1447,8 +1476,32 @@ impl Listeners {
         let location_listener = link
             .add_location_listener(link.callback(|e: Location| {
                 let path = e.path();
-                // console::log!("location changed", path);
-                // TODO implement when needed
+
+                use crate::router::Route;
+
+                let route = Route::recognize(path);
+
+                // console::log!("!!! location changed", path, format!("{route:?}"));
+
+                // HERE: routing
+
+                if let Some(route) = route.clone() {
+                    let state = match route {
+                        Route::Home | Route::Snake => Some(NotBegunState::ModeSelection),
+                        Route::SnakeLobby { lobby_name } => Some(NotBegunState::MPLobby {
+                            state: MPLobbyState::ToJoin { lobby_name },
+                        }),
+                        Route::SnakeCreateJoinLobby => Some(NotBegunState::MPCreateJoinLobby),
+                        Route::SnakeCreateLobby => Some(NotBegunState::MPCreateLobby),
+                        Route::SnakeLobbies => Some(NotBegunState::MPLobbyList { lobbies: None }),
+                        _ => None,
+                    };
+
+                    if let Some(state) = state {
+                        return SnakeMsg::StateChange(State::NotBegun { inner: state });
+                    }
+                }
+
                 SnakeMsg::Nothing
             }))
             .unwrap();
