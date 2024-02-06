@@ -45,22 +45,35 @@ impl Snake {
             .chain(std::iter::once(self.head().end()))
     }
 
-    fn bit_snake(&self, advanced_head: Section) -> bool {
-        // all sections except tail, because it won't be here when head advances
-        self.iter_vertices()
-            .skip(1)
-            .find(|pos| pos == &advanced_head.end())
-            .is_some()
+    pub fn iter_vertices_without_tail(&self) -> impl Iterator<Item = Pos> + '_ {
+        self.iter_vertices().skip(1)
+    }
+
+    fn bit_snake(&self, advanced_head: Section, myself: bool) -> bool {
+        if myself {
+            // all sections except tail, because it won't be here when head advances
+            self.iter_vertices_without_tail()
+                .find(|pos| pos == &advanced_head.end())
+                .is_some()
+        } else {
+            let mut snake = self.clone();
+            match snake.advance_head(&[]) {
+                AdvanceResult::Success => {}
+                _ => unreachable!(),
+            }
+            let mut vertices = snake.iter_vertices_without_tail();
+            vertices.find(|pos| pos == &advanced_head.end()).is_some()
+        }
     }
 
     fn advance_head(&mut self, other_snakes: &[Snake]) -> AdvanceResult {
         let advanced_head = self.head().next(self.direction).unwrap();
 
-        if self.bit_snake(advanced_head) {
+        if self.bit_snake(advanced_head, true) {
             AdvanceResult::BitYaSelf
         } else if other_snakes
             .iter()
-            .any(|snake| snake.bit_snake(advanced_head))
+            .any(|snake| snake.bit_snake(advanced_head, false))
         {
             AdvanceResult::BitSomeone
         } else {
@@ -130,7 +143,7 @@ impl From<Pos> for Food {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Foods {
     pub values: Vec<Food>,
 }
