@@ -108,7 +108,7 @@ pub mod lobby_state {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
     pub enum LobbyState {
         Prep(LobbyPrep),
-        Running { counter: u32 },
+        Running { counter: u32, player_counter: u32 },
         Terminated,
     }
 

@@ -16,7 +16,7 @@ use interfacing::snake::{
 type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
 type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
-use super::domain;
+use interfacing::snake_domain as domain;
 
 const PAUSED: bool = false;
 const STATE: State = State::NotBegun {
@@ -534,9 +534,13 @@ impl Component for Snake {
                                     }
                                 }
 
-                                LobbyState::Running { counter } => {
+                                LobbyState::Running {
+                                    counter,
+                                    player_counter,
+                                } => {
                                     html! {
                                         <>
+                                        <h2>{"Player count: "}{player_counter}</h2>
                                         <h1>{"Running: "} { counter }</h1>
                                         </>
                                     }

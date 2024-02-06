@@ -1,79 +1,11 @@
 use interfacing::snake::{LobbyName, MsgId, UserName, WsMsg};
+use interfacing::snake_domain as domain;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
+// could be any, granting uniqueness to ws connection among all
 pub type Con = u16;
-
-#[derive(Default, Clone)]
-pub struct PlayerUserNames(Arc<Mutex<bidirectional_map::Bimap<Con, UserName>>>);
-
-impl PlayerUserNames {
-    pub async fn try_insert(&self, un: UserName, con: Con) -> Result<(), ()> {
-        // idempotent
-
-        let mut lock = self.0.lock().await;
-
-        if lock.contains_fwd(&con) {
-            if lock.contains_rev(&un) && lock.get_fwd(&con).unwrap() != &un {
-                Err(()) // occupied
-            } else {
-                lock.insert(con, un);
-                Ok(())
-            }
-        } else {
-            if lock.contains_rev(&un) {
-                Err(()) // occupied
-            } else {
-                lock.insert(con, un);
-                Ok(())
-            }
-        }
-    }
-
-    #[allow(unused)]
-    pub async fn free(&self, un: UserName) {
-        let mut lock = self.0.lock().await;
-        if lock.contains_rev(&un) {
-            lock.remove_rev(&un);
-        }
-    }
-
-    pub async fn clean_con(&self, con: Con) {
-        let mut lock = self.0.lock().await;
-        if lock.contains_fwd(&con) {
-            lock.remove_fwd(&con);
-        }
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct _PlayerUserNames(Arc<Mutex<(HashMap<Con, UserName>, HashMap<UserName, Con>)>>);
-
-#[allow(dead_code, unused)]
-impl _PlayerUserNames {
-    pub async fn try_insert(&self, un: UserName, con: Con) -> Result<(), ()> {
-        unimplemented!()
-    }
-
-    pub async fn free(&self, un: UserName) {
-        let mut lock = self.0.lock().await;
-
-        match lock.1.entry(un) {
-            std::collections::hash_map::Entry::Occupied(entry) => {
-                let con = entry.get().clone();
-                entry.remove();
-                lock.0.remove(&con);
-            }
-            std::collections::hash_map::Entry::Vacant(_) => {}
-        }
-    }
-
-    pub async fn clean_con(&self, con: Con) {
-        let mut lock = self.0.lock().await;
-        lock.0.remove(&con).map(|un| lock.1.remove(&un));
-    }
-}
 
 type ServerMsg = interfacing::snake::WsMsg<interfacing::snake::WsServerMsg>;
 type Ch = tokio::sync::mpsc::UnboundedSender<ServerMsg>;
@@ -89,10 +21,88 @@ impl LobbyConState {
     }
 }
 
-#[allow(unused)]
+// lobby parameters
+#[derive(Default)]
+pub struct PrepLobbyState {
+    // should contain all players in lobby
+    start_votes: HashMap<Con, bool>,
+}
+
+impl PrepLobbyState {
+    fn to_running(&self) -> RunningLobbyState {
+        let snakes = {
+            let snakes = vec![];
+            snakes
+        };
+
+        let cons = self.start_votes.keys().cloned().collect();
+
+        RunningLobbyState {
+            counter: 0,
+            snakes,
+            cons,
+        }
+    }
+
+    fn join_con(&mut self, con: Con) {
+        self.start_votes.insert(con, false);
+    }
+
+    fn remove_con(&mut self, con: &Con) {
+        self.start_votes.remove(con);
+    }
+
+    fn vote_start(&mut self, con: Con, vote: bool) {
+        // expected to already contain the con
+        if self.start_votes.contains_key(&con) {
+            self.start_votes.insert(con, vote);
+        }
+    }
+
+    fn all_voted_to_start(&self) -> bool {
+        self.start_votes
+            .values()
+            .cloned()
+            .all(std::convert::identity)
+    }
+}
+
+pub struct RunningLobbyState {
+    pub snakes: Vec<domain::Snake>,
+    counter: u32,
+    cons: std::collections::HashSet<Con>,
+}
+
+impl RunningLobbyState {
+    fn advance(&mut self) {
+        self.counter += 1;
+    }
+
+    // no join_con because joining midgame is forbidden
+
+    fn remove_con(&mut self, con: &Con) {
+        self.cons.remove(con);
+    }
+}
+
+impl From<&RunningLobbyState> for interfacing::snake::LobbyState {
+    fn from(
+        RunningLobbyState {
+            snakes: _,
+            counter,
+            cons,
+        }: &RunningLobbyState,
+    ) -> Self {
+        Self::Running {
+            counter: *counter,
+            player_counter: cons.len() as _,
+        }
+    }
+}
+
 pub enum LobbyState {
-    Prep { start_votes: HashMap<Con, bool> },
-    Running { counter: u32 },
+    Prep(PrepLobbyState),
+    Running(RunningLobbyState),
     // terminated is scheduled for clean up
     Terminated,
 }
@@ -100,10 +110,10 @@ pub enum LobbyState {
 pub struct Lobby {
     pub name: LobbyName,
     pub players: HashMap<Con, LobbyConState>,
-    #[allow(unused)]
     pub state: LobbyState,
 
     ch: Option<tokio::sync::mpsc::UnboundedSender<LobbyCtrlMsg>>,
+    // TODO maybe ship with RunningLobbyState
     _loop_handle: Option<tokio::task::AbortHandle>,
 }
 
@@ -126,32 +136,152 @@ impl Lobby {
         Self {
             name,
             players: Default::default(),
-            state: LobbyState::Prep {
-                start_votes: Default::default(),
-            },
+            state: LobbyState::Prep(PrepLobbyState::default()),
 
             ch: None,
             _loop_handle: None,
         }
     }
 
-    #[must_use = "to use message passing"]
-    pub fn set_ch(mut self, ch: tokio::sync::mpsc::UnboundedSender<LobbyCtrlMsg>) -> Self {
-        self.ch.replace(ch);
-        self
+    pub fn state(&self) -> interfacing::snake::LobbyState {
+        use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant};
+
+        match &self.state {
+            // TODO it cannot impl From because State itself participates in calculation
+            // one way would be to duplicate user_names to PrepLobbyState
+            LobbyState::Prep(PrepLobbyState { start_votes }) => {
+                interfacing::snake::LobbyState::Prep(LobbyPrep {
+                    participants: self
+                        .players
+                        .iter()
+                        .map(
+                            |(con, LobbyConState { user_name, .. })| LobbyPrepParticipant {
+                                user_name: user_name.clone(),
+                                vote_start: *start_votes.get(&con).expect("to be in sync"),
+                            },
+                        )
+                        .collect(),
+                })
+            }
+
+            LobbyState::Running(s) => s.into(),
+            LobbyState::Terminated => interfacing::snake::LobbyState::Terminated,
+        }
     }
 
-    fn join_con(&mut self, con: Con, ch: Ch, un: UserName) -> Result<(), String> {
+    pub fn begin(&mut self) -> Result<(), String> {
         match &mut self.state {
-            LobbyState::Prep { start_votes } => {
-                self.players.insert(con, LobbyConState::new(ch, un));
-                start_votes.insert(con, false);
+            LobbyState::Prep(s) => {
+                self.state = LobbyState::Running(s.to_running());
+
+                let ch = self.ch.clone().expect("set up channel");
+                self._loop_handle.replace(
+                    tokio::spawn(async move {
+                        // TODO should be swaped, or added larger pause before loop
+                        loop {
+                            ch.send(LobbyCtrlMsg::LobbyMsg(LobbyMsg::Advance)).unwrap();
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        }
+                    })
+                    .abort_handle(),
+                );
+
                 Ok(())
             }
             _ => Err("Illegal state".into()),
         }
     }
 
+    pub fn stop(&mut self) {
+        match &self.state {
+            LobbyState::Running { .. } => {
+                self._loop_handle.take().expect("set up channel").abort();
+                self.ch.take();
+
+                self.state = LobbyState::Terminated;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn vote_start(&mut self, con: Con, value: bool) -> Result<(), String> {
+        match &mut self.state {
+            LobbyState::Prep(s) => {
+                s.vote_start(con, value);
+                if s.all_voted_to_start() {
+                    self.begin().unwrap();
+                }
+
+                Ok(())
+            }
+            _ => Err("Illegal state".into()),
+        }
+    }
+
+    fn join_con(&mut self, con: Con, ch: Ch, un: UserName) -> Result<(), String> {
+        match &mut self.state {
+            LobbyState::Prep(s) => {
+                self.players.insert(con, LobbyConState::new(ch, un));
+                s.join_con(con);
+                Ok(())
+            }
+            _ => Err("Illegal state".into()),
+        }
+    }
+
+    pub fn disjoin_con(&mut self, con: &Con) {
+        self.players.remove(&con);
+        match &mut self.state {
+            LobbyState::Prep(s) => {
+                s.remove_con(con);
+            }
+
+            LobbyState::Running(s) => {
+                // when everyone quits from running game, remove lobby
+                if self.players.is_empty() {
+                    let send = LobbiesMsg::RemoveLobby(self.name.clone());
+                    self.ch
+                        .as_ref()
+                        .unwrap()
+                        .send(LobbyCtrlMsg::LobbiesMsg(send))
+                        .unwrap();
+                }
+                s.remove_con(con);
+            }
+
+            LobbyState::Terminated => {}
+        }
+    }
+}
+
+// message passing impl
+impl Lobby {
+    #[must_use = "to use message passing"]
+    pub fn set_ch(mut self, ch: tokio::sync::mpsc::UnboundedSender<LobbyCtrlMsg>) -> Self {
+        self.ch.replace(ch);
+        self
+    }
+
+    pub fn handle_message(&mut self, msg: LobbyMsg) {
+        match &mut self.state {
+            LobbyState::Prep { .. } => {
+                tracing::warn!("unhandled message {msg:?}")
+            }
+            LobbyState::Running(s) => match msg {
+                LobbyMsg::Advance => {
+                    s.advance();
+                    self.broadcast_state();
+                }
+            },
+            LobbyState::Terminated => {
+                tracing::warn!("unhandled message {msg:?}")
+            }
+        }
+    }
+}
+
+// broadcast impl
+impl Lobby {
     pub fn broadcast_state(&self) {
         self.broadcast(WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(
             self.state(),
@@ -186,134 +316,6 @@ impl Lobby {
         self.players
             .values()
             .for_each(|LobbyConState { ch, .. }| ch.send(msg.clone()).unwrap_or(()));
-    }
-
-    pub fn state(&self) -> interfacing::snake::LobbyState {
-        use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant};
-
-        match &self.state {
-            LobbyState::Prep { start_votes } => interfacing::snake::LobbyState::Prep(LobbyPrep {
-                participants: self
-                    .players
-                    .iter()
-                    .map(
-                        |(con, LobbyConState { user_name, .. })| LobbyPrepParticipant {
-                            user_name: user_name.clone(),
-                            vote_start: *start_votes.get(&con).expect("to be in sync"),
-                        },
-                    )
-                    .collect(),
-            }),
-
-            LobbyState::Running { counter } => {
-                interfacing::snake::LobbyState::Running { counter: *counter }
-            }
-
-            LobbyState::Terminated => interfacing::snake::LobbyState::Terminated,
-        }
-    }
-
-    fn all_voted_to_start(&self) -> Result<bool, String> {
-        match &self.state {
-            LobbyState::Prep { start_votes } => {
-                Ok(start_votes.values().cloned().all(std::convert::identity))
-            }
-            _ => Err("Illegal state".into()),
-        }
-    }
-
-    pub fn begin(&mut self) -> Result<(), String> {
-        match &mut self.state {
-            LobbyState::Prep { .. } => {
-                self.state = LobbyState::Running { counter: 0 };
-
-                let ch = self.ch.clone().unwrap();
-                self._loop_handle.replace(
-                    tokio::spawn(async move {
-                        loop {
-                            ch.send(LobbyCtrlMsg::LobbyMsg(LobbyMsg::Advance)).unwrap();
-                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                        }
-                    })
-                    .abort_handle(),
-                );
-
-                Ok(())
-            }
-            _ => Err("Illegal state".into()),
-        }
-    }
-
-    pub fn stop(&mut self) {
-        match &mut self.state {
-            LobbyState::Running { .. } => {
-                self._loop_handle.take().unwrap().abort();
-                _ = self.ch.take();
-                self.state = LobbyState::Terminated;
-            }
-            _ => {}
-        }
-    }
-
-    pub fn vote_start(&mut self, con: Con, value: bool) -> Result<(), String> {
-        use std::collections::hash_map::Entry;
-
-        match &mut self.state {
-            LobbyState::Prep { start_votes } => match start_votes.entry(con) {
-                Entry::Vacant(_) => Err("Player not found".into()),
-                Entry::Occupied(mut entry) => {
-                    entry.insert(value);
-
-                    if self.all_voted_to_start().unwrap() {
-                        self.begin().unwrap();
-                    }
-
-                    Ok(())
-                }
-            },
-            _ => Err("Illegal state".into()),
-        }
-    }
-
-    pub fn disjoin_con(&mut self, con: &Con) {
-        self.players.remove(&con);
-        match &mut self.state {
-            LobbyState::Prep { start_votes } => {
-                start_votes.remove(&con);
-            }
-
-            LobbyState::Running { .. } => {
-                // when everyone quits from running game, remove lobby
-                if self.players.is_empty() {
-                    self.ch
-                        .as_ref()
-                        .unwrap()
-                        .send(LobbyCtrlMsg::LobbiesMsg(LobbiesMsg::RemoveLobby(
-                            self.name.clone(),
-                        )))
-                        .unwrap();
-                }
-            }
-
-            LobbyState::Terminated => {}
-        }
-    }
-
-    pub fn handle_message(&mut self, msg: LobbyMsg) {
-        match &mut self.state {
-            LobbyState::Prep { .. } => {
-                tracing::warn!("unhandled message {msg:?}")
-            }
-            LobbyState::Running { counter } => match msg {
-                LobbyMsg::Advance => {
-                    *counter += 1;
-                    self.broadcast_state();
-                }
-            },
-            LobbyState::Terminated => {
-                tracing::warn!("unhandled message {msg:?}")
-            }
-        }
     }
 }
 
@@ -509,13 +511,47 @@ impl Lobbies {
             }
         }
     }
+}
 
-    #[allow(dead_code)]
-    async fn insert(&self, lobby: Lobby) {
-        self.0
-            .write()
-            .await
-            .insert(lobby.name.clone(), Arc::new(RwLock::new(lobby)));
+#[derive(Default, Clone)]
+pub struct PlayerUserNames(Arc<Mutex<bidirectional_map::Bimap<Con, UserName>>>);
+
+impl PlayerUserNames {
+    pub async fn try_insert(&self, un: UserName, con: Con) -> Result<(), ()> {
+        // idempotent
+
+        let mut lock = self.0.lock().await;
+
+        if lock.contains_fwd(&con) {
+            if lock.contains_rev(&un) && lock.get_fwd(&con).unwrap() != &un {
+                Err(()) // occupied
+            } else {
+                lock.insert(con, un);
+                Ok(())
+            }
+        } else {
+            if lock.contains_rev(&un) {
+                Err(()) // occupied
+            } else {
+                lock.insert(con, un);
+                Ok(())
+            }
+        }
+    }
+
+    #[allow(unused)]
+    pub async fn free(&self, un: UserName) {
+        let mut lock = self.0.lock().await;
+        if lock.contains_rev(&un) {
+            lock.remove_rev(&un);
+        }
+    }
+
+    pub async fn clean_con(&self, con: Con) {
+        let mut lock = self.0.lock().await;
+        if lock.contains_fwd(&con) {
+            lock.remove_fwd(&con);
+        }
     }
 }
 
