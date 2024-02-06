@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone)]
 pub struct Snake {
     pub sections: Sections,
     // direction snake will move on advance, always valid
@@ -10,6 +11,7 @@ pub struct Snake {
 
 pub enum AdvanceResult {
     Success,
+    BitSomeone,
     BitYaSelf,
 }
 
@@ -43,7 +45,7 @@ impl Snake {
             .chain(std::iter::once(self.head().end()))
     }
 
-    fn bit_ya_self(&self, advanced_head: Section) -> bool {
+    fn bit_snake(&self, advanced_head: Section) -> bool {
         // all sections except tail, because it won't be here when head advances
         self.iter_vertices()
             .skip(1)
@@ -51,19 +53,24 @@ impl Snake {
             .is_some()
     }
 
-    fn advance_head(&mut self) -> AdvanceResult {
+    fn advance_head(&mut self, other_snakes: &[Snake]) -> AdvanceResult {
         let advanced_head = self.head().next(self.direction).unwrap();
 
-        if self.bit_ya_self(advanced_head) {
+        if self.bit_snake(advanced_head) {
             AdvanceResult::BitYaSelf
+        } else if other_snakes
+            .iter()
+            .any(|snake| snake.bit_snake(advanced_head))
+        {
+            AdvanceResult::BitSomeone
         } else {
             self.sections.push_head(self.direction).unwrap();
             AdvanceResult::Success
         }
     }
 
-    pub fn advance(&mut self, foods: &mut Foods) -> AdvanceResult {
-        match self.advance_head() {
+    pub fn advance(&mut self, foods: &mut Foods, other_snakes: &[Snake]) -> AdvanceResult {
+        match self.advance_head(other_snakes) {
             AdvanceResult::Success => {
                 // if on next step mouth will eat food -
                 // remove food and don't remove tail
@@ -75,6 +82,7 @@ impl Snake {
                 AdvanceResult::Success
             }
             AdvanceResult::BitYaSelf => AdvanceResult::BitYaSelf,
+            AdvanceResult::BitSomeone => AdvanceResult::BitSomeone,
         }
     }
 

@@ -115,14 +115,32 @@ impl RunningLobbyState {
 
         self.counter += 1;
 
-        for snake in &mut self.snakes {
-            match snake.advance(&mut self.foods) {
+        // indeces to remove
+        let mut rm = vec![];
+
+        let other_snakes = self.snakes.clone();
+        for (i, snake) in self.snakes.iter_mut().enumerate() {
+            let other_snakes = other_snakes
+                .iter()
+                .enumerate()
+                .filter(|(_i, _)| *_i != i)
+                .map(|(_, snake)| snake.clone())
+                .collect::<Vec<_>>();
+
+            match snake.advance(&mut self.foods, other_snakes.as_slice()) {
                 AdvanceResult::Success => {}
-                AdvanceResult::BitYaSelf => {
-                    unimplemented!()
+                AdvanceResult::BitYaSelf | AdvanceResult::BitSomeone => {
+                    rm.push(i);
                 }
             }
         }
+
+        let mut idx = 0;
+        self.snakes.retain(|_| {
+            let retain = !rm.contains(&idx);
+            idx += 1;
+            retain
+        });
     }
 
     fn set_con_direction(&mut self, con: Con, direction: domain::Direction) {

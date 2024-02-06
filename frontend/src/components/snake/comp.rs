@@ -892,7 +892,7 @@ impl Component for Snake {
                         }));
                 };
 
-                match self.domain.snake.advance(&mut self.domain.foods) {
+                match self.domain.snake.advance(&mut self.domain.foods, &[]) {
                     domain::AdvanceResult::Success => {
                         if self.out_of_bounds() {
                             game_over();
@@ -908,6 +908,7 @@ impl Component for Snake {
                         }
                     }
                     domain::AdvanceResult::BitYaSelf => game_over(),
+                    domain::AdvanceResult::BitSomeone => unreachable!(),
                 }
                 true
             }
