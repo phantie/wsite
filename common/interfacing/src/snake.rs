@@ -103,6 +103,7 @@ pub mod list {
 pub use list::LobbyList;
 
 pub mod lobby_state {
+    use super::domain;
     use crate::imports::*;
 
     use super::UserName;
@@ -110,8 +111,20 @@ pub mod lobby_state {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
     pub enum LobbyState {
         Prep(LobbyPrep),
-        Running { counter: u32, player_counter: u32 },
+        Running(LobbyRunning),
         Terminated,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    pub struct LobbyRunning {
+        pub counter: u32,
+        pub player_counter: u32,
+        pub snakes: Vec<LobbyRunningSnake>,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    pub struct LobbyRunningSnake {
+        pub sections: domain::Sections,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

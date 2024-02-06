@@ -1,6 +1,6 @@
 use interfacing::snake::{LobbyName, MsgId, UserName, WsMsg};
 use interfacing::snake_domain as domain;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
@@ -58,7 +58,8 @@ impl PrepLobbyState {
 
 pub struct RunningLobbyState {
     // TODO merge into "con to con state"
-    pub snakes: Vec<domain::Snake>,
+    snakes: Vec<domain::Snake>,
+    foods: domain::Foods,
     counter: u32,
     cons: std::collections::HashSet<Con>,
     con_to_direction: HashMap<Con, domain::Direction>,
@@ -66,12 +67,32 @@ pub struct RunningLobbyState {
 
 impl From<&PrepLobbyState> for RunningLobbyState {
     fn from(PrepLobbyState { start_votes }: &PrepLobbyState) -> Self {
+        #[allow(unused)]
+        use domain::{Direction, Food, Foods, Pos, Sections, Snake};
+
+        let cons = start_votes.keys().cloned().collect::<HashSet<_>>();
+
         let snakes = {
-            let snakes = vec![];
+            let mut snakes = vec![];
+
+            for (i, _) in cons.iter().enumerate() {
+                let sections = Sections::from_directions(
+                    Pos::new(i as _, 0),
+                    (0..3).into_iter().map(|_| Direction::Up),
+                );
+
+                let snake = Snake {
+                    sections,
+                    direction: Direction::Up,
+                };
+
+                snakes.push(snake);
+            }
+
             snakes
         };
 
-        let cons = start_votes.keys().cloned().collect();
+        let foods = Foods { values: vec![] };
 
         let con_to_direction = start_votes
             .keys()
@@ -80,6 +101,7 @@ impl From<&PrepLobbyState> for RunningLobbyState {
 
         Self {
             snakes,
+            foods,
             con_to_direction,
             counter: 0,
             cons,
@@ -89,7 +111,18 @@ impl From<&PrepLobbyState> for RunningLobbyState {
 
 impl RunningLobbyState {
     fn advance(&mut self) {
+        use domain::AdvanceResult;
+
         self.counter += 1;
+
+        for snake in &mut self.snakes {
+            match snake.advance(&mut self.foods) {
+                AdvanceResult::Success => {}
+                AdvanceResult::BitYaSelf => {
+                    unimplemented!()
+                }
+            }
+        }
     }
 
     fn set_con_direction(&mut self, con: Con, direction: domain::Direction) {
@@ -108,11 +141,28 @@ impl RunningLobbyState {
 }
 
 impl From<&RunningLobbyState> for interfacing::snake::LobbyState {
-    fn from(RunningLobbyState { counter, cons, .. }: &RunningLobbyState) -> Self {
-        Self::Running {
+    fn from(
+        RunningLobbyState {
+            counter,
+            cons,
+            snakes,
+            ..
+        }: &RunningLobbyState,
+    ) -> Self {
+        use interfacing::snake::lobby_state::{LobbyRunning, LobbyRunningSnake};
+
+        let snakes = snakes
+            .into_iter()
+            .map(|snake| LobbyRunningSnake {
+                sections: snake.sections.clone(),
+            })
+            .collect();
+
+        Self::Running(LobbyRunning {
             counter: *counter,
             player_counter: cons.len() as _,
-        }
+            snakes,
+        })
     }
 }
 

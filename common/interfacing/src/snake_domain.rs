@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use serde::{Deserialize, Serialize};
+
 pub struct Snake {
     pub sections: Sections,
     // direction snake will move on advance, always valid
@@ -160,7 +162,7 @@ impl Foods {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Copy)]
 pub struct Vector {
     pub start: Pos,
     pub end: Pos,
@@ -185,6 +187,7 @@ impl Vector {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Sections {
     sections: Vec<Section>,
 }
@@ -256,7 +259,7 @@ impl AsMut<Vec<Section>> for Sections {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Copy)]
 pub struct Section {
     vector: Vector,
 }
@@ -297,7 +300,7 @@ impl Section {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug, Eq, Hash)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Debug, Eq, Hash)]
 pub struct Pos {
     pub x: i32,
     pub y: i32,
@@ -360,7 +363,7 @@ impl Pos {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Direction {
     Up,
     Bottom,

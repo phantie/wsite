@@ -9,8 +9,8 @@ use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
 use yew::html::Scope;
 
 use interfacing::snake::{
-    lobby_state::LobbyPrep, JoinLobbyDecline, LobbyName, LobbyState, UserName, WsClientMsg, WsMsg,
-    WsServerMsg,
+    lobby_state::{LobbyPrep, LobbyRunning},
+    JoinLobbyDecline, LobbyName, LobbyState, UserName, WsClientMsg, WsMsg, WsServerMsg,
 };
 
 type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
@@ -534,10 +534,11 @@ impl Component for Snake {
                                     }
                                 }
 
-                                LobbyState::Running {
+                                LobbyState::Running(LobbyRunning {
                                     counter,
                                     player_counter,
-                                } => {
+                                    snakes,
+                                }) => {
                                     html! {
                                         <>
                                         <h2>{"Player count: "}{player_counter}</h2>
