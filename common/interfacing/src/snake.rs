@@ -1,4 +1,5 @@
 use crate::imports::*;
+use crate::snake_domain as domain;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 pub struct CreateLobby {
@@ -29,6 +30,7 @@ pub enum WsClientMsg {
     LobbyList,
     VoteStart(bool),
     LeaveLobby,
+    SetDirection(domain::Direction),
 }
 
 impl WsMsg<WsClientMsg> {

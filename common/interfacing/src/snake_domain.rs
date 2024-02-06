@@ -360,7 +360,7 @@ impl Pos {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Direction {
     Up,
     Bottom,

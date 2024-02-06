@@ -30,18 +30,7 @@ pub struct PrepLobbyState {
 
 impl PrepLobbyState {
     fn to_running(&self) -> RunningLobbyState {
-        let snakes = {
-            let snakes = vec![];
-            snakes
-        };
-
-        let cons = self.start_votes.keys().cloned().collect();
-
-        RunningLobbyState {
-            counter: 0,
-            snakes,
-            cons,
-        }
+        self.into()
     }
 
     fn join_con(&mut self, con: Con) {
@@ -68,9 +57,34 @@ impl PrepLobbyState {
 }
 
 pub struct RunningLobbyState {
+    // TODO merge into "con to con state"
     pub snakes: Vec<domain::Snake>,
     counter: u32,
     cons: std::collections::HashSet<Con>,
+    con_to_direction: HashMap<Con, domain::Direction>,
+}
+
+impl From<&PrepLobbyState> for RunningLobbyState {
+    fn from(PrepLobbyState { start_votes }: &PrepLobbyState) -> Self {
+        let snakes = {
+            let snakes = vec![];
+            snakes
+        };
+
+        let cons = start_votes.keys().cloned().collect();
+
+        let con_to_direction = start_votes
+            .keys()
+            .map(|con| (*con, domain::Direction::Up))
+            .collect();
+
+        Self {
+            snakes,
+            con_to_direction,
+            counter: 0,
+            cons,
+        }
+    }
 }
 
 impl RunningLobbyState {
@@ -78,21 +92,23 @@ impl RunningLobbyState {
         self.counter += 1;
     }
 
+    fn set_con_direction(&mut self, con: Con, direction: domain::Direction) {
+        if self.con_to_direction.contains_key(&con) {
+            self.con_to_direction.insert(con, direction);
+            tracing::info!("set direction {:?}", direction);
+        }
+    }
+
     // no join_con because joining midgame is forbidden
 
     fn remove_con(&mut self, con: &Con) {
         self.cons.remove(con);
+        self.con_to_direction.remove(con);
     }
 }
 
 impl From<&RunningLobbyState> for interfacing::snake::LobbyState {
-    fn from(
-        RunningLobbyState {
-            snakes: _,
-            counter,
-            cons,
-        }: &RunningLobbyState,
-    ) -> Self {
+    fn from(RunningLobbyState { counter, cons, .. }: &RunningLobbyState) -> Self {
         Self::Running {
             counter: *counter,
             player_counter: cons.len() as _,
@@ -212,6 +228,20 @@ impl Lobby {
                     self.begin().unwrap();
                 }
 
+                Ok(())
+            }
+            _ => Err("Illegal state".into()),
+        }
+    }
+
+    pub fn set_con_direction(
+        &mut self,
+        con: Con,
+        direction: domain::Direction,
+    ) -> Result<(), String> {
+        match &mut self.state {
+            LobbyState::Running(s) => {
+                s.set_con_direction(con, direction);
                 Ok(())
             }
             _ => Err("Illegal state".into()),
@@ -564,7 +594,6 @@ pub mod ws {
 
     #[derive(Clone, Default)]
     pub struct State {
-        #[allow(unused)]
         pub user_name: Option<UserName>,
     }
 }

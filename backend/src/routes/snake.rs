@@ -284,6 +284,24 @@ pub mod ws {
                     .unwrap();
             }
 
+            WsMsg(Some(_id), SetDirection(_)) => {
+                unreachable!("id not expected");
+            }
+
+            WsMsg(None, SetDirection(direction)) => {
+                let lobby = lobbies.joined_lobby(con).await;
+
+                if let Some(lobby) = lobby {
+                    lobby
+                        .write()
+                        .await
+                        .set_con_direction(con, direction)
+                        .unwrap_or(());
+                }
+
+                // do not send response
+            }
+
             WsMsg(
                 None,
                 JoinLobby(_) | UserName | LobbyList | SetUserName(_) | VoteStart(_) | LeaveLobby,
