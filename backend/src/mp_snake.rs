@@ -58,11 +58,10 @@ impl PrepLobbyState {
 
 pub struct RunningLobbyState {
     // TODO merge into "con to con state"
-    snakes: Vec<domain::Snake>,
+    snakes: HashMap<Con, domain::Snake>,
     foods: domain::Foods,
     counter: u32,
     cons: std::collections::HashSet<Con>,
-    con_to_direction: HashMap<Con, domain::Direction>,
 }
 
 impl From<&PrepLobbyState> for RunningLobbyState {
@@ -75,7 +74,7 @@ impl From<&PrepLobbyState> for RunningLobbyState {
         let snakes = {
             let mut snakes = vec![];
 
-            for (i, _) in cons.iter().enumerate() {
+            for (i, con) in cons.iter().cloned().enumerate() {
                 let sections = Sections::from_directions(
                     Pos::new(i as _, 0),
                     (0..3).into_iter().map(|_| Direction::Up),
@@ -86,23 +85,17 @@ impl From<&PrepLobbyState> for RunningLobbyState {
                     direction: Direction::Up,
                 };
 
-                snakes.push(snake);
+                snakes.push((con, snake));
             }
 
-            snakes
+            snakes.into_iter().collect()
         };
 
         let foods = Foods { values: vec![] };
 
-        let con_to_direction = start_votes
-            .keys()
-            .map(|con| (*con, domain::Direction::Up))
-            .collect();
-
         Self {
             snakes,
             foods,
-            con_to_direction,
             counter: 0,
             cons,
         }
@@ -119,9 +112,9 @@ impl RunningLobbyState {
         let mut rm = vec![];
 
         let other_snakes = self.snakes.clone();
-        for (i, snake) in self.snakes.iter_mut().enumerate() {
+        for (i, snake) in self.snakes.values_mut().enumerate() {
             let other_snakes = other_snakes
-                .iter()
+                .values()
                 .enumerate()
                 .filter(|(_i, _)| *_i != i)
                 .map(|(_, snake)| snake.clone())
@@ -136,7 +129,7 @@ impl RunningLobbyState {
         }
 
         let mut idx = 0;
-        self.snakes.retain(|_| {
+        self.snakes.retain(|_, _| {
             let retain = !rm.contains(&idx);
             idx += 1;
             retain
@@ -144,8 +137,12 @@ impl RunningLobbyState {
     }
 
     fn set_con_direction(&mut self, con: Con, direction: domain::Direction) {
-        if self.con_to_direction.contains_key(&con) {
-            self.con_to_direction.insert(con, direction);
+        if self.snakes.contains_key(&con) {
+            self.snakes
+                .get_mut(&con)
+                .unwrap()
+                .set_direction(direction)
+                .unwrap_or(());
             tracing::info!("set direction {:?}", direction);
         }
     }
@@ -154,7 +151,7 @@ impl RunningLobbyState {
 
     fn remove_con(&mut self, con: &Con) {
         self.cons.remove(con);
-        self.con_to_direction.remove(con);
+        self.snakes.remove(con);
     }
 }
 
@@ -171,7 +168,7 @@ impl From<&RunningLobbyState> for interfacing::snake::LobbyState {
 
         let snakes = snakes
             .into_iter()
-            .map(|snake| LobbyRunningSnake {
+            .map(|(_, snake)| LobbyRunningSnake {
                 sections: snake.sections.clone(),
             })
             .collect();
