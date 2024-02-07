@@ -2,7 +2,27 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct Domain {
+    pub snake: Snake,
+    pub other_snakes: Vec<Snake>,
+    pub foods: Foods,
+    pub boundaries: Boundaries,
+}
+
+impl Domain {
+    pub fn out_of_bounds(&self) -> bool {
+        let domain = self;
+        let mouth = domain.snake.mouth();
+        match domain.boundaries.relation(mouth) {
+            RelationToBoundaries::Inside => false,
+            RelationToBoundaries::Touching => true,
+            RelationToBoundaries::Outside => true,
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Snake {
     pub sections: Sections,
     // direction snake will move on advance, always valid
@@ -120,7 +140,7 @@ impl Snake {
     }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Food {
     pub pos: Pos,
 }
@@ -143,7 +163,7 @@ impl From<Pos> for Food {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Foods {
     pub values: Vec<Food>,
 }
@@ -403,7 +423,7 @@ impl Direction {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Boundaries {
     pub min: Pos,
     pub max: Pos,

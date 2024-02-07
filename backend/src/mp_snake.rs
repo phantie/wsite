@@ -155,32 +155,6 @@ impl RunningLobbyState {
     }
 }
 
-impl From<&RunningLobbyState> for interfacing::snake::LobbyState {
-    fn from(
-        RunningLobbyState {
-            counter,
-            cons,
-            snakes,
-            ..
-        }: &RunningLobbyState,
-    ) -> Self {
-        use interfacing::snake::lobby_state::{LobbyRunning, LobbyRunningSnake};
-
-        let snakes = snakes
-            .into_iter()
-            .map(|(_, snake)| LobbyRunningSnake {
-                sections: snake.sections.clone(),
-            })
-            .collect();
-
-        Self::Running(LobbyRunning {
-            counter: *counter,
-            player_counter: cons.len() as _,
-            snakes,
-        })
-    }
-}
-
 pub enum LobbyState {
     Prep(PrepLobbyState),
     Running(RunningLobbyState),
@@ -224,7 +198,7 @@ impl Lobby {
         }
     }
 
-    pub fn state(&self) -> interfacing::snake::LobbyState {
+    pub fn state(&self, receiver: Con) -> interfacing::snake::LobbyState {
         use interfacing::snake::lobby_state::{LobbyPrep, LobbyPrepParticipant};
 
         match &self.state {
@@ -245,7 +219,47 @@ impl Lobby {
                 })
             }
 
-            LobbyState::Running(s) => s.into(),
+            LobbyState::Running(RunningLobbyState {
+                counter,
+                cons,
+                snakes,
+                ..
+            }) => {
+                use interfacing::snake::lobby_state::LobbyRunning;
+
+                let con: Con = receiver;
+
+                let snake = snakes
+                    .into_iter()
+                    .find(|(_con, _)| **_con == con)
+                    .map(|(_, snake)| snake.clone())
+                    .unwrap_or_else(|| domain::Snake {
+                        sections: domain::Sections::from_directions(
+                            domain::Pos { x: 0, y: 0 },
+                            [domain::Direction::Up],
+                        ),
+                        direction: domain::Direction::Up,
+                    });
+
+                let other_snakes = snakes
+                    .into_iter()
+                    .filter(|(_con, _)| **_con == con)
+                    .map(|(_, snake)| snake.clone())
+                    .collect::<Vec<_>>();
+
+                interfacing::snake::LobbyState::Running(LobbyRunning {
+                    counter: *counter,
+                    player_counter: cons.len() as _,
+                    domain: domain::Domain {
+                        snake,
+                        // TODO support foods
+                        foods: Default::default(),
+                        other_snakes,
+                        // TODO support boundaries
+                        boundaries: domain::Pos::new(0, 0).boundaries_in_radius(10, 10),
+                    },
+                })
+            }
             LobbyState::Terminated => interfacing::snake::LobbyState::Terminated,
         }
     }
@@ -378,35 +392,41 @@ impl Lobby {
 // broadcast impl
 impl Lobby {
     pub fn broadcast_state(&self) {
-        self.broadcast(WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(
-            self.state(),
-        )))
+        let send = |con| WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state(con)));
+
+        self.players
+            .iter()
+            .for_each(|(_con, LobbyConState { ch, .. })| ch.send(send(*_con)).unwrap_or(()));
     }
 
     // include Id for the participant who's request triggered broadcast
     pub fn pinned_broadcast_state(&self, pin: MsgId, con: Con) {
-        let send = WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state()));
+        let send = |con| WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state(con)));
+
         self.players
             .iter()
             .filter(|(_con, _)| con == **_con)
-            .for_each(|(_, LobbyConState { ch, .. })| {
-                ch.send(send.clone().id(pin.clone())).unwrap_or(())
+            .for_each(|(_con, LobbyConState { ch, .. })| {
+                ch.send(send(*_con).id(pin.clone())).unwrap_or(())
             });
+
         self.players
             .iter()
             .filter(|(_con, _)| con != **_con)
-            .for_each(|(_, LobbyConState { ch, .. })| ch.send(send.clone()).unwrap_or(()));
+            .for_each(|(_con, LobbyConState { ch, .. })| ch.send(send(*_con)).unwrap_or(()));
     }
 
     pub fn broadcast_state_except(&self, con: Con) {
-        let send = WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state()));
+        let send = |con| WsMsg::new(interfacing::snake::WsServerMsg::LobbyState(self.state(con)));
+
         self.players
             .iter()
             .filter(|(_con, _)| con != **_con)
-            .for_each(|(_, LobbyConState { ch, .. })| ch.send(send.clone()).unwrap_or(()));
+            .for_each(|(_con, LobbyConState { ch, .. })| ch.send(send(*_con)).unwrap_or(()));
     }
 
     /// Broadcast message to all lobby participants
+    #[allow(unused)]
     fn broadcast(&self, msg: ServerMsg) {
         self.players
             .values()
@@ -439,7 +459,7 @@ impl Lobbies {
     pub async fn lobby_state(&self, con: Con) -> Option<interfacing::snake::LobbyState> {
         match self.joined_lobby(con).await {
             None => None, // player not in any lobby
-            Some(lobby) => Some(lobby.read().await.state()),
+            Some(lobby) => Some(lobby.read().await.state(con)),
         }
     }
 
@@ -531,7 +551,7 @@ impl Lobbies {
                         match lock.join_con(con, ch, un) {
                             Ok(()) => {
                                 lock.broadcast_state_except(con);
-                                Ok(lock.state())
+                                Ok(lock.state(con))
                             }
                             Err(_m) => Err(JoinLobbyError::AlreadyStarted),
                         }
@@ -549,7 +569,7 @@ impl Lobbies {
                         .unwrap() // TODO verify no in between changes
                         .read()
                         .await
-                        .state())
+                        .state(con))
                 } else {
                     Err(JoinLobbyError::AlreadyJoined(lobby_name.clone()))
                 }

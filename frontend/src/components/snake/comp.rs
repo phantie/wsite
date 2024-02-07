@@ -16,6 +16,7 @@ use interfacing::snake::{
 type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
 type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
+use domain::Domain;
 use interfacing::snake_domain as domain;
 
 const PAUSED: bool = false;
@@ -110,7 +111,7 @@ impl Component for Snake {
         let state = ctx.props().state.clone();
 
         // TODO participates in calculations below, needs to be removed
-        let domain = Domain::default();
+        let domain = default_domain();
 
         let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
         let adjust_algo = ADJUST_ALGO.into_algo(&domain);
@@ -522,7 +523,7 @@ impl Component for Snake {
                                 LobbyState::Running(LobbyRunning {
                                     counter,
                                     player_counter,
-                                    snakes,
+                                    domain,
                                 }) => {
                                     html! {
                                         <>
@@ -931,7 +932,7 @@ impl Component for Snake {
                         // drop old by replacement
                         advance_interval.reset();
                         // reset domain items
-                        *domain = Domain::default();
+                        *domain = default_domain();
                     }
                     State::BegunMultiplayer { .. } => {
                         console::log!("Restart unsupported in MP");
@@ -1054,7 +1055,7 @@ impl Component for Snake {
                         ..
                     } => {
                         advance_interval.stop();
-                        *domain = Domain::default();
+                        *domain = default_domain();
                     }
                     State::BegunMultiplayer { .. } => {}
                 }
@@ -1065,7 +1066,7 @@ impl Component for Snake {
             }
 
             Self::Message::Begin => {
-                let domain = Domain::default();
+                let domain = default_domain();
                 let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
                 advance_interval.start();
 
@@ -1614,24 +1615,6 @@ impl Listeners {
     }
 }
 
-pub struct Domain {
-    snake: domain::Snake,
-    foods: domain::Foods,
-    boundaries: domain::Boundaries,
-}
-
-impl Domain {
-    pub fn out_of_bounds(&self) -> bool {
-        let domain = self;
-        let mouth = domain.snake.mouth();
-        match domain.boundaries.relation(mouth) {
-            domain::RelationToBoundaries::Inside => false,
-            domain::RelationToBoundaries::Touching => true,
-            domain::RelationToBoundaries::Outside => true,
-        }
-    }
-}
-
 struct DomainDefaults;
 
 impl DomainDefaults {
@@ -1704,21 +1687,20 @@ impl DomainDefaults {
     }
 }
 
-impl Domain {
-    fn default() -> Self {
-        let snake = DomainDefaults::snake();
-        let boundaries = DomainDefaults::boundaries(&snake);
+fn default_domain() -> Domain {
+    let snake = DomainDefaults::snake();
+    let boundaries = DomainDefaults::boundaries(&snake);
 
-        let food_average = ((MAP_BOUNDARIES_X * MAP_BOUNDARIES_Y) as f64 * 0.5);
-        Self {
-            foods: DomainDefaults::foods(
-                rand_from_iterator(((food_average * 0.9) as i32)..((food_average * 1.1) as i32)),
-                boundaries,
-                snake.iter_vertices(),
-            ),
+    let food_average = ((MAP_BOUNDARIES_X * MAP_BOUNDARIES_Y) as f64 * 0.5);
+    Domain {
+        foods: DomainDefaults::foods(
+            rand_from_iterator(((food_average * 0.9) as i32)..((food_average * 1.1) as i32)),
             boundaries,
-            snake,
-        }
+            snake.iter_vertices(),
+        ),
+        other_snakes: Default::default(),
+        boundaries,
+        snake,
     }
 }
 
@@ -2004,7 +1986,19 @@ impl Snake {
     ) -> bool {
         console::log!(format!("state change: {s:?}"));
 
+        // TODO implement
+
+        match &s {
+            LobbyState::Prep(s) => {}
+            LobbyState::Running(s) => {}
+            LobbyState::Terminated => {
+                console::log!("should not receive");
+            }
+        }
+
         self.ws_state.joined_lobby_state.replace(s);
+
+        // ctx.link().send_message(SnakeMsg::StateChange(State::BegunMultiplayer { domain: () }))
 
         UPDATE
     }

@@ -119,7 +119,7 @@ pub mod lobby_state {
     pub struct LobbyRunning {
         pub counter: u32,
         pub player_counter: u32,
-        pub snakes: Vec<LobbyRunningSnake>,
+        pub domain: domain::Domain,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
