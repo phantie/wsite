@@ -19,9 +19,8 @@ type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 use interfacing::snake_domain as domain;
 
 const PAUSED: bool = false;
-const STATE: State = State::NotBegun {
-    inner: NotBegunState::ModeSelection,
-};
+const NOT_BEGUN_STATE: NotBegunState = NotBegunState::ModeSelection;
+
 // const STATE: State = State::Begun { paused: false };
 
 const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
@@ -51,14 +50,10 @@ pub struct WsState {
 }
 
 pub struct Snake {
-    domain: Domain,
     state: State,
 
     // true if state changed from NotBegun to Begun
     canvas_requires_fit: bool,
-
-    advance_interval: SnakeAdvanceInterval,
-
     // greater value - closer camera
     px_scale: f64,
     camera: Camera,
@@ -102,8 +97,8 @@ pub enum SnakeMsg {
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    #[prop_or(STATE)]
-    pub state: State,
+    #[prop_or(NOT_BEGUN_STATE)]
+    pub state: NotBegunState,
 }
 
 impl Component for Snake {
@@ -112,17 +107,13 @@ impl Component for Snake {
 
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
-        let domain = Domain::default();
-        let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
-        let adjust_algo = ADJUST_ALGO.into_algo(&domain);
-
         let state = ctx.props().state.clone();
 
-        let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
-        match state {
-            State::Begun { .. } => advance_interval.start(),
-            State::NotBegun { .. } => {}
-        }
+        // TODO participates in calculations below, needs to be removed
+        let domain = Domain::default();
+
+        let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
+        let adjust_algo = ADJUST_ALGO.into_algo(&domain);
 
         let ws_sink = {
             use crate::ws::imports::*;
@@ -177,15 +168,9 @@ impl Component for Snake {
         };
 
         Self {
-            domain,
-            state: state.clone(),
+            state: State::NotBegun { inner: state },
 
-            canvas_requires_fit: match state {
-                State::Begun { .. } => true,
-                State::NotBegun { .. } => false,
-            },
-
-            advance_interval,
+            canvas_requires_fit: false,
 
             px_scale,
             adjust_algo,
@@ -262,7 +247,7 @@ impl Component for Snake {
 
         let btns = {
             match self.state {
-                State::Begun { .. } => {
+                State::BegunSingleplayer { .. } | State::BegunMultiplayer { .. } => {
                     let direction_btn = |text: &str, direction| {
                         let direction_btn_onlick = |direction| {
                             ctx.link()
@@ -343,7 +328,7 @@ impl Component for Snake {
 
         let main_area = 'main_area: {
             match &self.state {
-                State::Begun { .. } => {
+                State::BegunSingleplayer { .. } | State::BegunMultiplayer { .. } => {
                     html! { <canvas ref={self.refs.canvas_ref.clone() }></canvas> }
                 }
                 State::NotBegun {
@@ -755,7 +740,8 @@ impl Component for Snake {
             State::NotBegun {
                 inner: NotBegunState::Initial | NotBegunState::Ended,
             }
-            | State::Begun { .. } => {
+            | State::BegunSingleplayer { .. }
+            | State::BegunMultiplayer { .. } => {
                 html! {
                     <div class={ wrapper_style }>
                         { main_area }
@@ -818,8 +804,8 @@ impl Component for Snake {
             ctx.link().send_message(Self::Message::FitCanvasImmediately);
         }
 
-        match self.state {
-            State::Begun { .. } => {
+        match &self.state {
+            State::BegunSingleplayer { domain, .. } | State::BegunMultiplayer { domain, .. } => {
                 let r = self.refs.canvas_renderer();
                 r.set_stroke_style(box_border_color);
                 r.set_line_join("round");
@@ -832,9 +818,9 @@ impl Component for Snake {
                     max: domain::Pos::new(cd.width as i32, cd.height as i32),
                 });
 
-                self.draw_snake(&r);
-                self.draw_foods(&r);
-                self.draw_boundaries(&r);
+                self.draw_snake(&r, &domain);
+                self.draw_foods(&r, &domain);
+                self.draw_boundaries(&r, &domain);
             }
             State::NotBegun { .. } => {}
         }
@@ -845,7 +831,9 @@ impl Component for Snake {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Nothing => false,
+
             Self::Message::WsRecv(msg) => self.handle_received_message(ctx, msg),
+
             Self::Message::WsSend(msg) => {
                 if let WsMsg(Some(id), msg) = &msg {
                     self.acknowledgeable_messages
@@ -857,6 +845,7 @@ impl Component for Snake {
 
                 false
             }
+
             Self::Message::RedirectToLobby { lobby_name } => {
                 // TODO maybe inline where used
                 //
@@ -866,52 +855,62 @@ impl Component for Snake {
                     )));
                 false
             }
+
             Self::Message::WindowLoaded => {
                 ctx.link().send_message(Self::Message::FitCanvasImmediately);
                 false
             }
+
             Self::Message::WindowResized => {
                 ctx.link().send_message(Self::Message::FitCanvasImmediately);
                 false
             }
-            Self::Message::FitCanvasImmediately => match self.state {
-                State::Begun { .. } => {
+
+            Self::Message::FitCanvasImmediately => match &self.state {
+                State::BegunSingleplayer { domain, .. }
+                | State::BegunMultiplayer { domain, .. } => {
                     self.canvas_requires_fit = false;
                     self.refs.fit_canvas();
-                    self.px_scale =
-                        calc_px_scale(self.refs.canvas_dimensions(), self.domain.boundaries);
+                    self.px_scale = calc_px_scale(self.refs.canvas_dimensions(), domain.boundaries);
                     true
                 }
                 State::NotBegun { .. } => false,
             },
+
             Self::Message::Advance => {
-                let game_over = || {
-                    ctx.link()
-                        .send_message(Self::Message::StateChange(State::NotBegun {
-                            inner: NotBegunState::Ended,
-                        }));
-                };
+                match &mut self.state {
+                    State::BegunSingleplayer { domain, .. } => {
+                        let game_over = || {
+                            ctx.link()
+                                .send_message(Self::Message::StateChange(State::NotBegun {
+                                    inner: NotBegunState::Ended,
+                                }));
+                        };
 
-                match self.domain.snake.advance(&mut self.domain.foods, &[]) {
-                    domain::AdvanceResult::Success => {
-                        if self.out_of_bounds() {
-                            game_over();
-                        }
+                        match domain.snake.advance(&mut domain.foods, &[]) {
+                            domain::AdvanceResult::Success => {
+                                if domain.out_of_bounds() {
+                                    game_over();
+                                }
 
-                        // when no food, replenish
-                        if self.domain.foods.empty() {
-                            self.domain.foods = DomainDefaults::foods(
-                                rand_from_iterator(10..15),
-                                self.domain.boundaries,
-                                self.domain.snake.iter_vertices(),
-                            );
+                                // when no food, replenish
+                                if domain.foods.empty() {
+                                    domain.foods = DomainDefaults::foods(
+                                        rand_from_iterator(10..15),
+                                        domain.boundaries,
+                                        domain.snake.iter_vertices(),
+                                    );
+                                }
+                            }
+                            domain::AdvanceResult::BitYaSelf => game_over(),
+                            domain::AdvanceResult::BitSomeone => unreachable!(),
                         }
+                        true
                     }
-                    domain::AdvanceResult::BitYaSelf => game_over(),
-                    domain::AdvanceResult::BitSomeone => unreachable!(),
+                    _ => false,
                 }
-                true
             }
+
             Self::Message::Restart
             | Self::Message::DirectionChange(_)
             | Self::Message::CameraToggle
@@ -921,19 +920,44 @@ impl Component for Snake {
                 console::log!("ignoring event: State::NotBegun");
                 false
             }
+
             Self::Message::Restart => {
-                // drop old by replacement
-                self.advance_interval.reset();
-                // reset domain items
-                self.domain = Domain::default();
+                match &mut self.state {
+                    State::BegunSingleplayer {
+                        domain,
+                        advance_interval,
+                        ..
+                    } => {
+                        // drop old by replacement
+                        advance_interval.reset();
+                        // reset domain items
+                        *domain = Domain::default();
+                    }
+                    State::BegunMultiplayer { .. } => {
+                        console::log!("Restart unsupported in MP");
+                    }
+                    State::NotBegun { .. } => {}
+                }
 
                 Refs::fire_btn_active(self.refs.restart_btn_el());
 
                 true
             }
+
             Self::Message::DirectionChange(direction) => {
-                if self.domain.snake.set_direction(direction).is_err() {
-                    console::log!("cannot move into the opposite direction")
+                match &mut self.state {
+                    State::BegunSingleplayer { domain, .. } => {
+                        if domain.snake.set_direction(direction).is_err() {
+                            console::log!("cannot move into the opposite direction")
+                        }
+                    }
+                    State::BegunMultiplayer { .. } => {
+                        ctx.link().send_message(SnakeMsg::WsSend(WsMsg(
+                            None,
+                            WsClientMsg::SetDirection(direction),
+                        )));
+                    }
+                    State::NotBegun { .. } => {}
                 }
 
                 let btn = self.refs.ctrl_btn_el(direction);
@@ -941,10 +965,12 @@ impl Component for Snake {
 
                 false
             }
+
             Self::Message::CameraChange(camera) => {
                 self.camera = camera;
                 true
             }
+
             Self::Message::CameraToggle => {
                 let next_camera = match self.camera {
                     Camera::MouthCentered => Camera::BoundariesCentered,
@@ -955,36 +981,37 @@ impl Component for Snake {
                 Refs::fire_btn_active(self.refs.camera_btn_el());
                 false
             }
+
             Self::Message::ThemeContextUpdate(theme_ctx) => {
                 console::log!("WithTheme context updated from Snake");
                 self.theme_ctx.set(theme_ctx);
                 true
             }
-            Self::Message::StateChange(new_state) if new_state == self.state => false,
-            Self::Message::StateChange(ref new_state @ State::Begun { paused }) => {
-                if paused {
-                    self.advance_interval.stop();
-                } else {
-                    self.advance_interval.start();
-                }
 
+            // Self::Message::StateChange(new_state) if new_state == self.state => false,
+            Self::Message::StateChange(new_state @ State::BegunMultiplayer { .. }) => {
+                unimplemented!()
+            }
+
+            Self::Message::StateChange(new_state @ State::BegunSingleplayer { .. }) => {
                 match self.state {
-                    State::Begun { .. } => {}
+                    State::BegunSingleplayer { .. } => {}
+                    State::BegunMultiplayer { .. } => panic!("forbidden"),
                     State::NotBegun { .. } => {
                         self.canvas_requires_fit = true;
                     }
                 }
 
-                self.state = new_state.clone();
+                self.state = new_state;
                 true
             }
+
             Self::Message::StateChange(new_state @ State::NotBegun { .. }) => {
                 {
                     use crate::router::Route;
 
                     // HERE: routing
                     let route = match &new_state {
-                        State::Begun { .. } => None,
                         State::NotBegun { inner } => match inner {
                             NotBegunState::MPLobby { state } => {
                                 match state {
@@ -1005,6 +1032,7 @@ impl Component for Snake {
                             NotBegunState::ModeSelection => Some(Route::Home),
                             _ => None,
                         },
+                        State::BegunSingleplayer { .. } | State::BegunMultiplayer { .. } => None,
                     };
 
                     // console::log!("!!!!", format!("{route:?}"));
@@ -1018,30 +1046,62 @@ impl Component for Snake {
                     }
                 }
 
-                self.advance_interval.stop();
-                self.domain = Domain::default();
+                match &mut self.state {
+                    State::NotBegun { .. } => {}
+                    State::BegunSingleplayer {
+                        domain,
+                        advance_interval,
+                        ..
+                    } => {
+                        advance_interval.stop();
+                        *domain = Domain::default();
+                    }
+                    State::BegunMultiplayer { .. } => {}
+                }
+
                 assert_eq!(self.canvas_requires_fit, false);
                 self.state = new_state;
                 true
             }
+
             Self::Message::Begin => {
+                let domain = Domain::default();
+                let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
+                advance_interval.start();
+
                 ctx.link()
-                    .send_message(Self::Message::StateChange(State::Begun { paused: false }));
+                    .send_message(Self::Message::StateChange(State::BegunSingleplayer {
+                        domain,
+                        advance_interval,
+                    }));
                 false
             }
-            Self::Message::PauseUnpause => match self.state {
-                State::Begun { paused } => {
-                    ctx.link()
-                        .send_message(Self::Message::StateChange(State::Begun { paused: !paused }));
-                    // TODO maybe move to StateChange
+
+            Self::Message::PauseUnpause => match &mut self.state {
+                State::BegunSingleplayer {
+                    advance_interval, ..
+                } => {
+                    if !advance_interval.paused() {
+                        advance_interval.stop();
+                    } else {
+                        advance_interval.start();
+                    }
+
                     Refs::fire_btn_active(self.refs.pause_btn_el());
                     false
                 }
+
+                State::BegunMultiplayer { .. } => {
+                    console::log!("Pause unsupported in MP");
+                    false
+                }
+
                 State::NotBegun { .. } => {
                     assert!(false, "game has not begun");
                     false
                 }
             },
+
             Self::Message::ToMenu => {
                 ctx.link()
                     .send_message(Self::Message::StateChange(State::NotBegun {
@@ -1054,7 +1114,7 @@ impl Component for Snake {
 }
 
 impl Snake {
-    pub fn transform_pos(&self, pos: domain::Pos) -> TransformedPos {
+    pub fn transform_pos(&self, pos: domain::Pos, domain: &Domain) -> TransformedPos {
         let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * self.px_scale;
 
         match self.camera {
@@ -1063,7 +1123,7 @@ impl Snake {
                 //
                 // position of the mouth after the same transformations as of 'pos'
                 let adjusted_mouth =
-                    TransformedPos::from(self.adjust_algo.apply(self.domain.snake.mouth()))
+                    TransformedPos::from(self.adjust_algo.apply(domain.snake.mouth()))
                         * self.px_scale;
                 // target position - center of the canvas
                 // assert!(self.refs.is_canvas_fit(self.state));
@@ -1076,7 +1136,7 @@ impl Snake {
             Camera::BoundariesCentered => {
                 // center camera to the boundaries center
                 //
-                let b = self.domain.boundaries;
+                let b = domain.boundaries;
                 let b_max = self.adjust_algo.apply(b.max);
                 let b_min = self.adjust_algo.apply(b.min);
                 let adjusted_boundaries_center = TransformedPos::new(
@@ -1093,16 +1153,7 @@ impl Snake {
         }
     }
 
-    pub fn out_of_bounds(&self) -> bool {
-        let mouth = self.domain.snake.mouth();
-        match self.domain.boundaries.relation(mouth) {
-            domain::RelationToBoundaries::Inside => false,
-            domain::RelationToBoundaries::Touching => true,
-            domain::RelationToBoundaries::Outside => true,
-        }
-    }
-
-    fn draw_snake(&self, r: &CanvasRenderer) {
+    fn draw_snake(&self, r: &CanvasRenderer, domain: &Domain) {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
@@ -1110,15 +1161,14 @@ impl Snake {
         let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
 
         r.set_line_width(snake_body_width);
-        let pos = self.transform_pos(self.domain.snake.iter_vertices().next().unwrap());
+        let pos = self.transform_pos(domain.snake.iter_vertices().next().unwrap(), domain);
         r.begin_path();
         r.move_to(pos);
-        for pos in self
-            .domain
+        for pos in domain
             .snake
             .iter_vertices()
             .skip(1)
-            .map(|v| self.transform_pos(v))
+            .map(|v| self.transform_pos(v, domain))
         {
             r.line_to(pos);
         }
@@ -1126,7 +1176,7 @@ impl Snake {
         r.close_path();
 
         // round head
-        let pos = self.transform_pos(self.domain.snake.mouth());
+        let pos = self.transform_pos(domain.snake.mouth(), domain);
         r.begin_path();
         r.cirle(pos, snake_body_width / 2.);
         r.set_fill_style(box_border_color);
@@ -1140,7 +1190,7 @@ impl Snake {
         r.close_path();
 
         // round tail
-        let pos = self.transform_pos(self.domain.snake.tail_end());
+        let pos = self.transform_pos(domain.snake.tail_end(), domain);
         r.begin_path();
         r.cirle(pos, snake_body_width / 2.);
         r.set_fill_style(box_border_color);
@@ -1148,13 +1198,13 @@ impl Snake {
         r.close_path();
     }
 
-    fn draw_foods(&self, r: &CanvasRenderer) {
+    fn draw_foods(&self, r: &CanvasRenderer, domain: &Domain) {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
 
-        for food in self.domain.foods.as_ref() {
-            let pos = self.transform_pos(food.pos);
+        for food in domain.foods.as_ref() {
+            let pos = self.transform_pos(food.pos, domain);
             r.begin_path();
             r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
             r.set_fill_style(box_border_color);
@@ -1163,20 +1213,20 @@ impl Snake {
         }
     }
 
-    fn draw_boundaries(&self, r: &CanvasRenderer) {
+    fn draw_boundaries(&self, r: &CanvasRenderer, domain: &Domain) {
         r.set_line_width(0.5 * self.px_scale);
-        let pos = self.transform_pos(self.domain.boundaries.left_top());
+        let pos = self.transform_pos(domain.boundaries.left_top(), domain);
 
         r.begin_path();
         r.move_to(pos);
 
         for pos in [
-            self.domain.boundaries.right_top(),
-            self.domain.boundaries.right_bottom(),
-            self.domain.boundaries.left_bottom(),
-            self.domain.boundaries.left_top(),
+            domain.boundaries.right_top(),
+            domain.boundaries.right_bottom(),
+            domain.boundaries.left_bottom(),
+            domain.boundaries.left_top(),
         ] {
-            let pos = self.transform_pos(pos);
+            let pos = self.transform_pos(pos, domain);
             r.line_to(pos);
         }
         r.close_path();
@@ -1214,13 +1264,54 @@ pub enum NotBegunState {
     Ended,
 }
 
-#[derive(Clone, PartialEq)]
+// #[derive(Clone, PartialEq)]
+// struct BegunSinglePlayerState {
+//     paused: bool,
+// }
+
+// #[derive(Clone, PartialEq)]
+// struct BegunMultiPlayerState;
+
+// #[derive(Clone, PartialEq)]
+// enum BegunState {
+//     Singleplayer { paused: bool },
+//     Multiplayer,
+// }
+
 pub enum State {
-    Begun { paused: bool },
-    NotBegun { inner: NotBegunState },
+    BegunSingleplayer {
+        domain: Domain,
+        advance_interval: SnakeAdvanceInterval,
+    },
+    BegunMultiplayer {
+        domain: Domain,
+    },
+    NotBegun {
+        inner: NotBegunState,
+    },
 }
 
 impl State {
+    #[allow(dead_code)]
+    pub fn domain(&self) -> Option<&Domain> {
+        match self {
+            Self::BegunSingleplayer { domain, .. } | Self::BegunMultiplayer { domain, .. } => {
+                Some(domain)
+            }
+            _ => None,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn domain_mut(&mut self) -> Option<&mut Domain> {
+        match self {
+            Self::BegunSingleplayer { domain, .. } | Self::BegunMultiplayer { domain, .. } => {
+                Some(domain)
+            }
+            _ => None,
+        }
+    }
+
     pub fn to_be_loaded_lobby(lobby_name: LobbyName) -> Self {
         State::NotBegun {
             inner: NotBegunState::MPLobby {
@@ -1351,8 +1442,10 @@ impl Refs {
 
     fn is_canvas_fit(&self, state: State) -> bool {
         match state {
-            State::Begun { .. } => self.canvas_dimensions() == canvas_target_dimensions(),
             State::NotBegun { .. } => true,
+            State::BegunSingleplayer { .. } | State::BegunMultiplayer { .. } => {
+                self.canvas_dimensions() == canvas_target_dimensions()
+            }
         }
     }
 
@@ -1527,6 +1620,18 @@ pub struct Domain {
     boundaries: domain::Boundaries,
 }
 
+impl Domain {
+    pub fn out_of_bounds(&self) -> bool {
+        let domain = self;
+        let mouth = domain.snake.mouth();
+        match domain.boundaries.relation(mouth) {
+            domain::RelationToBoundaries::Inside => false,
+            domain::RelationToBoundaries::Touching => true,
+            domain::RelationToBoundaries::Outside => true,
+        }
+    }
+}
+
 struct DomainDefaults;
 
 impl DomainDefaults {
@@ -1617,7 +1722,8 @@ impl Domain {
     }
 }
 
-struct SnakeAdvanceInterval {
+pub struct SnakeAdvanceInterval {
+    paused: bool,
     link: Scope<Snake>,
     _handle: Option<Interval>,
 }
@@ -1625,9 +1731,14 @@ struct SnakeAdvanceInterval {
 impl SnakeAdvanceInterval {
     fn create(link: Scope<Snake>) -> Self {
         Self {
+            paused: true,
             link,
             _handle: None,
         }
+    }
+
+    fn paused(&self) -> bool {
+        self.paused
     }
 
     fn reset(&mut self) {
@@ -1642,6 +1753,7 @@ impl SnakeAdvanceInterval {
             })
         };
         self._handle = Some(new_handle());
+        self.paused = false;
     }
 
     fn start(&mut self) {
@@ -1653,6 +1765,7 @@ impl SnakeAdvanceInterval {
 
     fn stop(&mut self) {
         self._handle = None;
+        self.paused = true;
     }
 }
 

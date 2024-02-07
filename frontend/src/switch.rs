@@ -50,7 +50,7 @@ pub fn switch(routes: Route) -> Html {
 
     const HOME: Home = Home::Snake;
 
-    use snake::comp::{NotBegunState, State};
+    use snake::comp::NotBegunState;
 
     match routes {
         Route::Home => match HOME {
@@ -63,36 +63,33 @@ pub fn switch(routes: Route) -> Html {
             }
         }
         Route::SnakeCreateJoinLobby => {
-            let state = State::NotBegun {
-                inner: NotBegunState::MPCreateJoinLobby,
-            };
+            let state = NotBegunState::MPCreateJoinLobby;
             html! {
                 <Snake {state}/>
             }
         }
         Route::SnakeLobbies => {
-            let state = State::NotBegun {
-                inner: NotBegunState::MPSetUsername {
-                    next_state: Box::new(NotBegunState::MPCreateJoinLobby),
-                },
+            let state = NotBegunState::MPSetUsername {
+                next_state: Box::new(NotBegunState::MPCreateJoinLobby),
             };
             html! {
                 <Snake {state}/>
             }
         }
         Route::SnakeCreateLobby => {
-            let state = State::NotBegun {
-                inner: NotBegunState::MPCreateLobby,
-            };
+            let state = NotBegunState::MPCreateLobby;
             html! {
                 <Snake {state}/>
             }
         }
         // TODO requires user_name setting
         Route::SnakeLobby { lobby_name } => {
+            let state = NotBegunState::MPLobby {
+                state: snake::comp::MPLobbyState::ToJoin { lobby_name },
+            };
             html! {
                 // TODO refactor
-                <Snake state={snake::comp::State::to_be_loaded_lobby(lobby_name) }/>
+                <Snake state={ state }/>
             }
         }
         Route::Ref => {
