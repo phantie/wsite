@@ -525,6 +525,13 @@ impl Component for Snake {
                                     player_counter,
                                     domain,
                                 }) => {
+                                    ctx.link().send_message(SnakeMsg::StateChange(
+                                        State::BegunMultiplayer {
+                                            domain: domain.clone(),
+                                        },
+                                    ));
+
+                                    // HERE
                                     html! {
                                         <>
                                         <h2>{"Player count: "}{player_counter}</h2>
@@ -989,9 +996,17 @@ impl Component for Snake {
                 true
             }
 
-            // Self::Message::StateChange(new_state) if new_state == self.state => false,
             Self::Message::StateChange(new_state @ State::BegunMultiplayer { .. }) => {
-                unimplemented!()
+                match self.state {
+                    State::BegunSingleplayer { .. } => panic!("forbidden"),
+                    State::BegunMultiplayer { .. } => {}
+                    State::NotBegun { .. } => {
+                        self.canvas_requires_fit = true;
+                    }
+                }
+
+                self.state = new_state;
+                true
             }
 
             Self::Message::StateChange(new_state @ State::BegunSingleplayer { .. }) => {
@@ -1161,42 +1176,45 @@ impl Snake {
 
         let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
 
-        r.set_line_width(snake_body_width);
-        let pos = self.transform_pos(domain.snake.iter_vertices().next().unwrap(), domain);
-        r.begin_path();
-        r.move_to(pos);
-        for pos in domain
-            .snake
-            .iter_vertices()
-            .skip(1)
-            .map(|v| self.transform_pos(v, domain))
-        {
-            r.line_to(pos);
+        let snakes = std::iter::once(&domain.snake).chain(&domain.other_snakes);
+
+        for snake in snakes {
+            r.set_line_width(snake_body_width);
+            let pos = self.transform_pos(snake.iter_vertices().next().unwrap(), domain);
+            r.begin_path();
+            r.move_to(pos);
+            for pos in snake
+                .iter_vertices()
+                .skip(1)
+                .map(|v| self.transform_pos(v, domain))
+            {
+                r.line_to(pos);
+            }
+            r.stroke();
+            r.close_path();
+
+            // round head
+            let pos = self.transform_pos(snake.mouth(), domain);
+            r.begin_path();
+            r.cirle(pos, snake_body_width / 2.);
+            r.set_fill_style(box_border_color);
+            r.fill();
+            r.close_path();
+
+            r.begin_path();
+            r.cirle(pos, (snake_body_width / 2.) * 0.9);
+            r.set_fill_style(bg_color);
+            r.fill();
+            r.close_path();
+
+            // round tail
+            let pos = self.transform_pos(snake.tail_end(), domain);
+            r.begin_path();
+            r.cirle(pos, snake_body_width / 2.);
+            r.set_fill_style(box_border_color);
+            r.fill();
+            r.close_path();
         }
-        r.stroke();
-        r.close_path();
-
-        // round head
-        let pos = self.transform_pos(domain.snake.mouth(), domain);
-        r.begin_path();
-        r.cirle(pos, snake_body_width / 2.);
-        r.set_fill_style(box_border_color);
-        r.fill();
-        r.close_path();
-
-        r.begin_path();
-        r.cirle(pos, (snake_body_width / 2.) * 0.9);
-        r.set_fill_style(bg_color);
-        r.fill();
-        r.close_path();
-
-        // round tail
-        let pos = self.transform_pos(domain.snake.tail_end(), domain);
-        r.begin_path();
-        r.cirle(pos, snake_body_width / 2.);
-        r.set_fill_style(box_border_color);
-        r.fill();
-        r.close_path();
     }
 
     fn draw_foods(&self, r: &CanvasRenderer, domain: &Domain) {
@@ -1990,15 +2008,20 @@ impl Snake {
 
         match &s {
             LobbyState::Prep(s) => {}
-            LobbyState::Running(s) => {}
+            LobbyState::Running(interfacing::snake::lobby_state::LobbyRunning {
+                domain, ..
+            }) => {
+                ctx.link()
+                    .send_message(SnakeMsg::StateChange(State::BegunMultiplayer {
+                        domain: domain.clone(),
+                    }));
+            }
             LobbyState::Terminated => {
                 console::log!("should not receive");
             }
         }
 
         self.ws_state.joined_lobby_state.replace(s);
-
-        // ctx.link().send_message(SnakeMsg::StateChange(State::BegunMultiplayer { domain: () }))
 
         UPDATE
     }

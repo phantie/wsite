@@ -233,6 +233,7 @@ impl Lobby {
                     .into_iter()
                     .find(|(_con, _)| **_con == con)
                     .map(|(_, snake)| snake.clone())
+                    // /*e TODO fix default snake because null here is unsupported */
                     .unwrap_or_else(|| domain::Snake {
                         sections: domain::Sections::from_directions(
                             domain::Pos { x: 0, y: 0 },
@@ -243,7 +244,7 @@ impl Lobby {
 
                 let other_snakes = snakes
                     .into_iter()
-                    .filter(|(_con, _)| **_con == con)
+                    .filter(|(_con, _)| **_con != con)
                     .map(|(_, snake)| snake.clone())
                     .collect::<Vec<_>>();
 
