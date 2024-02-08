@@ -813,7 +813,7 @@ impl Component for Snake {
         }
 
         match &self.state {
-            State::BegunSingleplayer { domain, .. } | State::BegunMultiplayer { domain, .. } => {
+            s @ (State::BegunSingleplayer { .. } | State::BegunMultiplayer { .. }) => {
                 let r = self.refs.canvas_renderer();
                 r.set_stroke_style(box_border_color);
                 r.set_line_join("round");
@@ -826,9 +826,37 @@ impl Component for Snake {
                     max: domain::Pos::new(cd.width as i32, cd.height as i32),
                 });
 
-                self.draw_snake(&r, &domain);
-                self.draw_foods(&r, &domain);
-                self.draw_boundaries(&r, &domain);
+                match s {
+                    State::NotBegun { .. } => unreachable!(),
+                    State::BegunSingleplayer {
+                        snake,
+                        foods,
+                        boundaries,
+                        ..
+                    } => {
+                        self.draw_snake(&r, snake, boundaries);
+                        self.draw_foods(&r, foods, Some(snake), boundaries);
+                        self.draw_boundaries(&r, boundaries, Some(snake));
+                    }
+                    State::BegunMultiplayer {
+                        domain:
+                            Domain {
+                                snake,
+                                other_snakes,
+                                foods,
+                                boundaries,
+                            },
+                    } => {
+                        if let Some(snake) = snake {
+                            self.draw_snake(&r, snake, boundaries);
+                        }
+                        for snake in other_snakes {
+                            self.draw_snake(&r, snake, boundaries);
+                        }
+                        self.draw_foods(&r, foods, snake.as_ref(), boundaries);
+                        self.draw_boundaries(&r, boundaries, snake.as_ref());
+                    }
+                }
             }
             State::NotBegun { .. } => {}
         }
@@ -873,11 +901,14 @@ impl Component for Snake {
             }
 
             Self::Message::FitCanvasImmediately => match &self.state {
-                State::BegunSingleplayer { domain, .. }
-                | State::BegunMultiplayer { domain, .. } => {
+                State::BegunSingleplayer { boundaries, .. }
+                | State::BegunMultiplayer {
+                    domain: Domain { boundaries, .. },
+                    ..
+                } => {
                     self.canvas_requires_fit = false;
                     self.refs.fit_canvas();
-                    self.px_scale = calc_px_scale(self.refs.canvas_dimensions(), domain.boundaries);
+                    self.px_scale = calc_px_scale(self.refs.canvas_dimensions(), *boundaries);
                     true
                 }
                 State::NotBegun { .. } => false,
@@ -885,7 +916,12 @@ impl Component for Snake {
 
             Self::Message::Advance => {
                 match &mut self.state {
-                    State::BegunSingleplayer { domain, .. } => {
+                    State::BegunSingleplayer {
+                        snake,
+                        foods,
+                        boundaries,
+                        ..
+                    } => {
                         let game_over = || {
                             ctx.link()
                                 .send_message(Self::Message::StateChange(State::NotBegun {
@@ -893,28 +929,25 @@ impl Component for Snake {
                                 }));
                         };
 
-                        if let Some(snake) = &mut domain.snake {
-                            match snake.advance(&mut domain.foods, &[]) {
-                                domain::AdvanceResult::Success => {
-                                    if snake.out_of_bounds(&domain.boundaries) {
-                                        game_over();
-                                    }
-
-                                    // when no food, replenish
-                                    if domain.foods.empty() {
-                                        domain.foods = DomainDefaults::foods(
-                                            rand_from_iterator(10..15),
-                                            domain.boundaries,
-                                            snake.iter_vertices(),
-                                        );
-                                    }
+                        match snake.advance(foods, &[]) {
+                            domain::AdvanceResult::Success => {
+                                if snake.out_of_bounds(boundaries) {
+                                    game_over();
                                 }
-                                domain::AdvanceResult::BitYaSelf => game_over(),
-                                domain::AdvanceResult::BitSomeone => unreachable!(),
+
+                                // when no food, replenish
+                                if foods.empty() {
+                                    *foods = DomainDefaults::foods(
+                                        rand_from_iterator(10..15),
+                                        *boundaries,
+                                        snake.iter_vertices(),
+                                    );
+                                }
                             }
-                        } else {
-                            console::log!("no snake, no advance");
+                            domain::AdvanceResult::BitYaSelf => game_over(),
+                            domain::AdvanceResult::BitSomeone => unreachable!(),
                         }
+
                         true
                     }
                     _ => false,
@@ -934,14 +967,19 @@ impl Component for Snake {
             Self::Message::Restart => {
                 match &mut self.state {
                     State::BegunSingleplayer {
-                        domain,
+                        snake,
+                        boundaries,
+                        foods,
                         advance_interval,
                         ..
                     } => {
+                        let defaults = SPDomainDefaults::defaults();
+                        *snake = defaults.snake;
+                        *foods = defaults.foods;
+                        *boundaries = defaults.boundaries;
+
                         // drop old by replacement
                         advance_interval.reset();
-                        // reset domain items
-                        *domain = default_domain();
                     }
                     State::BegunMultiplayer { .. } => {
                         console::log!("Restart unsupported in MP");
@@ -956,11 +994,9 @@ impl Component for Snake {
 
             Self::Message::DirectionChange(direction) => {
                 match &mut self.state {
-                    State::BegunSingleplayer { domain, .. } => {
-                        if let Some(snake) = &mut domain.snake {
-                            if snake.set_direction(direction).is_err() {
-                                console::log!("cannot move into the opposite direction")
-                            }
+                    State::BegunSingleplayer { snake, .. } => {
+                        if snake.set_direction(direction).is_err() {
+                            console::log!("cannot move into the opposite direction")
                         }
                     }
                     State::BegunMultiplayer { .. } => {
@@ -1000,6 +1036,7 @@ impl Component for Snake {
             Self::Message::StateChange(new_state @ State::BegunMultiplayer { .. }) => {
                 // TODO rework camera management
                 if let State::BegunMultiplayer {
+                    // no snake to control, no mouth to center to
                     domain: Domain { snake: None, .. },
                     ..
                 } = &new_state
@@ -1075,12 +1112,18 @@ impl Component for Snake {
                 match &mut self.state {
                     State::NotBegun { .. } => {}
                     State::BegunSingleplayer {
-                        domain,
+                        snake,
+                        foods,
+                        boundaries,
                         advance_interval,
                         ..
                     } => {
+                        let defaults = SPDomainDefaults::defaults();
+                        *snake = defaults.snake;
+                        *foods = defaults.foods;
+                        *boundaries = defaults.boundaries;
+
                         advance_interval.stop();
-                        *domain = default_domain();
                     }
                     State::BegunMultiplayer { .. } => {}
                 }
@@ -1091,13 +1134,19 @@ impl Component for Snake {
             }
 
             Self::Message::Begin => {
-                let domain = default_domain();
+                let SPDomainDefaults {
+                    snake,
+                    foods,
+                    boundaries,
+                } = SPDomainDefaults::defaults();
                 let mut advance_interval = SnakeAdvanceInterval::create(ctx.link().clone());
                 advance_interval.start();
 
                 ctx.link()
                     .send_message(Self::Message::StateChange(State::BegunSingleplayer {
-                        domain,
+                        snake,
+                        foods,
+                        boundaries,
                         advance_interval,
                     }));
                 false
@@ -1154,12 +1203,7 @@ impl Snake {
         // TODO move camera to Begun states
         match &self.state {
             State::NotBegun { .. } => vec![],
-            State::BegunSingleplayer {
-                domain: Domain {
-                    snake: Some(snake), ..
-                },
-                ..
-            }
+            State::BegunSingleplayer { snake, .. }
             | State::BegunMultiplayer {
                 domain: Domain {
                     snake: Some(snake), ..
@@ -1170,7 +1214,12 @@ impl Snake {
         }
     }
 
-    pub fn transform_pos(&self, pos: domain::Pos, domain: &Domain) -> TransformedPos {
+    pub fn transform_pos(
+        &self,
+        pos: domain::Pos,
+        snake: Option<&domain::Snake>,
+        boundaries: &domain::Boundaries,
+    ) -> TransformedPos {
         let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * self.px_scale;
 
         match self.camera {
@@ -1181,8 +1230,7 @@ impl Snake {
 
                 let adjusted_mouth = TransformedPos::from(
                     self.adjust_algo.apply(
-                        domain
-                            .snake
+                        snake
                             .as_ref()
                             .expect("snake to exist for this camera to work")
                             .mouth(),
@@ -1200,7 +1248,7 @@ impl Snake {
             Camera::BoundariesCentered => {
                 // center camera to the boundaries center
                 //
-                let b = domain.boundaries;
+                let b = boundaries;
                 let b_max = self.adjust_algo.apply(b.max);
                 let b_min = self.adjust_algo.apply(b.min);
                 let adjusted_boundaries_center = TransformedPos::new(
@@ -1217,67 +1265,66 @@ impl Snake {
         }
     }
 
-    fn draw_snake(&self, r: &CanvasRenderer, domain: &Domain) {
+    fn draw_snake(
+        &self,
+        r: &CanvasRenderer,
+        snake: &domain::Snake,
+        boundaries: &domain::Boundaries,
+    ) {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
 
         let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
 
-        let snakes: Box<dyn Iterator<Item = &domain::Snake>> = if let Some(snake) = &domain.snake {
-            Box::new(std::iter::once(snake))
-        } else {
-            Box::new(std::iter::empty())
-        };
+        let transform_pos = |pos| self.transform_pos(pos, Some(snake), boundaries);
 
-        let snakes = snakes.into_iter().chain(&domain.other_snakes);
-
-        for snake in snakes {
-            r.set_line_width(snake_body_width);
-            let pos = self.transform_pos(snake.iter_vertices().next().unwrap(), domain);
-            r.begin_path();
-            r.move_to(pos);
-            for pos in snake
-                .iter_vertices()
-                .skip(1)
-                .map(|v| self.transform_pos(v, domain))
-            {
-                r.line_to(pos);
-            }
-            r.stroke();
-            r.close_path();
-
-            // round head
-            let pos = self.transform_pos(snake.mouth(), domain);
-            r.begin_path();
-            r.cirle(pos, snake_body_width / 2.);
-            r.set_fill_style(box_border_color);
-            r.fill();
-            r.close_path();
-
-            r.begin_path();
-            r.cirle(pos, (snake_body_width / 2.) * 0.9);
-            r.set_fill_style(bg_color);
-            r.fill();
-            r.close_path();
-
-            // round tail
-            let pos = self.transform_pos(snake.tail_end(), domain);
-            r.begin_path();
-            r.cirle(pos, snake_body_width / 2.);
-            r.set_fill_style(box_border_color);
-            r.fill();
-            r.close_path();
+        r.set_line_width(snake_body_width);
+        let pos = transform_pos(snake.iter_vertices().next().unwrap());
+        r.begin_path();
+        r.move_to(pos);
+        for pos in snake.iter_vertices().skip(1).map(transform_pos) {
+            r.line_to(pos);
         }
+        r.stroke();
+        r.close_path();
+
+        // round head
+        let pos = transform_pos(snake.mouth());
+        r.begin_path();
+        r.cirle(pos, snake_body_width / 2.);
+        r.set_fill_style(box_border_color);
+        r.fill();
+        r.close_path();
+
+        r.begin_path();
+        r.cirle(pos, (snake_body_width / 2.) * 0.9);
+        r.set_fill_style(bg_color);
+        r.fill();
+        r.close_path();
+
+        // round tail
+        let pos = transform_pos(snake.tail_end());
+        r.begin_path();
+        r.cirle(pos, snake_body_width / 2.);
+        r.set_fill_style(box_border_color);
+        r.fill();
+        r.close_path();
     }
 
-    fn draw_foods(&self, r: &CanvasRenderer, domain: &Domain) {
+    fn draw_foods(
+        &self,
+        r: &CanvasRenderer,
+        foods: &domain::Foods,
+        snake: Option<&domain::Snake>,
+        boundaries: &domain::Boundaries,
+    ) {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
 
-        for food in domain.foods.as_ref() {
-            let pos = self.transform_pos(food.pos, domain);
+        for food in foods.as_ref() {
+            let pos = self.transform_pos(food.pos, snake, boundaries);
             r.begin_path();
             r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
             r.set_fill_style(box_border_color);
@@ -1286,20 +1333,27 @@ impl Snake {
         }
     }
 
-    fn draw_boundaries(&self, r: &CanvasRenderer, domain: &Domain) {
+    fn draw_boundaries(
+        &self,
+        r: &CanvasRenderer,
+        boundaries: &domain::Boundaries,
+        snake: Option<&domain::Snake>,
+    ) {
+        let transform_pos = |pos| self.transform_pos(pos, snake, boundaries);
+
         r.set_line_width(0.5 * self.px_scale);
-        let pos = self.transform_pos(domain.boundaries.left_top(), domain);
+        let pos = transform_pos(boundaries.left_top());
 
         r.begin_path();
         r.move_to(pos);
 
         for pos in [
-            domain.boundaries.right_top(),
-            domain.boundaries.right_bottom(),
-            domain.boundaries.left_bottom(),
-            domain.boundaries.left_top(),
+            boundaries.right_top(),
+            boundaries.right_bottom(),
+            boundaries.left_bottom(),
+            boundaries.left_top(),
         ] {
-            let pos = self.transform_pos(pos, domain);
+            let pos = transform_pos(pos);
             r.line_to(pos);
         }
         r.close_path();
@@ -1353,7 +1407,10 @@ pub enum NotBegunState {
 
 pub enum State {
     BegunSingleplayer {
-        domain: Domain,
+        snake: domain::Snake,
+        foods: domain::Foods,
+        boundaries: domain::Boundaries,
+
         advance_interval: SnakeAdvanceInterval,
     },
     BegunMultiplayer {
@@ -1365,26 +1422,6 @@ pub enum State {
 }
 
 impl State {
-    #[allow(dead_code)]
-    pub fn domain(&self) -> Option<&Domain> {
-        match self {
-            Self::BegunSingleplayer { domain, .. } | Self::BegunMultiplayer { domain, .. } => {
-                Some(domain)
-            }
-            _ => None,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn domain_mut(&mut self) -> Option<&mut Domain> {
-        match self {
-            Self::BegunSingleplayer { domain, .. } | Self::BegunMultiplayer { domain, .. } => {
-                Some(domain)
-            }
-            _ => None,
-        }
-    }
-
     pub fn to_be_loaded_lobby(lobby_name: LobbyName) -> Self {
         State::NotBegun {
             inner: NotBegunState::MPLobby {
@@ -1775,6 +1812,35 @@ fn default_domain() -> Domain {
         other_snakes: Default::default(),
         boundaries,
         snake: Some(snake),
+    }
+}
+
+struct SPDomainDefaults {
+    snake: domain::Snake,
+    foods: domain::Foods,
+    boundaries: domain::Boundaries,
+}
+
+impl SPDomainDefaults {
+    fn defaults() -> Self {
+        let snake = DomainDefaults::snake();
+        let boundaries = DomainDefaults::boundaries(&snake);
+
+        let foods = {
+            let food_average = ((MAP_BOUNDARIES_X * MAP_BOUNDARIES_Y) as f64 * 0.5);
+
+            DomainDefaults::foods(
+                rand_from_iterator(((food_average * 0.9) as i32)..((food_average * 1.1) as i32)),
+                boundaries,
+                snake.iter_vertices(),
+            )
+        };
+
+        Self {
+            snake,
+            boundaries,
+            foods,
+        }
     }
 }
 
