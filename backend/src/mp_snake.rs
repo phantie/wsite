@@ -110,6 +110,7 @@ impl RunningLobbyState {
 
         // indeces to remove
         let mut rm = vec![];
+        let mut add_foods = vec![];
 
         let other_snakes = self.snakes.clone();
         for (i, snake) in self.snakes.values_mut().enumerate() {
@@ -124,6 +125,12 @@ impl RunningLobbyState {
                 AdvanceResult::Success => {}
                 AdvanceResult::BitYaSelf | AdvanceResult::BitSomeone => {
                     rm.push(i);
+
+                    add_foods.extend(
+                        snake
+                            .iter_vertices()
+                            .map(|domain::Pos { x, y }| domain::Food::new(x, y)),
+                    );
                 }
             }
         }
@@ -134,6 +141,8 @@ impl RunningLobbyState {
             idx += 1;
             retain
         });
+
+        self.foods.extend(add_foods.into_iter());
     }
 
     fn set_con_direction(&mut self, con: Con, direction: domain::Direction) {
@@ -223,6 +232,7 @@ impl Lobby {
                 counter,
                 cons,
                 snakes,
+                foods,
                 ..
             }) => {
                 use interfacing::snake::lobby_state::LobbyRunning;
@@ -253,8 +263,7 @@ impl Lobby {
                     player_counter: cons.len() as _,
                     domain: domain::Domain {
                         snake,
-                        // TODO support foods
-                        foods: Default::default(),
+                        foods: foods.clone(),
                         other_snakes,
                         // TODO support boundaries
                         boundaries: domain::Pos::new(0, 0).boundaries_in_radius(10, 10),

@@ -175,6 +175,10 @@ impl AsRef<Vec<Food>> for Foods {
 }
 
 impl Foods {
+    pub fn extend(&mut self, foods: impl Iterator<Item = Food>) {
+        self.values.extend(foods);
+    }
+
     pub fn has_pos(&self, pos: Pos) -> bool {
         self.values
             .iter()
