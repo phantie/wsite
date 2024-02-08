@@ -4,22 +4,11 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Domain {
-    pub snake: Snake,
+    // your snake
+    pub snake: Option<Snake>,
     pub other_snakes: Vec<Snake>,
     pub foods: Foods,
     pub boundaries: Boundaries,
-}
-
-impl Domain {
-    pub fn out_of_bounds(&self) -> bool {
-        let domain = self;
-        let mouth = domain.snake.mouth();
-        match domain.boundaries.relation(mouth) {
-            RelationToBoundaries::Inside => false,
-            RelationToBoundaries::Touching => true,
-            RelationToBoundaries::Outside => true,
-        }
-    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -137,6 +126,15 @@ impl Snake {
             .map(|section| [section.start(), section.end()])
             .flatten();
         Boundaries::from_iterators(snake.clone().map(Pos::x), snake.map(Pos::y)).unwrap()
+    }
+
+    pub fn out_of_bounds(&self, boundaries: &Boundaries) -> bool {
+        let mouth = self.mouth();
+        match boundaries.relation(mouth) {
+            RelationToBoundaries::Inside => false,
+            RelationToBoundaries::Touching => true,
+            RelationToBoundaries::Outside => true,
+        }
     }
 }
 

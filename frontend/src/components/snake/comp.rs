@@ -123,7 +123,7 @@ impl Component for Snake {
                 stream.map(|i| match i {
                     Ok(msg) => match msg {
                         Message::Text(text) => {
-                            let msg = serde_json::from_str::<ServerMsg>(&text).unwrap(); // TODO handle
+                            let msg = serde_json::from_str::<ServerMsg>(&text).unwrap(); // TODO handle unwrap
                             SnakeMsg::WsRecv(msg)
                         }
                         Message::Bytes(_) => unimplemented!(),
@@ -855,8 +855,6 @@ impl Component for Snake {
             }
 
             Self::Message::RedirectToLobby { lobby_name } => {
-                // TODO maybe inline where used
-                //
                 ctx.link()
                     .send_message(Self::Message::StateChange(State::to_be_loaded_lobby(
                         lobby_name,
@@ -895,23 +893,27 @@ impl Component for Snake {
                                 }));
                         };
 
-                        match domain.snake.advance(&mut domain.foods, &[]) {
-                            domain::AdvanceResult::Success => {
-                                if domain.out_of_bounds() {
-                                    game_over();
-                                }
+                        if let Some(snake) = &mut domain.snake {
+                            match snake.advance(&mut domain.foods, &[]) {
+                                domain::AdvanceResult::Success => {
+                                    if snake.out_of_bounds(&domain.boundaries) {
+                                        game_over();
+                                    }
 
-                                // when no food, replenish
-                                if domain.foods.empty() {
-                                    domain.foods = DomainDefaults::foods(
-                                        rand_from_iterator(10..15),
-                                        domain.boundaries,
-                                        domain.snake.iter_vertices(),
-                                    );
+                                    // when no food, replenish
+                                    if domain.foods.empty() {
+                                        domain.foods = DomainDefaults::foods(
+                                            rand_from_iterator(10..15),
+                                            domain.boundaries,
+                                            snake.iter_vertices(),
+                                        );
+                                    }
                                 }
+                                domain::AdvanceResult::BitYaSelf => game_over(),
+                                domain::AdvanceResult::BitSomeone => unreachable!(),
                             }
-                            domain::AdvanceResult::BitYaSelf => game_over(),
-                            domain::AdvanceResult::BitSomeone => unreachable!(),
+                        } else {
+                            console::log!("no snake, no advance");
                         }
                         true
                     }
@@ -955,8 +957,10 @@ impl Component for Snake {
             Self::Message::DirectionChange(direction) => {
                 match &mut self.state {
                     State::BegunSingleplayer { domain, .. } => {
-                        if domain.snake.set_direction(direction).is_err() {
-                            console::log!("cannot move into the opposite direction")
+                        if let Some(snake) = &mut domain.snake {
+                            if snake.set_direction(direction).is_err() {
+                                console::log!("cannot move into the opposite direction")
+                            }
                         }
                     }
                     State::BegunMultiplayer { .. } => {
@@ -975,11 +979,17 @@ impl Component for Snake {
             }
 
             Self::Message::CameraChange(camera) => {
-                self.camera = camera;
-                true
+                if self.available_cameras().contains(&camera) {
+                    self.camera = camera;
+                    true
+                } else {
+                    console::log!(format!("cannot apply Camera: {camera:?}"));
+                    false
+                }
             }
 
             Self::Message::CameraToggle => {
+                // TODO rework camera management
                 let next_camera = match self.camera {
                     Camera::MouthCentered => Camera::BoundariesCentered,
                     Camera::BoundariesCentered => Camera::MouthCentered,
@@ -1130,6 +1140,26 @@ impl Component for Snake {
 }
 
 impl Snake {
+    pub fn available_cameras(&self) -> Vec<Camera> {
+        // TODO move camera to Begun states
+        match &self.state {
+            State::NotBegun { .. } => vec![],
+            State::BegunSingleplayer {
+                domain: Domain {
+                    snake: Some(snake), ..
+                },
+                ..
+            }
+            | State::BegunMultiplayer {
+                domain: Domain {
+                    snake: Some(snake), ..
+                },
+                ..
+            } => vec![Camera::MouthCentered, Camera::BoundariesCentered],
+            _ => vec![Camera::BoundariesCentered],
+        }
+    }
+
     pub fn transform_pos(&self, pos: domain::Pos, domain: &Domain) -> TransformedPos {
         let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * self.px_scale;
 
@@ -1138,9 +1168,17 @@ impl Snake {
                 // center camera to the mouth
                 //
                 // position of the mouth after the same transformations as of 'pos'
-                let adjusted_mouth =
-                    TransformedPos::from(self.adjust_algo.apply(domain.snake.mouth()))
-                        * self.px_scale;
+
+                let adjusted_mouth = TransformedPos::from(
+                    self.adjust_algo.apply(
+                        domain
+                            .snake
+                            .as_ref()
+                            .expect("snake to exist for this camera to work")
+                            .mouth(),
+                    ),
+                ) * self.px_scale;
+
                 // target position - center of the canvas
                 // assert!(self.refs.is_canvas_fit(self.state));
                 let cd = self.refs.canvas_dimensions() / 2.0;
@@ -1176,7 +1214,13 @@ impl Snake {
 
         let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
 
-        let snakes = std::iter::once(&domain.snake).chain(&domain.other_snakes);
+        let snakes: Box<dyn Iterator<Item = &domain::Snake>> = if let Some(snake) = &domain.snake {
+            Box::new(std::iter::once(snake))
+        } else {
+            Box::new(std::iter::empty())
+        };
+
+        let snakes = snakes.into_iter().chain(&domain.other_snakes);
 
         for snake in snakes {
             r.set_line_width(snake_body_width);
@@ -1340,6 +1384,7 @@ impl State {
     }
 }
 
+#[derive(PartialEq, Debug)]
 pub enum Camera {
     MouthCentered,
     BoundariesCentered,
@@ -1357,7 +1402,8 @@ impl AdjustAlgoChoice {
             AdjustAlgoChoice::None => AdjustAlgo::None,
             AdjustAlgoChoice::For4thQuadrant => {
                 let initial_adjustment = {
-                    let snake_boundaries = domain.snake.boundaries();
+                    // TODO adjust algo can be removed
+                    let snake_boundaries = domain.snake.as_ref().unwrap().boundaries(); // TODO
                     let foods_boundaries = domain.foods.boundaries();
                     let total_boundaries = snake_boundaries.join_option(foods_boundaries);
 
@@ -1718,7 +1764,7 @@ fn default_domain() -> Domain {
         ),
         other_snakes: Default::default(),
         boundaries,
-        snake,
+        snake: Some(snake),
     }
 }
 
@@ -2004,13 +2050,17 @@ impl Snake {
     ) -> bool {
         console::log!(format!("state change: {s:?}"));
 
-        // TODO implement
-
         match &s {
             LobbyState::Prep(s) => {}
             LobbyState::Running(interfacing::snake::lobby_state::LobbyRunning {
                 domain, ..
             }) => {
+                // TODO rework camera management
+                if let None = domain.snake {
+                    ctx.link()
+                        .send_message(SnakeMsg::CameraChange(Camera::BoundariesCentered));
+                }
+
                 ctx.link()
                     .send_message(SnakeMsg::StateChange(State::BegunMultiplayer {
                         domain: domain.clone(),
