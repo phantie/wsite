@@ -835,7 +835,7 @@ impl Component for Snake {
                         boundaries,
                         ..
                     } => {
-                        self.draw_snake(&r, snake, boundaries);
+                        self.draw_snake(&r, snake, boundaries, false);
                         self.draw_foods(&r, foods, Some(snake), boundaries);
                         self.draw_boundaries(&r, boundaries, Some(snake));
                     }
@@ -849,10 +849,10 @@ impl Component for Snake {
                             },
                     } => {
                         if let Some(snake) = snake {
-                            self.draw_snake(&r, snake, boundaries);
+                            self.draw_snake(&r, snake, boundaries, true);
                         }
                         for snake in other_snakes {
-                            self.draw_snake(&r, snake, boundaries);
+                            self.draw_snake(&r, snake, boundaries, false);
                         }
                         self.draw_foods(&r, foods, snake.as_ref(), boundaries);
                         self.draw_boundaries(&r, boundaries, snake.as_ref());
@@ -1289,6 +1289,8 @@ impl Snake {
         r: &CanvasRenderer,
         snake: &domain::Snake,
         boundaries: &domain::Boundaries,
+        // distinguish controlled snake from others, by drawing another cirle on head
+        style: bool,
     ) {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
@@ -1322,6 +1324,15 @@ impl Snake {
         r.fill();
         r.close_path();
 
+        if style {
+            let pos = transform_pos(snake.mouth());
+            r.begin_path();
+            r.cirle(pos, (snake_body_width / 2.) * 0.3);
+            r.set_fill_style(box_border_color);
+            r.fill();
+            r.close_path();
+        }
+
         // round tail
         let pos = transform_pos(snake.tail_end());
         r.begin_path();
@@ -1329,6 +1340,15 @@ impl Snake {
         r.set_fill_style(box_border_color);
         r.fill();
         r.close_path();
+
+        // if let Some(label) = label {
+        //     let pos = transform_pos(snake.mouth());
+        //     r.begin_path();
+        //     r.set_text_align("center");
+        //     r.set_font("30px serif");
+        //     r.fill_text(label, pos);
+        //     r.close_path();
+        // }
     }
 
     fn draw_foods(
@@ -2021,6 +2041,22 @@ impl CanvasRenderer {
         self.as_ref()
             .arc(x, y, radius, 0f64, 2.0 * std::f64::consts::PI)
             .unwrap();
+    }
+
+    fn stroke_text(&self, text: &str, TransformedPos { x, y }: TransformedPos) {
+        self.as_ref().stroke_text(text, x, y);
+    }
+
+    fn fill_text(&self, text: &str, TransformedPos { x, y }: TransformedPos) {
+        self.as_ref().fill_text(text, x, y);
+    }
+
+    fn set_font(&self, value: &str) {
+        self.as_ref().set_font(value);
+    }
+
+    fn set_text_align(&self, value: &str) {
+        self.as_ref().set_text_align(value);
     }
 
     fn begin_path(&self) {
