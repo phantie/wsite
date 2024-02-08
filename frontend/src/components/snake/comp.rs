@@ -978,15 +978,7 @@ impl Component for Snake {
                 false
             }
 
-            Self::Message::CameraChange(camera) => {
-                if self.available_cameras().contains(&camera) {
-                    self.camera = camera;
-                    true
-                } else {
-                    console::log!(format!("cannot apply Camera: {camera:?}"));
-                    false
-                }
-            }
+            Self::Message::CameraChange(camera) => self.change_camera(camera).is_ok(),
 
             Self::Message::CameraToggle => {
                 // TODO rework camera management
@@ -994,8 +986,7 @@ impl Component for Snake {
                     Camera::MouthCentered => Camera::BoundariesCentered,
                     Camera::BoundariesCentered => Camera::MouthCentered,
                 };
-                ctx.link()
-                    .send_message(Self::Message::CameraChange(next_camera));
+                self.change_camera(next_camera).unwrap_or(());
                 Refs::fire_btn_active(self.refs.camera_btn_el());
                 false
             }
@@ -1007,6 +998,15 @@ impl Component for Snake {
             }
 
             Self::Message::StateChange(new_state @ State::BegunMultiplayer { .. }) => {
+                // TODO rework camera management
+                if let State::BegunMultiplayer {
+                    domain: Domain { snake: None, .. },
+                    ..
+                } = &new_state
+                {
+                    self.change_camera(Camera::BoundariesCentered).unwrap_or(());
+                }
+
                 match self.state {
                     State::BegunSingleplayer { .. } => panic!("forbidden"),
                     State::BegunMultiplayer { .. } => {}
@@ -1140,6 +1140,16 @@ impl Component for Snake {
 }
 
 impl Snake {
+    pub fn change_camera(&mut self, camera: Camera) -> Result<(), ()> {
+        if self.available_cameras().contains(&camera) {
+            self.camera = camera;
+            Ok(())
+        } else {
+            console::log!(format!("cannot apply Camera: {camera:?}"));
+            Err(())
+        }
+    }
+
     pub fn available_cameras(&self) -> Vec<Camera> {
         // TODO move camera to Begun states
         match &self.state {
@@ -2055,12 +2065,6 @@ impl Snake {
             LobbyState::Running(interfacing::snake::lobby_state::LobbyRunning {
                 domain, ..
             }) => {
-                // TODO rework camera management
-                if let None = domain.snake {
-                    ctx.link()
-                        .send_message(SnakeMsg::CameraChange(Camera::BoundariesCentered));
-                }
-
                 ctx.link()
                     .send_message(SnakeMsg::StateChange(State::BegunMultiplayer {
                         domain: domain.clone(),
