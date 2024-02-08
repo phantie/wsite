@@ -10,7 +10,8 @@ use yew::html::Scope;
 
 use interfacing::snake::{
     lobby_state::{LobbyPrep, LobbyRunning},
-    JoinLobbyDecline, LobbyName, LobbyState, UserName, WsClientMsg, WsMsg, WsServerMsg,
+    JoinLobbyDecline, LobbyName, LobbyState, PinnedMessage, UserName, WsClientMsg, WsMsg,
+    WsServerMsg,
 };
 
 type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
@@ -91,7 +92,7 @@ pub enum SnakeMsg {
     Begin,
     PauseUnpause,
     ToMenu,
-
+    // LeaveLobby,
     WsSend(ClientMsg),
     WsRecv(ServerMsg),
 }
@@ -868,6 +869,12 @@ impl Component for Snake {
         match msg {
             Self::Message::Nothing => false,
 
+            // Self::Message::LeaveLobby => {
+            //     ctx.link().send_message(Self::Message::WsSend(
+            //         "leave-lobby".pinned_msg(interfacing::snake::WsClientMsg::LeaveLobby),
+            //     ));
+            //     false
+            // }
             Self::Message::WsRecv(msg) => self.handle_received_message(ctx, msg),
 
             Self::Message::WsSend(msg) => {
@@ -1125,7 +1132,9 @@ impl Component for Snake {
 
                         advance_interval.stop();
                     }
-                    State::BegunMultiplayer { .. } => {}
+                    State::BegunMultiplayer { .. } => {
+                        // TODO implement leave lobby
+                    }
                 }
 
                 assert_eq!(self.canvas_requires_fit, false);
@@ -1178,10 +1187,20 @@ impl Component for Snake {
             },
 
             Self::Message::ToMenu => {
-                ctx.link()
-                    .send_message(Self::Message::StateChange(State::NotBegun {
-                        inner: NotBegunState::Initial,
-                    }));
+                match self.state {
+                    State::NotBegun { .. } => {}
+                    State::BegunSingleplayer { .. } => {
+                        ctx.link()
+                            .send_message(Self::Message::StateChange(State::NotBegun {
+                                inner: NotBegunState::Initial,
+                            }));
+                    }
+                    State::BegunMultiplayer { .. } => {
+                        ctx.link().send_message(Self::Message::WsSend(
+                            "leave-lobby".pinned_msg(interfacing::snake::WsClientMsg::LeaveLobby),
+                        ));
+                    }
+                }
                 false
             }
         }
