@@ -47,11 +47,7 @@ impl Snake {
     }
 
     pub fn iter_vertices(&self) -> impl Iterator<Item = Pos> + '_ {
-        self.sections
-            .as_ref()
-            .iter()
-            .map(|section| section.start())
-            .chain(std::iter::once(self.head().end()))
+        self.sections.iter_vertices()
     }
 
     pub fn iter_vertices_without_tail(&self) -> impl Iterator<Item = Pos> + '_ {
@@ -230,12 +226,241 @@ impl Vector {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Sections {
     sections: Vec<Section>,
 }
 
+// packs sequence of directions to sequence of bytes
+//
+// each Direction is encoded using 2 bits because there are 4 values
+// 4 directions can be encoded using 1 byte
+//
+// since last partition of directions can contain 1 to 4 values
+// serializer pads such byte with zeroes
+// deserializer requires to know how many directions to decode the last byte
+//
+fn pack_values(values: &[Direction]) -> Vec<u8> {
+    let mut result = Vec::with_capacity((values.len() + 3) / 4);
+
+    for chunk in values.chunks(4) {
+        // start with empty byte
+        let mut byte = 0u8;
+
+        for dir in chunk {
+            // move to left, leaving 2 bits of space
+            byte <<= 2;
+            // use bit OR to append 2 bit value to the end
+            byte |= dir.encode();
+        }
+
+        // pad zeroes when chunk length is less than 4
+        byte <<= 2 * (4 - chunk.len());
+
+        result.push(byte);
+    }
+
+    result
+}
+
+fn unpack_values(bytes: &[u8], values_in_last_byte: u8) -> Vec<Direction> {
+    let mut result = Vec::with_capacity(bytes.len() * 4);
+
+    fn decode_byte(mut byte: u8, contains: u8) -> Vec<Direction> {
+        let mut result = vec![];
+
+        assert!(contains >= 1);
+        assert!(contains <= 4);
+
+        for i in 0..contains {
+            let mask_shift = 6 - (2 * i);
+
+            let mask = 0b11 << mask_shift;
+
+            // extract bits using:
+            // shifted 0b11 with & (removing bits to the left and right of the mask)
+            // and then bit shift to the right to mask shift size
+            // leaving you with a byte not exceeding decimal value 4 (2 bits)
+            let dir_encoded = (byte & mask) >> mask_shift;
+            result.push(Direction::decode(dir_encoded).unwrap()); // TODO handle unwrap
+        }
+
+        result
+    }
+
+    for (i, byte) in bytes.into_iter().enumerate() {
+        let contains = if i == bytes.len() - 1 {
+            values_in_last_byte
+        } else {
+            4u8
+        };
+
+        result.extend(decode_byte(*byte, contains));
+    }
+
+    result
+}
+
+#[test]
+fn test_pack_values() {
+    assert_eq!(
+        pack_values(&[Direction::Up, Direction::Right, Direction::Bottom]),
+        vec![0b00_11_01_00]
+    )
+}
+
+#[test]
+fn test_unpack_values() {
+    assert_eq!(
+        unpack_values(&vec![0b00_11_01_00], 3),
+        vec![Direction::Up, Direction::Right, Direction::Bottom]
+    )
+}
+
+#[test]
+fn test_serde_sections() {
+    let dirs_1 = vec![Direction::Up, Direction::Up, Direction::Up];
+
+    let dirs_2 = vec![Direction::Up, Direction::Right, Direction::Bottom];
+
+    for dirs in [dirs_1, dirs_2] {
+        println!("Original dirs: {dirs:?}");
+        let sections = Sections::from_directions(Pos::new(0, 0), dirs);
+
+        let ser = serde_json::to_string(&sections).unwrap();
+        dbg!(format!("{ser:?}"));
+        let de = serde_json::from_str::<Sections>(&ser).unwrap();
+        dbg!(&sections);
+        dbg!(&de);
+
+        assert_eq!(sections, de);
+    }
+}
+
+// efficiently serialize Sections struct
+// binary package structure:
+//  - 4 and 4 bytes for X and Y dimensions of the beginning of the first section respectively
+//  - 1 byte designated for the number of directions to decode in the last byte (see pack_values for more)
+//  - the rest are packed directions
+impl Serialize for Sections {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut bytes: Vec<u8> = vec![];
+
+        // TODO handle unwrap
+        let point = self.sections.first().unwrap().start();
+
+        let x_bytes = point.x().to_be_bytes();
+        let y_bytes = point.y().to_be_bytes();
+
+        bytes.extend(x_bytes);
+        bytes.extend(y_bytes);
+
+        let dirs = self.iter_directions().collect::<Vec<_>>();
+
+        let values_in_last_byte = {
+            let rem = (dirs.len() % 4) as u8;
+            if rem == 0 {
+                4
+            } else {
+                rem
+            }
+        };
+
+        bytes.push(values_in_last_byte);
+
+        let packed = pack_values(dirs.as_ref());
+
+        bytes.extend(packed);
+
+        serializer.serialize_bytes(&bytes)
+    }
+}
+
+// deserialize according to payload structure
+// recreate Sections from deserialized values
+impl<'de> Deserialize<'de> for Sections {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Sections;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a valid sequence of bytes")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let x = i32::from_be_bytes([
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(0, &"Not enough bytes"))?,
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(1, &"Not enough bytes"))?,
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(2, &"Not enough bytes"))?,
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(3, &"Not enough bytes"))?,
+                ]);
+
+                let y = i32::from_be_bytes([
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(4, &"Not enough bytes"))?,
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(5, &"Not enough bytes"))?,
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(6, &"Not enough bytes"))?,
+                    seq.next_element()?
+                        .ok_or_else(|| serde::de::Error::invalid_length(7, &"Not enough bytes"))?,
+                ]);
+
+                let values_in_last_byte: u8 = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+
+                let mut bytes = vec![];
+
+                // TODO handle it better
+                while let Ok(Some(value)) = seq.next_element::<u8>() {
+                    bytes.push(value);
+                }
+
+                let directions = unpack_values(&bytes, values_in_last_byte);
+
+                Ok(Sections::from_directions(Pos::new(x, y), directions))
+            }
+        }
+
+        let visitor = Visitor;
+
+        deserializer.deserialize_bytes(visitor)
+    }
+}
+
 impl Sections {
+    // iter directions starting from the start of the first section
+    pub fn iter_directions(&self) -> impl Iterator<Item = Direction> + '_ {
+        self.sections.iter().map(|section| {
+            let diff = section.end() - section.start();
+
+            match (diff.x(), diff.y()) {
+                (1, 0) => Direction::Right,
+                (-1, 0) => Direction::Left,
+                (0, 1) => Direction::Bottom,
+                (0, -1) => Direction::Up,
+                _ => unreachable!(),
+            }
+        })
+    }
+
+    pub fn iter_vertices(&self) -> impl Iterator<Item = Pos> + '_ {
+        self.sections
+            .iter()
+            .map(|section| section.start())
+            .chain(std::iter::once(self.head().end()))
+    }
+
     pub fn len(&self) -> usize {
         self.as_ref().len()
     }
@@ -415,6 +640,25 @@ pub enum Direction {
 }
 
 impl Direction {
+    pub fn encode(&self) -> u8 {
+        match self {
+            Self::Up => 0b00,
+            Self::Bottom => 0b01,
+            Self::Left => 0b10,
+            Self::Right => 0b11,
+        }
+    }
+
+    pub fn decode(value: u8) -> Option<Self> {
+        match value {
+            0b00 => Some(Self::Up),
+            0b01 => Some(Self::Bottom),
+            0b10 => Some(Self::Left),
+            0b11 => Some(Self::Right),
+            _ => None,
+        }
+    }
+
     pub fn opposite(&self) -> Self {
         match self {
             Self::Up => Self::Bottom,
