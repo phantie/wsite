@@ -836,6 +836,14 @@ fn figure_x() -> [[FigureCell; 3]; 3] {
     ]
 }
 
+fn x_dim<T, const C: usize, const R: usize, F: Fn() -> [[T; C]; R]>(f: F) -> usize {
+    C
+}
+
+fn y_dim<T, const C: usize, const R: usize, F: Fn() -> [[T; C]; R]>(f: F) -> usize {
+    R
+}
+
 fn matrix_to_iter<T, U, I>(array: T) -> Vec<Vec<I>>
 where
     T: IntoIterator<Item = U>,
@@ -857,10 +865,29 @@ pub enum Figures {
 impl Figures {
     pub fn to_iter(&self) -> Vec<Vec<FigureCell>> {
         use matrix_to_iter as mi;
+
         let matrix = match self {
             Self::Diagonal2F => mi(diagonal_2f()),
             Self::Diagonal3 => mi(diagonal_3()),
             Self::X => mi(figure_x()),
+        };
+        matrix
+    }
+
+    pub fn x_dim(&self) -> usize {
+        let matrix = match self {
+            Self::Diagonal2F => x_dim(diagonal_2f),
+            Self::Diagonal3 => x_dim(diagonal_3),
+            Self::X => x_dim(figure_x),
+        };
+        matrix
+    }
+
+    pub fn y_dim(&self) -> usize {
+        let matrix = match self {
+            Self::Diagonal2F => y_dim(diagonal_2f),
+            Self::Diagonal3 => y_dim(diagonal_3),
+            Self::X => y_dim(figure_x),
         };
         matrix
     }

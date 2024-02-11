@@ -129,16 +129,20 @@ impl RunningLobbyState {
             // TODO do not spawn on current snake positions,
             // spawn when all snakes advanced
             //
-            // TODO do not draw figure out of bounds
+            // TODO figure can still spawn on boundaries, seems like by one problem
             fn refill_foods(foods: &mut domain::Foods, boundaries: &domain::Boundaries) {
-                if foods.count() < 15 {
+                if foods.count() < 30 {
                     use strum::IntoEnumIterator;
                     let figures = domain::Figures::iter();
 
                     let figure = figures.choose(&mut rand::thread_rng()).unwrap();
 
-                    let x = rand::thread_rng().gen_range((boundaries.min.x)..(boundaries.max.x));
-                    let y = rand::thread_rng().gen_range((boundaries.min.x)..(boundaries.max.x));
+                    let x = rand::thread_rng().gen_range(
+                        (boundaries.min.x)..(boundaries.max.x - (figure.x_dim() as i32)),
+                    );
+                    let y = rand::thread_rng().gen_range(
+                        (boundaries.min.y)..(boundaries.max.y - (figure.y_dim() as i32)),
+                    );
 
                     for (i, row) in figure.to_iter().into_iter().enumerate() {
                         for (j, col) in row.into_iter().enumerate() {
