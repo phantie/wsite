@@ -1,5 +1,7 @@
 use interfacing::snake::{LobbyName, MsgId, UserName, WsMsg};
 use interfacing::snake_domain as domain;
+use rand::seq::IteratorRandom;
+use rand::Rng;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -124,11 +126,31 @@ impl RunningLobbyState {
                 .map(|(_, snake)| snake.clone())
                 .collect::<Vec<_>>();
 
-            #[must_use]
-            #[allow(unused)]
-            fn refill_foods(foods: &mut domain::Foods) {
-                if foods.count() < 5 {
-                    unimplemented!();
+            // TODO do not spawn on current snake positions,
+            // spawn when all snakes advanced
+            //
+            // TODO do not draw figure out of bounds
+            fn refill_foods(foods: &mut domain::Foods, boundaries: &domain::Boundaries) {
+                if foods.count() < 15 {
+                    use strum::IntoEnumIterator;
+                    let figures = domain::Figures::iter();
+
+                    let figure = figures.choose(&mut rand::thread_rng()).unwrap();
+
+                    let x = rand::thread_rng().gen_range((boundaries.min.x)..(boundaries.max.x));
+                    let y = rand::thread_rng().gen_range((boundaries.min.x)..(boundaries.max.x));
+
+                    for (i, row) in figure.to_iter().into_iter().enumerate() {
+                        for (j, col) in row.into_iter().enumerate() {
+                            if col.is_food() {
+                                let food = domain::Food::new(x + (j as i32), y + (i as i32));
+
+                                if boundaries.relation(food.pos()).is_inside() {
+                                    foods.insert(food);
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -138,7 +160,7 @@ impl RunningLobbyState {
 
             match snake.advance(&mut self.foods, other_snakes.as_slice(), &self.boundaries) {
                 AdvanceResult::Success => {
-                    // refill_foods(&mut self.foods);
+                    refill_foods(&mut self.foods, &self.boundaries);
                 }
                 AdvanceResult::BitYaSelf
                 | AdvanceResult::BitSomeone

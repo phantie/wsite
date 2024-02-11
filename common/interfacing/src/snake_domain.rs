@@ -793,25 +793,30 @@ impl Boundaries {
     }
 }
 
+#[derive(strum::EnumIs)]
 pub enum RelationToBoundaries {
     Inside,
     Touching,
     Outside,
 }
 
-#[derive(Clone)]
+#[derive(Clone, strum::EnumIs)]
 pub enum FigureCell {
     Empty,
     Food,
 }
 
-fn foo() -> [[FigureCell; 2]; 2] {
+fn diagonal_2f() -> [[FigureCell; 2]; 2] {
     use FigureCell::*;
 
-    [[Empty, Food], [Food, Empty]]
+    [
+        //
+        [Empty, Food],
+        [Food, Empty],
+    ]
 }
 
-fn bar() -> [[FigureCell; 3]; 3] {
+fn diagonal_3() -> [[FigureCell; 3]; 3] {
     use FigureCell::*;
 
     [
@@ -821,19 +826,42 @@ fn bar() -> [[FigureCell; 3]; 3] {
     ]
 }
 
-// fn iter_matrix<'t, 'u, T, U, I>(
-//     array: &'t T,
-// ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = I>>>>
-// where
-//     T: IntoIterator<Item = &'t U>,
-//     U: IntoIterator<Item = I> + 't,
-//     I: Clone,
-// {
-//     Box::new(array.into_iter().map(|inner_array| {
-//         Box::new(inner_array.into_iter().map(|i| i.clone())) as Box<dyn Iterator<Item = I>>
-//     }))
-// }
+fn figure_x() -> [[FigureCell; 3]; 3] {
+    use FigureCell::*;
 
-// fn baz() {
-//     // let q = iter_matrix(&foo());
-// }
+    [
+        [Food, Empty, Food],
+        [Empty, Food, Empty],
+        [Food, Empty, Food],
+    ]
+}
+
+fn matrix_to_iter<T, U, I>(array: T) -> Vec<Vec<I>>
+where
+    T: IntoIterator<Item = U>,
+    U: IntoIterator<Item = I>,
+{
+    array
+        .into_iter()
+        .map(|inner_array| inner_array.into_iter().collect())
+        .collect()
+}
+
+#[derive(strum::EnumIter)]
+pub enum Figures {
+    Diagonal2F,
+    Diagonal3,
+    X,
+}
+
+impl Figures {
+    pub fn to_iter(&self) -> Vec<Vec<FigureCell>> {
+        use matrix_to_iter as mi;
+        let matrix = match self {
+            Self::Diagonal2F => mi(diagonal_2f()),
+            Self::Diagonal3 => mi(diagonal_3()),
+            Self::X => mi(figure_x()),
+        };
+        matrix
+    }
+}
