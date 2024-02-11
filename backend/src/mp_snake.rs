@@ -91,7 +91,7 @@ impl From<&PrepLobbyState> for RunningLobbyState {
             snakes.into_iter().collect()
         };
 
-        let foods = Foods { values: vec![] };
+        let foods = Foods::default();
 
         Self {
             snakes,
@@ -121,8 +121,18 @@ impl RunningLobbyState {
                 .map(|(_, snake)| snake.clone())
                 .collect::<Vec<_>>();
 
+            #[must_use]
+            #[allow(unused)]
+            fn refill_foods(foods: &mut domain::Foods) {
+                if foods.count() < 5 {
+                    unimplemented!();
+                }
+            }
+
             match snake.advance(&mut self.foods, other_snakes.as_slice()) {
-                AdvanceResult::Success => {}
+                AdvanceResult::Success => {
+                    // refill_foods(&mut self.foods);
+                }
                 AdvanceResult::BitYaSelf | AdvanceResult::BitSomeone => {
                     rm.push(i);
 

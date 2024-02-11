@@ -1362,7 +1362,7 @@ impl Snake {
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
 
-        for food in foods.as_ref() {
+        for food in foods.iter() {
             let pos = self.transform_pos(food.pos, snake, boundaries);
             r.begin_path();
             r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
@@ -1826,8 +1826,9 @@ impl DomainDefaults {
             }
         }
 
-        let values = values.into_iter().map(domain::Food::from).collect();
-        domain::Foods { values }
+        let mut foods = domain::Foods::default();
+        foods.extend(values.into_iter().map(domain::Food::from));
+        foods
     }
 
     fn boundaries(snake: &domain::Snake) -> domain::Boundaries {

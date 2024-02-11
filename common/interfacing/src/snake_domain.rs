@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Domain {
@@ -159,45 +160,42 @@ impl From<Pos> for Food {
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Foods {
-    pub values: Vec<Food>,
-}
-
-impl AsRef<Vec<Food>> for Foods {
-    fn as_ref(&self) -> &Vec<Food> {
-        &self.values
-    }
+    pub values: HashMap<Pos, Food>,
 }
 
 impl Foods {
+    pub fn iter(&self) -> impl Iterator<Item = &Food> {
+        self.values.values()
+    }
+
+    pub fn count(&self) -> usize {
+        self.values.len()
+    }
+
     pub fn extend(&mut self, foods: impl Iterator<Item = Food>) {
-        self.values.extend(foods);
+        for food in foods {
+            self.values.insert(food.pos, food);
+        }
     }
 
     pub fn has_pos(&self, pos: Pos) -> bool {
-        self.values
-            .iter()
-            .map(|v| v.pos)
-            .collect::<Vec<_>>()
-            .contains(&pos)
+        self.values.contains_key(&pos)
     }
 
     pub fn remove_with_pos(&mut self, pos: Pos) {
-        let (i, _food) = self
-            .values
-            .iter()
-            .enumerate()
-            .find(|(_i, f)| f.pos == pos)
-            .expect("to call only when such element exists");
-        self.values.remove(i);
+        self.values.remove(&pos);
     }
 
     pub fn boundaries(&self) -> Option<Boundaries> {
-        let foods = self.as_ref().iter().map(Food::pos);
-        Boundaries::from_iterators(foods.clone().map(Pos::x), foods.map(Pos::y))
+        let foods = self.values.keys();
+        Boundaries::from_iterators(
+            foods.clone().cloned().map(Pos::x),
+            foods.cloned().map(Pos::y),
+        )
     }
 
     pub fn empty(&self) -> bool {
-        self.as_ref().is_empty()
+        self.values.is_empty()
     }
 }
 
@@ -757,3 +755,42 @@ pub enum RelationToBoundaries {
     Touching,
     Outside,
 }
+
+#[derive(Clone)]
+pub enum FigureCell {
+    Empty,
+    Food,
+}
+
+fn foo() -> [[FigureCell; 2]; 2] {
+    use FigureCell::*;
+
+    [[Empty, Food], [Food, Empty]]
+}
+
+fn bar() -> [[FigureCell; 3]; 3] {
+    use FigureCell::*;
+
+    [
+        [Food, Empty, Empty],
+        [Empty, Food, Empty],
+        [Empty, Empty, Food],
+    ]
+}
+
+// fn iter_matrix<'t, 'u, T, U, I>(
+//     array: &'t T,
+// ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = I>>>>
+// where
+//     T: IntoIterator<Item = &'t U>,
+//     U: IntoIterator<Item = I> + 't,
+//     I: Clone,
+// {
+//     Box::new(array.into_iter().map(|inner_array| {
+//         Box::new(inner_array.into_iter().map(|i| i.clone())) as Box<dyn Iterator<Item = I>>
+//     }))
+// }
+
+// fn baz() {
+//     // let q = iter_matrix(&foo());
+// }
