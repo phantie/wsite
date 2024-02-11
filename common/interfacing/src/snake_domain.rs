@@ -23,6 +23,7 @@ pub enum AdvanceResult {
     Success,
     BitSomeone,
     BitYaSelf,
+    OutOfBounds,
 }
 
 impl Snake {
@@ -63,7 +64,14 @@ impl Snake {
                 .is_some()
         } else {
             let mut snake = self.clone();
-            match snake.advance_head(&[]) {
+            match snake.advance_head(
+                &[],
+                // TODO acts as a sentinel value
+                &Boundaries {
+                    min: Pos::new(-1000, -1000),
+                    max: Pos::new(1000, 1000),
+                },
+            ) {
                 AdvanceResult::Success => {}
                 _ => unreachable!(),
             }
@@ -72,10 +80,19 @@ impl Snake {
         }
     }
 
-    fn advance_head(&mut self, other_snakes: &[Snake]) -> AdvanceResult {
+    fn advance_head(&mut self, other_snakes: &[Snake], boundaries: &Boundaries) -> AdvanceResult {
         let advanced_head = self.head().next(self.direction).unwrap();
 
-        if self.bit_snake(advanced_head, true) {
+        // TODO duplicate logic
+        let out_of_bounds = match boundaries.relation(advanced_head.end()) {
+            RelationToBoundaries::Inside => false,
+            RelationToBoundaries::Touching => true,
+            RelationToBoundaries::Outside => true,
+        };
+
+        if out_of_bounds {
+            AdvanceResult::OutOfBounds
+        } else if self.bit_snake(advanced_head, true) {
             AdvanceResult::BitYaSelf
         } else if other_snakes
             .iter()
@@ -88,8 +105,13 @@ impl Snake {
         }
     }
 
-    pub fn advance(&mut self, foods: &mut Foods, other_snakes: &[Snake]) -> AdvanceResult {
-        match self.advance_head(other_snakes) {
+    pub fn advance(
+        &mut self,
+        foods: &mut Foods,
+        other_snakes: &[Snake],
+        boundaries: &Boundaries,
+    ) -> AdvanceResult {
+        match self.advance_head(other_snakes, boundaries) {
             AdvanceResult::Success => {
                 // if on next step mouth will eat food -
                 // remove food and don't remove tail
@@ -100,8 +122,7 @@ impl Snake {
                 }
                 AdvanceResult::Success
             }
-            AdvanceResult::BitYaSelf => AdvanceResult::BitYaSelf,
-            AdvanceResult::BitSomeone => AdvanceResult::BitSomeone,
+            r => r,
         }
     }
 
@@ -158,9 +179,27 @@ impl From<Pos> for Food {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Foods {
     pub values: HashMap<Pos, Food>,
+}
+
+impl Serialize for Foods {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.values
+            .values()
+            .collect::<Vec<_>>()
+            .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Foods {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let values: Vec<Food> = Vec::deserialize(deserializer)?;
+        let mut foods = Foods::default();
+        foods.extend(values.into_iter());
+        Ok(foods)
+    }
 }
 
 impl Foods {
@@ -174,8 +213,12 @@ impl Foods {
 
     pub fn extend(&mut self, foods: impl Iterator<Item = Food>) {
         for food in foods {
-            self.values.insert(food.pos, food);
+            self.insert(food);
         }
+    }
+
+    pub fn insert(&mut self, food: Food) {
+        self.values.insert(food.pos, food);
     }
 
     pub fn has_pos(&self, pos: Pos) -> bool {

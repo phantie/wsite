@@ -25,8 +25,6 @@ const NOT_BEGUN_STATE: NotBegunState = NotBegunState::ModeSelection;
 
 // const STATE: State = State::Begun { paused: false };
 
-const ADJUST_ALGO: AdjustAlgoChoice = AdjustAlgoChoice::None;
-
 const CAMERA: Camera = Camera::BoundariesCentered;
 
 const SNAKE_ADVANCE_INTERVAL: u32 = 450; // in milliseconds
@@ -56,10 +54,8 @@ pub struct Snake {
 
     // true if state changed from NotBegun to Begun
     canvas_requires_fit: bool,
-    // greater value - closer camera
-    px_scale: f64,
+
     camera: Camera,
-    adjust_algo: AdjustAlgo,
 
     refs: Refs,
     listeners: Listeners,
@@ -110,12 +106,6 @@ impl Component for Snake {
     #[allow(unused_variables)]
     fn create(ctx: &Context<Self>) -> Self {
         let state = ctx.props().state.clone();
-
-        // TODO participates in calculations below, needs to be removed
-        let domain = default_domain();
-
-        let px_scale = calc_px_scale(canvas_target_dimensions(), domain.boundaries);
-        let adjust_algo = ADJUST_ALGO.into_algo(&domain);
 
         let ws_sink = {
             use crate::ws::imports::*;
@@ -174,8 +164,6 @@ impl Component for Snake {
 
             canvas_requires_fit: false,
 
-            px_scale,
-            adjust_algo,
             camera: CAMERA,
 
             refs: Default::default(),
@@ -529,6 +517,7 @@ impl Component for Snake {
                                     ctx.link().send_message(SnakeMsg::StateChange(
                                         State::BegunMultiplayer {
                                             domain: domain.clone(),
+                                            px_scale: calc_px_scale(&domain.boundaries),
                                         },
                                     ));
 
@@ -833,11 +822,12 @@ impl Component for Snake {
                         snake,
                         foods,
                         boundaries,
+                        px_scale,
                         ..
                     } => {
-                        self.draw_snake(&r, snake, boundaries, false);
-                        self.draw_foods(&r, foods, Some(snake), boundaries);
-                        self.draw_boundaries(&r, boundaries, Some(snake));
+                        self.draw_snake(&r, snake, boundaries, false, *px_scale);
+                        self.draw_foods(&r, foods, Some(snake), boundaries, *px_scale);
+                        self.draw_boundaries(&r, boundaries, Some(snake), *px_scale);
                     }
                     State::BegunMultiplayer {
                         domain:
@@ -847,15 +837,16 @@ impl Component for Snake {
                                 foods,
                                 boundaries,
                             },
+                        px_scale,
                     } => {
                         if let Some(snake) = snake {
-                            self.draw_snake(&r, snake, boundaries, true);
+                            self.draw_snake(&r, snake, boundaries, true, *px_scale);
                         }
                         for snake in other_snakes {
-                            self.draw_snake(&r, snake, boundaries, false);
+                            self.draw_snake(&r, snake, boundaries, false, *px_scale);
                         }
-                        self.draw_foods(&r, foods, snake.as_ref(), boundaries);
-                        self.draw_boundaries(&r, boundaries, snake.as_ref());
+                        self.draw_foods(&r, foods, snake.as_ref(), boundaries, *px_scale);
+                        self.draw_boundaries(&r, boundaries, snake.as_ref(), *px_scale);
                     }
                 }
             }
@@ -907,15 +898,20 @@ impl Component for Snake {
                 false
             }
 
-            Self::Message::FitCanvasImmediately => match &self.state {
-                State::BegunSingleplayer { boundaries, .. }
+            Self::Message::FitCanvasImmediately => match &mut self.state {
+                State::BegunSingleplayer {
+                    boundaries,
+                    px_scale,
+                    ..
+                }
                 | State::BegunMultiplayer {
                     domain: Domain { boundaries, .. },
+                    px_scale,
                     ..
                 } => {
                     self.canvas_requires_fit = false;
                     self.refs.fit_canvas();
-                    self.px_scale = calc_px_scale(self.refs.canvas_dimensions(), *boundaries);
+                    *px_scale = calc_px_scale(boundaries);
                     true
                 }
                 State::NotBegun { .. } => false,
@@ -936,12 +932,8 @@ impl Component for Snake {
                                 }));
                         };
 
-                        match snake.advance(foods, &[]) {
+                        match snake.advance(foods, &[], &boundaries) {
                             domain::AdvanceResult::Success => {
-                                if snake.out_of_bounds(boundaries) {
-                                    game_over();
-                                }
-
                                 // when no food, replenish
                                 if foods.empty() {
                                     *foods = DomainDefaults::foods(
@@ -951,7 +943,8 @@ impl Component for Snake {
                                     );
                                 }
                             }
-                            domain::AdvanceResult::BitYaSelf => game_over(),
+                            domain::AdvanceResult::BitYaSelf
+                            | domain::AdvanceResult::OutOfBounds => game_over(),
                             domain::AdvanceResult::BitSomeone => unreachable!(),
                         }
 
@@ -1029,9 +1022,8 @@ impl Component for Snake {
                     Camera::MouthCentered => Camera::BoundariesCentered,
                     Camera::BoundariesCentered => Camera::MouthCentered,
                 };
-                self.change_camera(next_camera).unwrap_or(());
                 Refs::fire_btn_active(self.refs.camera_btn_el());
-                false
+                self.change_camera(next_camera).is_ok()
             }
 
             Self::Message::ThemeContextUpdate(theme_ctx) => {
@@ -1156,6 +1148,7 @@ impl Component for Snake {
                         snake,
                         foods,
                         boundaries,
+                        px_scale: calc_px_scale(&boundaries),
                         advance_interval,
                     }));
                 false
@@ -1207,6 +1200,10 @@ impl Component for Snake {
     }
 }
 
+pub fn calc_px_scale(boundaries: &domain::Boundaries) -> f64 {
+    calculate_px_scale(canvas_target_dimensions(), boundaries)
+}
+
 impl Snake {
     pub fn change_camera(&mut self, camera: Camera) -> Result<(), ()> {
         if self.available_cameras().contains(&camera) {
@@ -1238,8 +1235,9 @@ impl Snake {
         pos: domain::Pos,
         snake: Option<&domain::Snake>,
         boundaries: &domain::Boundaries,
+        px_scale: f64,
     ) -> TransformedPos {
-        let pos = TransformedPos::from(self.adjust_algo.apply(pos)) * self.px_scale;
+        let pos = TransformedPos::from(pos) * px_scale;
 
         match self.camera {
             Camera::MouthCentered => {
@@ -1248,13 +1246,11 @@ impl Snake {
                 // position of the mouth after the same transformations as of 'pos'
 
                 let adjusted_mouth = TransformedPos::from(
-                    self.adjust_algo.apply(
-                        snake
-                            .as_ref()
-                            .expect("snake to exist for this camera to work")
-                            .mouth(),
-                    ),
-                ) * self.px_scale;
+                    snake
+                        .as_ref()
+                        .expect("snake to exist for this camera to work")
+                        .mouth(),
+                ) * px_scale;
 
                 // target position - center of the canvas
                 // assert!(self.refs.is_canvas_fit(self.state));
@@ -1268,12 +1264,12 @@ impl Snake {
                 // center camera to the boundaries center
                 //
                 let b = boundaries;
-                let b_max = self.adjust_algo.apply(b.max);
-                let b_min = self.adjust_algo.apply(b.min);
+                let b_max = b.max;
+                let b_min = b.min;
                 let adjusted_boundaries_center = TransformedPos::new(
                     (b_min.x + b_max.x) as f64 / 2.0,
                     (b_min.y + b_max.y) as f64 / 2.0,
-                ) * self.px_scale;
+                ) * px_scale;
                 // assert!(self.refs.is_canvas_fit(self.state));
                 let cd = self.refs.canvas_dimensions() / 2.0;
                 let to_center_x = cd.width - adjusted_boundaries_center.x;
@@ -1291,14 +1287,15 @@ impl Snake {
         boundaries: &domain::Boundaries,
         // distinguish controlled snake from others, by drawing another cirle on head
         style: bool,
+        px_scale: f64,
     ) {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
 
-        let snake_body_width = SNAKE_BODY_WIDTH * self.px_scale;
+        let snake_body_width = SNAKE_BODY_WIDTH * px_scale;
 
-        let transform_pos = |pos| self.transform_pos(pos, Some(snake), boundaries);
+        let transform_pos = |pos| self.transform_pos(pos, Some(snake), boundaries, px_scale);
 
         r.set_line_width(snake_body_width);
         let pos = transform_pos(snake.iter_vertices().next().unwrap());
@@ -1357,15 +1354,16 @@ impl Snake {
         foods: &domain::Foods,
         snake: Option<&domain::Snake>,
         boundaries: &domain::Boundaries,
+        px_scale: f64,
     ) {
         let theme = self.theme_ctx.as_ref();
         let bg_color = &theme.bg_color;
         let box_border_color = &theme.box_border_color;
 
         for food in foods.iter() {
-            let pos = self.transform_pos(food.pos, snake, boundaries);
+            let pos = self.transform_pos(food.pos, snake, boundaries, px_scale);
             r.begin_path();
-            r.cirle(pos, FOOD_DIAMETER * self.px_scale / 2.);
+            r.cirle(pos, FOOD_DIAMETER * px_scale / 2.);
             r.set_fill_style(box_border_color);
             r.fill();
             r.close_path();
@@ -1377,10 +1375,11 @@ impl Snake {
         r: &CanvasRenderer,
         boundaries: &domain::Boundaries,
         snake: Option<&domain::Snake>,
+        px_scale: f64,
     ) {
-        let transform_pos = |pos| self.transform_pos(pos, snake, boundaries);
+        let transform_pos = |pos| self.transform_pos(pos, snake, boundaries, px_scale);
 
-        r.set_line_width(0.5 * self.px_scale);
+        r.set_line_width(0.5 * px_scale);
         let pos = transform_pos(boundaries.left_top());
 
         r.begin_path();
@@ -1449,11 +1448,15 @@ pub enum State {
         snake: domain::Snake,
         foods: domain::Foods,
         boundaries: domain::Boundaries,
+        // greater value - closer camera
+        px_scale: f64,
 
         advance_interval: SnakeAdvanceInterval,
     },
     BegunMultiplayer {
         domain: Domain,
+        // greater value - closer camera
+        px_scale: f64,
     },
     NotBegun {
         inner: NotBegunState,
@@ -1474,61 +1477,6 @@ impl State {
 pub enum Camera {
     MouthCentered,
     BoundariesCentered,
-}
-
-enum AdjustAlgoChoice {
-    None,
-    // redundant at least when "camera" is centered to the mouth
-    For4thQuadrant,
-}
-
-impl AdjustAlgoChoice {
-    fn into_algo(&self, domain: &Domain) -> AdjustAlgo {
-        match ADJUST_ALGO {
-            AdjustAlgoChoice::None => AdjustAlgo::None,
-            AdjustAlgoChoice::For4thQuadrant => {
-                let initial_adjustment = {
-                    // TODO adjust algo can be removed
-                    let snake_boundaries = domain.snake.as_ref().unwrap().boundaries(); // TODO
-                    let foods_boundaries = domain.foods.boundaries();
-                    let total_boundaries = snake_boundaries.join_option(foods_boundaries);
-
-                    fn adjust_for_negative(coord: i32) -> i32 {
-                        if coord < 0 {
-                            -coord
-                        } else {
-                            0
-                        }
-                    }
-
-                    let x_adjust_for_negative = adjust_for_negative(total_boundaries.min.x);
-                    let y_adjust_for_negative = adjust_for_negative(total_boundaries.min.y);
-
-                    domain::Pos {
-                        x: x_adjust_for_negative,
-                        y: y_adjust_for_negative,
-                    }
-                };
-
-                AdjustAlgo::For4thQuadrant { initial_adjustment }
-            }
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum AdjustAlgo {
-    None,
-    For4thQuadrant { initial_adjustment: domain::Pos },
-}
-
-impl AdjustAlgo {
-    fn apply(&self, pos: domain::Pos) -> domain::Pos {
-        match self {
-            Self::None => pos,
-            Self::For4thQuadrant { initial_adjustment } => pos + initial_adjustment.clone(),
-        }
-    }
 }
 
 #[derive(Default, Clone)]
@@ -2148,7 +2096,7 @@ fn rand_direction(except: Option<domain::Direction>) -> domain::Direction {
     rand_from_iterator(directions.into_iter())
 }
 
-fn calc_px_scale(canvas_dimensions: Dimensions, boundaries: domain::Boundaries) -> f64 {
+fn calculate_px_scale(canvas_dimensions: Dimensions, boundaries: &domain::Boundaries) -> f64 {
     // scale game to fully fit into space available to canvas
     // when camera is Camera::BoundariesCentered
 
@@ -2190,6 +2138,7 @@ impl Snake {
                 ctx.link()
                     .send_message(SnakeMsg::StateChange(State::BegunMultiplayer {
                         domain: domain.clone(),
+                        px_scale: calc_px_scale(&domain.boundaries),
                     }));
             }
             LobbyState::Terminated => {

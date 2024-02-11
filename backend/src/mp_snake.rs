@@ -60,6 +60,7 @@ pub struct RunningLobbyState {
     // TODO merge into "con to con state"
     snakes: HashMap<Con, domain::Snake>,
     foods: domain::Foods,
+    boundaries: domain::Boundaries,
     counter: u32,
     cons: std::collections::HashSet<Con>,
 }
@@ -93,9 +94,12 @@ impl From<&PrepLobbyState> for RunningLobbyState {
 
         let foods = Foods::default();
 
+        let boundaries = domain::Pos::new(0, 0).boundaries_in_radius(10, 10);
+
         Self {
             snakes,
             foods,
+            boundaries,
             counter: 0,
             cons,
         }
@@ -110,7 +114,6 @@ impl RunningLobbyState {
 
         // indeces to remove
         let mut rm = vec![];
-        let mut add_foods = vec![];
 
         let other_snakes = self.snakes.clone();
         for (i, snake) in self.snakes.values_mut().enumerate() {
@@ -129,18 +132,19 @@ impl RunningLobbyState {
                 }
             }
 
-            match snake.advance(&mut self.foods, other_snakes.as_slice()) {
+            fn snake_to_food_trace(foods: &mut domain::Foods, snake: &mut domain::Snake) {
+                foods.extend(snake.iter_vertices().map(domain::Food::from));
+            }
+
+            match snake.advance(&mut self.foods, other_snakes.as_slice(), &self.boundaries) {
                 AdvanceResult::Success => {
                     // refill_foods(&mut self.foods);
                 }
-                AdvanceResult::BitYaSelf | AdvanceResult::BitSomeone => {
+                AdvanceResult::BitYaSelf
+                | AdvanceResult::BitSomeone
+                | AdvanceResult::OutOfBounds => {
                     rm.push(i);
-
-                    add_foods.extend(
-                        snake
-                            .iter_vertices()
-                            .map(|domain::Pos { x, y }| domain::Food::new(x, y)),
-                    );
+                    snake_to_food_trace(&mut self.foods, snake);
                 }
             }
         }
@@ -151,8 +155,6 @@ impl RunningLobbyState {
             idx += 1;
             retain
         });
-
-        self.foods.extend(add_foods.into_iter());
     }
 
     fn set_con_direction(&mut self, con: Con, direction: domain::Direction) {
@@ -239,10 +241,11 @@ impl Lobby {
             }
 
             LobbyState::Running(RunningLobbyState {
-                counter,
-                cons,
                 snakes,
                 foods,
+                boundaries,
+                counter,
+                cons,
                 ..
             }) => {
                 use interfacing::snake::lobby_state::LobbyRunning;
@@ -267,8 +270,7 @@ impl Lobby {
                         snake,
                         foods: foods.clone(),
                         other_snakes,
-                        // TODO support boundaries
-                        boundaries: domain::Pos::new(0, 0).boundaries_in_radius(10, 10),
+                        boundaries: *boundaries,
                     },
                 })
             }
