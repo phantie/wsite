@@ -14,6 +14,8 @@ use interfacing::snake::{
     WsServerMsg,
 };
 
+use super::styles;
+
 type ClientMsg = WsMsg<interfacing::snake::WsClientMsg>;
 type ServerMsg = WsMsg<interfacing::snake::WsServerMsg>;
 
@@ -188,18 +190,13 @@ impl Component for Snake {
         let contrast_bg_color = &theme.contrast_bg_color;
         let text_color = &theme.text_color;
 
+        // HERE
         let btn_style = css! {"
             border: 2px solid ${box_border_color};
             width: 80px; height: 20px;
             color: ${text_color};
-            cursor: pointer;
             display: inline-block;
             padding: 7px 5px;
-            text-align: center;
-            user-select: none;
-            :hover {
-                opacity: 0.8;
-            }
         ",
             box_border_color = box_border_color,
             text_color = text_color
@@ -249,7 +246,7 @@ impl Component for Snake {
                         html! {
                             <div
                                 ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
-                                class={ vec![btn_style.clone(), direction_btn_style] }
+                                class={ vec![btn_style.clone(), direction_btn_style, styles::btn_style()] }
                                 onclick={ direction_btn_onlick(direction) }>{ text }</div>
                         }
                     };
@@ -269,7 +266,7 @@ impl Component for Snake {
 
                     html! {
                         <>
-                            <div ref={self.refs.btn_refs.menu_btn_ref.clone()} class={ vec![margin_bottom_btn_style.clone(), btn_style.clone()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
+                            <div ref={self.refs.btn_refs.menu_btn_ref.clone()} class={ vec![margin_bottom_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
 
                             <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
                                 <div>
@@ -283,9 +280,9 @@ impl Component for Snake {
                                 </div>
                             </div>
 
-                            <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
-                            <div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![btn_style.clone(), margin_top_btn_style.clone()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                            <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
+                            <div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
+                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
                         </>
                     }
                 }
@@ -521,7 +518,6 @@ impl Component for Snake {
                                         },
                                     ));
 
-                                    // HERE
                                     html! {
                                         <>
                                         <h2>{"Player count: "}{player_counter}</h2>
@@ -674,34 +670,30 @@ impl Component for Snake {
                 }
                 State::NotBegun { inner } => {
                     let canvas_overlay_style = css! {"
-                    height: 100vh;
-                    width: calc(100% - 350px);
-                    background-color: ${bg_color};
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    font-family: 'Iosevka Web';
-                    color: ${text_color};
-                ",
+                        height: 100vh;
+                        width: calc(100% - 350px);
+                        background-color: ${bg_color};
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        font-family: 'Iosevka Web';
+                        color: ${text_color};
+                    ",
                         bg_color = bg_color,
                         text_color = text_color
                     };
 
-                    let start_btn_style = css! {"
-                    border: 4px solid ${box_border_color};
-                    width: 300px; height: 100px;
-                    font-size: 50px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: 0.3s;
-                    user-select: none;
-                    :hover {
-                        opacity: 0.8;
-                    }
-                ",
+                    // HERE
+                    let big_btn_style = css! {"
+                        border: 4px solid ${box_border_color};
+                        width: 300px; height: 100px;
+                        font-size: 50px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: 0.3s;
+                    ",
                         box_border_color = box_border_color
                     };
 
@@ -709,14 +701,14 @@ impl Component for Snake {
                     let items = match inner {
                         NotBegunState::Initial => {
                             html! {
-                                <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Start" }</div>
+                                <div onclick={start_btn_onclick} class={ vec![big_btn_style, styles::btn_style()] }>{ "Start" }</div>
                             }
                         }
                         NotBegunState::Ended => {
                             html! {
                                 <>
                                     <p class={css!{"font-size: 35px;"}}>{"Game over!"}</p>
-                                    <div onclick={start_btn_onclick} class={ start_btn_style }>{ "Try again" }</div>
+                                    <div onclick={start_btn_onclick} class={ vec![big_btn_style, styles::btn_style()] }>{ "Try again" }</div>
                                 </>
                             }
                         }
@@ -1072,7 +1064,6 @@ impl Component for Snake {
                 {
                     use crate::router::Route;
 
-                    // HERE: routing
                     let route = match &new_state {
                         State::NotBegun { inner } => match inner {
                             NotBegunState::MPLobby { state } => {
@@ -1680,8 +1671,6 @@ impl Listeners {
                 let route = Route::recognize(path);
 
                 // console::log!("!!! location changed", path, format!("{route:?}"));
-
-                // HERE: routing
 
                 if let Some(route) = route.clone() {
                     let state = match route {

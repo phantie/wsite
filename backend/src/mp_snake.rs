@@ -133,7 +133,7 @@ impl RunningLobbyState {
             fn refill_foods(foods: &mut domain::Foods, boundaries: &domain::Boundaries) {
                 if foods.count() < 30 {
                     use strum::IntoEnumIterator;
-                    let figures = domain::Figures::iter();
+                    let figures = domain::figures::Figures::iter();
 
                     let figure = figures.choose(&mut rand::thread_rng()).unwrap();
 

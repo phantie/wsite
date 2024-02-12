@@ -800,95 +800,98 @@ pub enum RelationToBoundaries {
     Outside,
 }
 
-#[derive(Clone, strum::EnumIs)]
-pub enum FigureCell {
-    Empty,
-    Food,
-}
+pub mod figures {
 
-fn diagonal_2f() -> [[FigureCell; 2]; 2] {
-    use FigureCell::*;
-
-    [
-        //
-        [Empty, Food],
-        [Food, Empty],
-    ]
-}
-
-fn diagonal_3() -> [[FigureCell; 3]; 3] {
-    use FigureCell::*;
-
-    [
-        [Food, Empty, Empty],
-        [Empty, Food, Empty],
-        [Empty, Empty, Food],
-    ]
-}
-
-fn figure_x() -> [[FigureCell; 3]; 3] {
-    use FigureCell::*;
-
-    [
-        [Food, Empty, Food],
-        [Empty, Food, Empty],
-        [Food, Empty, Food],
-    ]
-}
-
-fn x_dim<T, const C: usize, const R: usize, F: Fn() -> [[T; C]; R]>(f: F) -> usize {
-    C
-}
-
-fn y_dim<T, const C: usize, const R: usize, F: Fn() -> [[T; C]; R]>(f: F) -> usize {
-    R
-}
-
-fn matrix_to_iter<T, U, I>(array: T) -> Vec<Vec<I>>
-where
-    T: IntoIterator<Item = U>,
-    U: IntoIterator<Item = I>,
-{
-    array
-        .into_iter()
-        .map(|inner_array| inner_array.into_iter().collect())
-        .collect()
-}
-
-#[derive(strum::EnumIter)]
-pub enum Figures {
-    Diagonal2F,
-    Diagonal3,
-    X,
-}
-
-impl Figures {
-    pub fn to_iter(&self) -> Vec<Vec<FigureCell>> {
-        use matrix_to_iter as mi;
-
-        let matrix = match self {
-            Self::Diagonal2F => mi(diagonal_2f()),
-            Self::Diagonal3 => mi(diagonal_3()),
-            Self::X => mi(figure_x()),
-        };
-        matrix
+    #[derive(strum::EnumIter)]
+    pub enum Figures {
+        Diagonal2F,
+        Diagonal3,
+        X,
     }
 
-    pub fn x_dim(&self) -> usize {
-        let matrix = match self {
-            Self::Diagonal2F => x_dim(diagonal_2f),
-            Self::Diagonal3 => x_dim(diagonal_3),
-            Self::X => x_dim(figure_x),
-        };
-        matrix
+    impl Figures {
+        pub fn to_iter(&self) -> Vec<Vec<FigureCell>> {
+            use matrix_to_iter as mi;
+
+            let matrix = match self {
+                Self::Diagonal2F => mi(diagonal_2f()),
+                Self::Diagonal3 => mi(diagonal_3()),
+                Self::X => mi(figure_x()),
+            };
+            matrix
+        }
+
+        pub fn x_dim(&self) -> usize {
+            let matrix = match self {
+                Self::Diagonal2F => x_dim(diagonal_2f),
+                Self::Diagonal3 => x_dim(diagonal_3),
+                Self::X => x_dim(figure_x),
+            };
+            matrix
+        }
+
+        pub fn y_dim(&self) -> usize {
+            let matrix = match self {
+                Self::Diagonal2F => y_dim(diagonal_2f),
+                Self::Diagonal3 => y_dim(diagonal_3),
+                Self::X => y_dim(figure_x),
+            };
+            matrix
+        }
     }
 
-    pub fn y_dim(&self) -> usize {
-        let matrix = match self {
-            Self::Diagonal2F => y_dim(diagonal_2f),
-            Self::Diagonal3 => y_dim(diagonal_3),
-            Self::X => y_dim(figure_x),
-        };
-        matrix
+    fn diagonal_2f() -> [[FigureCell; 2]; 2] {
+        use FigureCell::*;
+
+        [
+            //
+            [Empty, Food],
+            [Food, Empty],
+        ]
+    }
+
+    fn diagonal_3() -> [[FigureCell; 3]; 3] {
+        use FigureCell::*;
+
+        [
+            [Food, Empty, Empty],
+            [Empty, Food, Empty],
+            [Empty, Empty, Food],
+        ]
+    }
+
+    fn figure_x() -> [[FigureCell; 3]; 3] {
+        use FigureCell::*;
+
+        [
+            [Food, Empty, Food],
+            [Empty, Food, Empty],
+            [Food, Empty, Food],
+        ]
+    }
+
+    #[derive(Clone, strum::EnumIs)]
+    pub enum FigureCell {
+        Empty,
+        Food,
+    }
+
+    fn x_dim<T, const C: usize, const R: usize, F: Fn() -> [[T; C]; R]>(f: F) -> usize {
+        C
+    }
+
+    fn y_dim<T, const C: usize, const R: usize, F: Fn() -> [[T; C]; R]>(f: F) -> usize {
+        R
+    }
+
+    fn matrix_to_iter<T, U, I>(array: T) -> Vec<Vec<I>>
+    where
+        T: IntoIterator<Item = U>,
+        U: IntoIterator<Item = I>,
+    {
+        array
+            .into_iter()
+            .map(|inner_array| inner_array.into_iter().collect())
+            .collect()
     }
 }
