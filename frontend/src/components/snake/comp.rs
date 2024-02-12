@@ -6,7 +6,7 @@ use gloo_timers::callback::Interval;
 use std::collections::HashSet;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, Document, HtmlCanvasElement, Window};
-use yew::html::Scope;
+use yew::{classes, html::Scope};
 
 use interfacing::snake::{
     lobby_state::{LobbyPrep, LobbyRunning},
@@ -246,7 +246,7 @@ impl Component for Snake {
                         html! {
                             <div
                                 ref={ self.refs.ctrl_brn_refs.from_direction(direction) }
-                                class={ vec![btn_style.clone(), direction_btn_style, styles::btn_style()] }
+                                class={ vec![btn_style.clone(), direction_btn_style, styles::base_btn_style()] }
                                 onclick={ direction_btn_onlick(direction) }>{ text }</div>
                         }
                     };
@@ -266,7 +266,7 @@ impl Component for Snake {
 
                     html! {
                         <>
-                            <div ref={self.refs.btn_refs.menu_btn_ref.clone()} class={ vec![margin_bottom_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
+                            <div ref={self.refs.btn_refs.menu_btn_ref.clone()} class={ vec![margin_bottom_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
 
                             <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
                                 <div>
@@ -280,9 +280,9 @@ impl Component for Snake {
                                 </div>
                             </div>
 
-                            <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
-                            <div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::btn_style()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                            <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
+                            <div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
+                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
                         </>
                     }
                 }
@@ -343,14 +343,20 @@ impl Component for Snake {
 
                         let lobbies = lobbies
                             .into_iter()
-                            .map(|lobby| html! { <h1 onclick={onclick(lobby.name.clone())}>{ &lobby.name }</h1> })
+                            .map(|lobby| {
+                                let style = css! {"cursor:pointer;
+                                :hover{text-decoration:underline;}"};
+
+                                html! { <h2 class={style}
+                                onclick={onclick(lobby.name.clone())}>{ &lobby.name }</h2> }
+                            })
                             .collect::<Html>();
 
                         html! {
-                            <>
-                            { "Lobbies" }
+                            <div class={vec![css!{"height:100vh;"}, styles::centered_column_items()]}>
+                            <h1>{ "Lobbies" }</h1>
                             { lobbies }
-                            </>
+                            </div>
                         }
                     }
                 },
@@ -492,16 +498,26 @@ impl Component for Snake {
                                         .map(|p| {
                                             html! {
                                                 <>
-                                                <h3>{&p.user_name} {" voted: "} {p.vote_start} </h3>
+                                                <h2>{&p.user_name} {" voted: "} {p.vote_start} </h2>
                                                 </>
                                             }
                                         })
                                         .collect::<Html>();
 
+                                    let btn_style = classes![
+                                        css! {
+                                            "border-color: ${box_border_color};
+                                            ",
+                                            box_border_color = box_border_color
+                                        },
+                                        styles::average_btn_style(),
+                                    ];
+
                                     html! {
                                         <>
+                                        <div class={btn_style} {onclick}> { "Vote start" } </div>
+                                        <p></p>
                                         {part}
-                                        <button {onclick}> { "Vote start" } </button>
                                         </>
                                     }
                                 }
@@ -540,15 +556,31 @@ impl Component for Snake {
                                         ))
                                     });
 
-                                html! { <button {onclick}>{ "Leave" }</button> }
+                                let btn_style = classes![
+                                    css! {
+                                        "border-color: ${box_border_color};
+                                        ",
+                                        box_border_color = box_border_color
+                                    },
+                                    styles::average_btn_style(),
+                                ];
+
+                                html! { <div class={btn_style} {onclick}>{ "Leave" }</div> }
                             };
 
                             html! {
                                 <>
-                                <p></p>
+                                <div class={css!{"display:flex; padding: 30px;"}}>
                                 { leave_lobby }
-                                <h2>{ "Joined "} { lobby_name } { " as " } { self.ws_state.user_name.as_ref().unwrap() } </h2>
+                                </div>
+                                <div class={styles::centered_column_items()}>
+                                <p></p>
+                                <p></p>
+                                <h1>{ "Joined "} { lobby_name } { " as " }
+                                { self.ws_state.user_name.as_ref().unwrap() } </h1>
+                                <p></p>
                                 { block }
+                                </div>
                                 </>
                             }
                         }
@@ -641,7 +673,7 @@ impl Component for Snake {
                         })
                     });
 
-                    let btn_style = vec![
+                    let btn_style = classes![
                         css! {
                             "border-color: ${box_border_color};
                             margin-bottom: 50px;
@@ -649,7 +681,6 @@ impl Component for Snake {
                             box_border_color = box_border_color
                         },
                         styles::big_btn_style(),
-                        styles::btn_style(),
                     ];
 
                     html! {
@@ -674,7 +705,7 @@ impl Component for Snake {
                         })
                     });
 
-                    let btn_style = vec![
+                    let btn_style = classes![
                         css! {
                             "border-color: ${box_border_color};
                             margin-bottom: 50px;
@@ -682,7 +713,6 @@ impl Component for Snake {
                             box_border_color = box_border_color
                         },
                         styles::big_btn_style(),
-                        styles::btn_style(),
                     ];
 
                     html! {
@@ -704,13 +734,12 @@ impl Component for Snake {
                         text_color = text_color
                     };
 
-                    let btn_style = vec![
+                    let btn_style = classes![
                         css! {
                             "border-color: ${box_border_color};",
                             box_border_color = box_border_color
                         },
                         styles::big_btn_style(),
-                        styles::btn_style(),
                     ];
 
                     let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);

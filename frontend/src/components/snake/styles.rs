@@ -1,7 +1,7 @@
 #![allow(unused, non_upper_case_globals)]
 use crate::components::imports::*;
 
-pub fn btn_style() -> stylist::StyleSource {
+pub fn base_btn_style() -> stylist::StyleSource {
     css! {"
         cursor: pointer;
         text-align: center;
@@ -12,17 +12,38 @@ pub fn btn_style() -> stylist::StyleSource {
     }
 }
 
-pub fn big_btn_style() -> stylist::StyleSource {
-    css! {"
+pub fn btn_style() -> yew::Classes {
+    yew::classes!(
+        base_btn_style(),
+        css! {"
         border-width: 4px;
         border-style: solid;
-        padding: 30px 60px;
-        font-size: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: 0.3s;
     "}
+    )
+}
+
+pub fn big_btn_style() -> yew::Classes {
+    yew::classes!(
+        btn_style(),
+        css! {"
+        padding: 30px 60px;
+        font-size: 50px;
+    "}
+    )
+}
+
+pub fn average_btn_style() -> yew::Classes {
+    yew::classes!(
+        btn_style(),
+        css! {"
+        padding: 15px 30px;
+        font-size: 25px;
+    "}
+    )
 }
 
 pub fn centered_column_items() -> stylist::StyleSource {
