@@ -615,13 +615,15 @@ impl Component for Snake {
                         })
                     };
 
+                    let style = vec![css! {"height:100vh;"}, styles::centered_column_items()];
+
                     html! {
-                        <>
-                        { "Enter new lobby name:" }
+                        <div class={style}>
+                        <h1>{ "Enter new lobby name:" }</h1>
                         <form {onsubmit} method="post">
-                            <input type="text" ref={name_ref}/>
+                            <input class={styles::input_style()} type="text" ref={name_ref}/>
                         </form>
-                        </>
+                        </div>
                     }
                 }
                 State::NotBegun {

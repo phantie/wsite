@@ -31,3 +31,12 @@ pub fn centered_column_items() -> stylist::StyleSource {
         align-items: center; flex-direction: column;"
     }
 }
+
+pub fn input_style() -> stylist::StyleSource {
+    css! {"
+        width: 300px;
+        font-size: 24px;
+        padding: 20px;
+        text-align:center;
+    "}
+}
