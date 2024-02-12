@@ -233,8 +233,8 @@ impl Component for Snake {
         };
 
         let btns = {
-            match self.state {
-                State::BegunSingleplayer { .. } | State::BegunMultiplayer { .. } => {
+            match &self.state {
+                s @ (State::BegunSingleplayer { .. } | State::BegunMultiplayer { .. }) => {
                     let direction_btn = |text: &str, direction| {
                         let direction_btn_onlick = |direction| {
                             ctx.link()
@@ -251,6 +251,12 @@ impl Component for Snake {
                         }
                     };
 
+                    let multiplayer = match s {
+                        State::BegunMultiplayer { .. } => true,
+                        State::BegunSingleplayer { .. } => false,
+                        State::NotBegun { .. } => unreachable!(),
+                    };
+
                     let camera_btn_style = margin_top_btn_style.clone();
 
                     let camera_btn_onclick =
@@ -261,14 +267,48 @@ impl Component for Snake {
                     let pause_btn_onclick =
                         ctx.link().callback(move |e| Self::Message::PauseUnpause);
 
-                    let to_main_screen_btn_onclick =
-                        ctx.link().callback(move |e| Self::Message::ToMenu);
+                    let btn_style = classes![
+                        margin_bottom_btn_style.clone(),
+                        btn_style.clone(),
+                        styles::base_btn_style()
+                    ];
+
+                    let menu_btn = {
+                        let to_main_screen_btn_onclick = if multiplayer {
+                            ctx.link().callback(move |e| {
+                                Self::Message::WsSend(
+                                    "leave-lobby"
+                                        .pinned_msg(interfacing::snake::WsClientMsg::LeaveLobby),
+                                )
+                            })
+                        } else {
+                            ctx.link().callback(move |e| Self::Message::ToMenu)
+                        };
+
+                        html! {
+                            <div ref={self.refs.btn_refs.menu_btn_ref.clone()}
+                                class={ btn_style.clone() } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
+                        }
+                    };
+
+                    let restart_btn = if multiplayer {
+                        html! {}
+                    } else {
+                        html! {<div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ btn_style.clone() } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>}
+                    };
+
+                    let pause_btn = if multiplayer {
+                        html! {}
+                    } else {
+                        html! {<div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ btn_style.clone() } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>}
+                    };
 
                     html! {
                         <>
-                            <div ref={self.refs.btn_refs.menu_btn_ref.clone()} class={ vec![margin_bottom_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={to_main_screen_btn_onclick}>{ "Menu" }</div>
+                            { menu_btn }
 
-                            <div class={css!("display: flex; align-items: center; flex-direction: column;")}>
+                            <div class={css!("display: flex; align-items: center; flex-direction: column;
+                                margin-bottom: 20px;")}>
                                 <div>
                                     { direction_btn("▲", domain::Direction::Up) }
                                 </div>
@@ -280,9 +320,9 @@ impl Component for Snake {
                                 </div>
                             </div>
 
-                            <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
-                            <div ref={self.refs.btn_refs.restart_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={restart_btn_onclick}>{ "Restart (R)" }</div>
-                            <div ref={self.refs.btn_refs.pause_btn_ref.clone()} class={ vec![margin_top_btn_style.clone(), btn_style.clone(), styles::base_btn_style()] } onclick={pause_btn_onclick}>{ "Pause (P)" }</div>
+                            <div ref={self.refs.btn_refs.camera_btn_ref.clone()} class={ btn_style.clone() } onclick={camera_btn_onclick}>{ "Camera (C)" }</div>
+                            {restart_btn}
+                            {pause_btn}
                         </>
                     }
                 }
@@ -1030,16 +1070,18 @@ impl Component for Snake {
 
                         // drop old by replacement
                         advance_interval.reset();
+
+                        Refs::fire_btn_active(self.refs.restart_btn_el());
+
+                        true
                     }
                     State::BegunMultiplayer { .. } => {
                         console::log!("Restart unsupported in MP");
+
+                        false
                     }
-                    State::NotBegun { .. } => {}
+                    State::NotBegun { .. } => false,
                 }
-
-                Refs::fire_btn_active(self.refs.restart_btn_el());
-
-                true
             }
 
             Self::Message::DirectionChange(direction) => {
