@@ -110,6 +110,35 @@ impl From<&PrepLobbyState> for RunningLobbyState {
 
 impl RunningLobbyState {
     fn advance(&mut self) {
+        // TODO do not spawn on current snake positions,
+        //
+        // TODO figure can still spawn on boundaries, seems like by one problem
+        fn refill_foods(foods: &mut domain::Foods, boundaries: &domain::Boundaries) {
+            if foods.count() < 30 {
+                use strum::IntoEnumIterator;
+                let figures = domain::figures::Figures::iter();
+
+                let figure = figures.choose(&mut rand::thread_rng()).unwrap();
+
+                let x = rand::thread_rng()
+                    .gen_range((boundaries.min.x)..(boundaries.max.x - (figure.x_dim() as i32)));
+                let y = rand::thread_rng()
+                    .gen_range((boundaries.min.y)..(boundaries.max.y - (figure.y_dim() as i32)));
+
+                for (i, row) in figure.to_iter().into_iter().enumerate() {
+                    for (j, col) in row.into_iter().enumerate() {
+                        if col.is_food() {
+                            let food = domain::Food::new(x + (j as i32), y + (i as i32));
+
+                            if boundaries.relation(food.pos()).is_inside() {
+                                foods.insert(food);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         use domain::AdvanceResult;
 
         self.counter += 1;
@@ -126,46 +155,12 @@ impl RunningLobbyState {
                 .map(|(_, snake)| snake.clone())
                 .collect::<Vec<_>>();
 
-            // TODO do not spawn on current snake positions,
-            // spawn when all snakes advanced
-            //
-            // TODO figure can still spawn on boundaries, seems like by one problem
-            fn refill_foods(foods: &mut domain::Foods, boundaries: &domain::Boundaries) {
-                if foods.count() < 30 {
-                    use strum::IntoEnumIterator;
-                    let figures = domain::figures::Figures::iter();
-
-                    let figure = figures.choose(&mut rand::thread_rng()).unwrap();
-
-                    let x = rand::thread_rng().gen_range(
-                        (boundaries.min.x)..(boundaries.max.x - (figure.x_dim() as i32)),
-                    );
-                    let y = rand::thread_rng().gen_range(
-                        (boundaries.min.y)..(boundaries.max.y - (figure.y_dim() as i32)),
-                    );
-
-                    for (i, row) in figure.to_iter().into_iter().enumerate() {
-                        for (j, col) in row.into_iter().enumerate() {
-                            if col.is_food() {
-                                let food = domain::Food::new(x + (j as i32), y + (i as i32));
-
-                                if boundaries.relation(food.pos()).is_inside() {
-                                    foods.insert(food);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
             fn snake_to_food_trace(foods: &mut domain::Foods, snake: &mut domain::Snake) {
                 foods.extend(snake.iter_vertices().map(domain::Food::from));
             }
 
             match snake.advance(&mut self.foods, other_snakes.as_slice(), &self.boundaries) {
-                AdvanceResult::Success => {
-                    refill_foods(&mut self.foods, &self.boundaries);
-                }
+                AdvanceResult::Success => {}
                 AdvanceResult::BitYaSelf
                 | AdvanceResult::BitSomeone
                 | AdvanceResult::OutOfBounds => {
@@ -181,6 +176,8 @@ impl RunningLobbyState {
             idx += 1;
             retain
         });
+
+        refill_foods(&mut self.foods, &self.boundaries);
     }
 
     fn set_con_direction(&mut self, con: Con, direction: domain::Direction) {
