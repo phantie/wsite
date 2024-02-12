@@ -639,11 +639,22 @@ impl Component for Snake {
                         })
                     });
 
+                    let btn_style = vec![
+                        css! {
+                            "border-color: ${box_border_color};
+                            margin-bottom: 50px;
+                            ",
+                            box_border_color = box_border_color
+                        },
+                        styles::big_btn_style(),
+                        styles::btn_style(),
+                    ];
+
                     html! {
-                        <>
-                        <button onclick={ sp_onclick }>{ "Singleplayer" }</button>
-                        <button onclick={ mp_onclick }>{ "Multiplayer" }</button>
-                        </>
+                        <div class={vec![css!{"height: 100vh;"}, styles::centered_column_items()]}>
+                            <div onclick={ sp_onclick } class={btn_style.clone()}>{ "Singleplayer" }</div>
+                            <div onclick={ mp_onclick } class={btn_style.clone()}>{ "Multiplayer" }</div>
+                        </div>
                     }
                 }
                 State::NotBegun {
@@ -661,11 +672,22 @@ impl Component for Snake {
                         })
                     });
 
+                    let btn_style = vec![
+                        css! {
+                            "border-color: ${box_border_color};
+                            margin-bottom: 50px;
+                            ",
+                            box_border_color = box_border_color
+                        },
+                        styles::big_btn_style(),
+                        styles::btn_style(),
+                    ];
+
                     html! {
-                        <>
-                        <button onclick={create_onclick}>{ "Create server" }</button>
-                        <button onclick={join_onclick}>{ "Join server" }</button>
-                        </>
+                        <div class={vec![css!{"height: 100vh;"}, styles::centered_column_items()]}>
+                            <div onclick={create_onclick} class={btn_style.clone()}>{ "Create server" }</div>
+                            <div onclick={join_onclick} class={btn_style.clone()}>{ "Join server" }</div>
+                        </div>
                     }
                 }
                 State::NotBegun { inner } => {
@@ -673,10 +695,6 @@ impl Component for Snake {
                         height: 100vh;
                         width: calc(100% - 350px);
                         background-color: ${bg_color};
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
                         font-family: 'Iosevka Web';
                         color: ${text_color};
                     ",
@@ -684,31 +702,27 @@ impl Component for Snake {
                         text_color = text_color
                     };
 
-                    // HERE
-                    let big_btn_style = css! {"
-                        border: 4px solid ${box_border_color};
-                        width: 300px; height: 100px;
-                        font-size: 50px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        transition: 0.3s;
-                    ",
-                        box_border_color = box_border_color
-                    };
+                    let btn_style = vec![
+                        css! {
+                            "border-color: ${box_border_color};",
+                            box_border_color = box_border_color
+                        },
+                        styles::big_btn_style(),
+                        styles::btn_style(),
+                    ];
 
                     let start_btn_onclick = ctx.link().callback(move |e| Self::Message::Begin);
                     let items = match inner {
                         NotBegunState::Initial => {
                             html! {
-                                <div onclick={start_btn_onclick} class={ vec![big_btn_style, styles::btn_style()] }>{ "Start" }</div>
+                                <div onclick={start_btn_onclick} class={ btn_style.clone() }>{ "Start" }</div>
                             }
                         }
                         NotBegunState::Ended => {
                             html! {
                                 <>
                                     <p class={css!{"font-size: 35px;"}}>{"Game over!"}</p>
-                                    <div onclick={start_btn_onclick} class={ vec![big_btn_style, styles::btn_style()] }>{ "Try again" }</div>
+                                    <div onclick={start_btn_onclick} class={ btn_style.clone() }>{ "Try again" }</div>
                                 </>
                             }
                         }
@@ -718,7 +732,8 @@ impl Component for Snake {
                     };
 
                     html! {
-                        <div ref={self.refs.canvas_overlay.clone()} class={canvas_overlay_style}>
+                        <div ref={self.refs.canvas_overlay.clone()}
+                            class={vec![styles::centered_column_items(), canvas_overlay_style]}>
                             { items }
                         </div>
                     }
@@ -742,9 +757,21 @@ impl Component for Snake {
                 }
             }
             _ => {
+                let global_style = css!(
+                    "
+                        body {
+                            font-family: 'Iosevka Web';
+                            background-color: ${bg_color};
+                            color: ${text_color};
+                        }
+                    ",
+                    bg_color = bg_color,
+                    text_color = text_color,
+                );
+
                 html! {
                     <>
-                    <Global css={"background-color: black; color: white;"}/>
+                    <Global css={global_style}/>
                     {main_area}
                     </>
                 }
