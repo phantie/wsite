@@ -1,7 +1,7 @@
 use crate::{
     db,
     error::{ApiError, ApiResult},
-    telemetry::spawn_blocking_with_tracing,
+    trace::spawn_blocking_with_tracing,
 };
 use anyhow::Context;
 use axum_sessions::extractors::ReadableSession;

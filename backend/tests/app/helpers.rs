@@ -1,6 +1,6 @@
 use backend::conf;
 use backend::startup::Application;
-use backend::telemetry;
+use backend::trace;
 use hyper::StatusCode;
 use once_cell::sync::Lazy;
 use reqwest::{RequestBuilder, Response};
@@ -8,13 +8,9 @@ use static_routes::*;
 use uuid::Uuid;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
-    let subscriber = telemetry::TracingSubscriber::new("testing");
-
-    if std::env::var("TEST_LOG").is_ok() {
-        telemetry::init_global_default(subscriber.build(std::io::stdout));
-    } else {
-        telemetry::init_global_default(subscriber.build(std::io::sink));
-    };
+    trace::TracingSubscriber::new()
+        .pretty(false)
+        .set_global_default();
 });
 
 pub async fn spawn_app() -> TestApp {

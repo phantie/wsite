@@ -1,15 +1,16 @@
 use backend::conf::{self};
 use backend::serve_files;
 use backend::startup::Application;
-use backend::telemetry;
+use backend::trace;
 
 #[tokio::main]
 async fn main() -> hyper::Result<()> {
     let env = conf::Env::derive();
     let env_conf = conf::EnvConf::derive(env);
 
-    let subscriber = telemetry::TracingSubscriber::new("site").build(std::io::stdout);
-    telemetry::init_global_default(subscriber);
+    trace::TracingSubscriber::new()
+        .pretty(env_conf.log.pretty)
+        .set_global_default();
 
     tracing::debug!("Env: {}", env);
     tracing::debug!("{:?}", env_conf);
