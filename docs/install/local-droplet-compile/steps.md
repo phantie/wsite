@@ -53,6 +53,10 @@ Enable firewall
     
     sudo ufw enable
 
+Create DB
+
+    touch "/root/db"
+
 Start backend
 
 Allow connections to backend server without TLS and domain (TEMP)
