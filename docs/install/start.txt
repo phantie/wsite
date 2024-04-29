@@ -1,5 +1,0 @@
-# local
-cargo run
-
-# prod test
-APP_ENVIRONMENT=production APP__DB__PATH="/root/db" cargo run --release
