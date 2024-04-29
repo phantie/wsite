@@ -9,8 +9,9 @@ use crate::startup::ip_address;
 pub async fn endpoint_hits(
     session: ReadableSession,
     Extension(db): Extension<cozo::DbInstance>,
+    Extension(conf): Extension<Conf>,
 ) -> ApiResult<Json<Vec<interfacing::EndpointHit>>> {
-    if get_env().prod() {
+    if conf.env.prod() {
         reject_anonymous_users(&session)?;
     }
     let result = db::q::find_endpoint_hits(&db)?;
@@ -27,8 +28,9 @@ struct IpToHit {
 pub async fn endpoint_hits_grouped(
     session: ReadableSession,
     Extension(db): Extension<cozo::DbInstance>,
+    Extension(conf): Extension<Conf>,
 ) -> ApiResult<impl IntoResponse> {
-    if get_env().prod() {
+    if conf.env.prod() {
         reject_anonymous_users(&session)?;
     }
     let result = db::q::find_endpoint_hits(&db)?;
@@ -50,13 +52,14 @@ pub async fn endpoint_hits_grouped(
 
 pub async fn frontend_endpoint_hit(
     Extension(db): Extension<cozo::DbInstance>,
+    Extension(conf): Extension<Conf>,
     h: HeaderMap,
     Json(value): Json<interfacing::FrontendEndpointHit>,
 ) -> ApiResult<()> {
     let system_time = interfacing::EndpointHit::formatted_now();
 
     let ip = ip_address(&h);
-    let hashed_ip = hash_ip(ip);
+    let hashed_ip = hash_ip(ip, &conf);
 
     let hit = interfacing::EndpointHit {
         hashed_ip,
@@ -72,11 +75,12 @@ pub async fn frontend_endpoint_hit(
 
 pub async fn github_hit(
     Extension(db): Extension<cozo::DbInstance>,
+    Extension(conf): Extension<Conf>,
     h: HeaderMap,
 ) -> ApiResult<StatusCode> {
     let system_time = interfacing::EndpointHit::formatted_now();
     let ip = ip_address(&h);
-    let hashed_ip = hash_ip(ip);
+    let hashed_ip = hash_ip(ip, &conf);
 
     let hit = interfacing::EndpointHit {
         hashed_ip,
@@ -92,11 +96,12 @@ pub async fn github_hit(
 
 pub async fn wsite_github_hit(
     Extension(db): Extension<cozo::DbInstance>,
+    Extension(conf): Extension<Conf>,
     h: HeaderMap,
 ) -> ApiResult<StatusCode> {
     let system_time = interfacing::EndpointHit::formatted_now();
     let ip = ip_address(&h);
-    let hashed_ip = hash_ip(ip);
+    let hashed_ip = hash_ip(ip, &conf);
 
     let hit = interfacing::EndpointHit {
         hashed_ip,
@@ -110,8 +115,8 @@ pub async fn wsite_github_hit(
     Ok(StatusCode::NOT_FOUND)
 }
 
-fn hash_ip(ip: std::net::IpAddr) -> String {
-    if get_env().local() {
+fn hash_ip(ip: std::net::IpAddr, conf: &Conf) -> String {
+    if conf.env.local() {
         ip.to_string()
     } else {
         interfacing::EndpointHit::hash_ip(ip)

@@ -2,9 +2,9 @@
 cargo run
 
 # prod test
-APP_ENVIRONMENT=production APP__DB__PATH="/root/db" cargo run --release
+BE__ENV=prod BE__DB__PATH="/root/db" cargo run --release
 
 # prod (detach process and redirect logs)
-APP_ENVIRONMENT=production \
-APP__DB__PATH="/root/db" \
+BE__ENV=prod \
+BE__DB__PATH="/root/db" \
 nohup cargo run --release > /root/log.txt 2>&1 &

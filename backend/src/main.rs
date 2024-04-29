@@ -1,20 +1,22 @@
-use backend::configuration::{self, env_conf, get_env};
+use backend::conf::{self};
 use backend::serve_files;
 use backend::startup::Application;
 use backend::telemetry;
 
 #[tokio::main]
 async fn main() -> hyper::Result<()> {
+    let env = conf::Env::derive();
+    let env_conf = conf::EnvConf::derive(env);
+
     let subscriber = telemetry::TracingSubscriber::new("site").build(std::io::stdout);
     telemetry::init_global_default(subscriber);
 
-    let env_conf = env_conf();
+    tracing::debug!("Env: {}", env);
+    tracing::debug!("{:?}", env_conf);
 
-    tracing::info!("APP_ENVIRONMENT={}", get_env().as_str());
+    let conf = conf::Conf::new(env, env_conf);
 
-    let conf = configuration::Conf { env: env_conf };
-
-    let application = Application::build(&conf).await;
+    let application = Application::build(conf).await;
 
     for f in serve_files::FRONTEND_DIR.files() {
         let path = f.path().to_str().expect("paths to be normal");

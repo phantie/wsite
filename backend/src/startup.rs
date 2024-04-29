@@ -1,4 +1,4 @@
-use crate::configuration::{get_env, Conf};
+use crate::conf::Conf;
 use static_routes::*;
 
 use axum::{
@@ -38,7 +38,7 @@ impl tower_http::request_id::MakeRequestId for RequestIdProducer {
     }
 }
 
-pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
+pub fn router(conf: Conf, db: cozo::DbInstance) -> Router<AppState> {
     use crate::routes::*;
 
     let routes = routes().api;
@@ -113,6 +113,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
         .layer(CompressionLayer::new())
         .layer(axum::middleware::from_fn(endpoint_hit_middleware))
         .layer(AddExtensionLayer::new(db.clone()))
+        .layer(AddExtensionLayer::new(conf.clone()))
         .layer(request_tracing_layer)
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();
@@ -162,7 +163,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
                 }
             }
 
-            let session_secret = match conf.env.session_secret.clone() {
+            let session_secret = match conf.session_secret.clone() {
                 // in case it's not provided in env var
                 None => gen_session_secret().expect("to generate session secret"),
                 Some(v) => v,
@@ -185,6 +186,7 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
 async fn endpoint_hit_middleware<B>(
     h: hyper::HeaderMap,
     axum::extract::Extension(db): axum::extract::Extension<cozo::DbInstance>,
+    axum::extract::Extension(conf): axum::extract::Extension<Conf>,
     // TODO request hangs if this extractor is used
     // session: axum_sessions::extractors::ReadableSession,
     request: hyper::http::Request<B>,
@@ -227,7 +229,7 @@ async fn endpoint_hit_middleware<B>(
         let system_time = interfacing::EndpointHit::formatted_now();
 
         let ip = ip_address(&h);
-        let hashed_ip = if get_env().local() {
+        let hashed_ip = if conf.env.local() {
             ip.to_string()
         } else {
             interfacing::EndpointHit::hash_ip(ip)
@@ -339,15 +341,15 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(conf: &Conf) -> Self {
-        let address = format!("{}:{}", conf.env.host, conf.env.port);
+    pub async fn build(conf: Conf) -> Self {
+        let address = format!("{}:{}", conf.host, conf.port);
         let listener = std::net::TcpListener::bind(&address).unwrap();
         tracing::info!("Listening on http://{}", address);
-        let host = conf.env.host.clone();
+        let host = conf.host.clone();
         let port = listener.local_addr().unwrap().port();
 
         // let db = &DbInstance::new("sqlite", "testing.db", Default::default()).unwrap();
-        let db = conf.env.db.db_instance();
+        let db = conf.db.db_instance();
         let db = crate::db::start_db(db);
 
         let app_state = AppState {
@@ -362,7 +364,7 @@ impl Application {
         };
 
         pub fn run(
-            conf: &Conf,
+            conf: Conf,
             listener: std::net::TcpListener,
             app_state: AppState,
             db: cozo::DbInstance,

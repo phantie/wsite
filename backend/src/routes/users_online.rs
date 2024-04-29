@@ -1,4 +1,3 @@
-use crate::configuration::get_env;
 use crate::routes::imports::*;
 use crate::startup::ip_address;
 use crate::startup::UserConnectInfo;
@@ -13,6 +12,7 @@ pub async fn ws_users_online(
     maybe_ws: Result<WebSocketUpgrade, axum::extract::ws::rejection::WebSocketUpgradeRejection>,
     ConnectInfo(con_info): ConnectInfo<UserConnectInfo>,
     headers: hyper::HeaderMap,
+    Extension(conf): Extension<Conf>,
     State(state): State<AppState>,
 ) -> Response {
     let ws = match maybe_ws {
@@ -32,11 +32,11 @@ pub async fn ws_users_online(
         sock
     };
 
-    ws.on_upgrade(move |socket| handle_socket(socket, state, sock))
+    ws.on_upgrade(move |socket| handle_socket(socket, state, sock, conf))
 }
 
-async fn handle_socket(socket: WebSocket, state: AppState, sock: std::net::SocketAddr) {
-    if get_env().local() {
+async fn handle_socket(socket: WebSocket, state: AppState, sock: std::net::SocketAddr, conf: Conf) {
+    if conf.env.local() {
         tracing::info!("Client connected: {:?}", sock);
     } else {
         tracing::info!("Client connected");

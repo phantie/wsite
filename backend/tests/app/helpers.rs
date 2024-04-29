@@ -1,4 +1,4 @@
-use backend::configuration;
+use backend::conf;
 use backend::startup::Application;
 use backend::telemetry;
 use hyper::StatusCode;
@@ -20,11 +20,11 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
-    let env_conf = configuration::EnvConf::test();
+    let env_conf = conf::EnvConf::test_default();
+    let env = conf::Env::Local;
+    let conf = conf::Conf::new(env, env_conf);
 
-    let conf = configuration::Conf { env: env_conf };
-
-    let application = Application::build(&conf).await;
+    let application = Application::build(conf).await;
 
     let host = application.host();
     let port = application.port();

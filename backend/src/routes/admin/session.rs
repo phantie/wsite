@@ -1,14 +1,15 @@
-use crate::{configuration::get_env, db, routes::imports::*};
+use crate::{db, routes::imports::*};
 use interfacing::AdminSession;
 
 #[axum_macros::debug_handler]
 pub async fn admin_session(
     Extension(db): Extension<cozo::DbInstance>,
+    Extension(conf): Extension<Conf>,
     session: ReadableSession,
 ) -> ApiResult<Json<AdminSession>> {
     // returns user info if logged in, else 403
 
-    if get_env().local() {
+    if conf.env.local() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
