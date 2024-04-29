@@ -5,4 +5,6 @@ cargo run
 APP_ENVIRONMENT=production APP__DB__PATH="/root/db" cargo run --release
 
 # prod (detach process and redirect logs)
-APP_ENVIRONMENT=production APP__DB__PATH="/root/db" cargo run --release > /root/log.txt 2>&1 &
+APP_ENVIRONMENT=production \
+APP__DB__PATH="/root/db" \
+nohup cargo run --release > /root/log.txt 2>&1 &
