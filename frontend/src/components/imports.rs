@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub use crate::components::admin::{SessionCtx, SessionCtxSub};
 pub use crate::components::theme::prelude::*;
 pub use crate::components::Colored;

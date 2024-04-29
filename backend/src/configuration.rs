@@ -3,7 +3,7 @@ use serde_aux::field_attributes::deserialize_number_from_string; // to deseriali
 
 #[derive(Deserialize)]
 pub struct EnvConf {
-    pub session_secret: String,
+    pub session_secret: Option<String>,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
@@ -17,7 +17,7 @@ impl EnvConf {
         Self {
             host: "localhost".into(),
             port: 0,
-            session_secret: hex::encode([0_u8; 64]),
+            session_secret: Some(hex::encode([0_u8; 64])),
             db: DbConf {
                 path: "".into(),
                 storage_engine: DbStorageEngine::Memory,

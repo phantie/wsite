@@ -118,14 +118,66 @@ pub fn router(conf: &Conf, db: cozo::DbInstance) -> Router<AppState> {
             // let store = axum_sessions::async_session::MemoryStore::new();
             let store = BonsaiDBSessionStore { db: db.clone() };
 
-            let decoded = hex::decode(conf.env.session_secret.clone())
-                .expect("Successful HEX Decoding of session secret");
+            // generate it, and reuse on restarts
+            fn gen_session_secret() -> std::io::Result<String> {
+                fn random_hex_string(n: usize) -> String {
+                    use rand::Rng;
+                    let mut rng = rand::thread_rng();
+                    let random_bytes: Vec<u8> = (0..n).map(|_| rng.gen::<u8>()).collect();
+                    hex::encode(random_bytes)
+                }
+
+                use std::fs::{self, OpenOptions};
+                use std::io::prelude::*;
+                use std::path::Path;
+
+                let directory_path = "secrets";
+                let file_path = "secrets/token.hex";
+
+                // Create the directory if it doesn't exist
+                if !Path::new(directory_path).exists() {
+                    fs::create_dir_all(directory_path)?;
+                }
+
+                // Create or open the file
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .read(true)
+                    .open(file_path)
+                    .unwrap();
+
+                let contents = {
+                    let mut contents = String::new();
+                    file.read_to_string(&mut contents)?;
+                    contents
+                };
+
+                if contents.is_empty() {
+                    let secret = random_hex_string(64);
+                    file.write(secret.as_bytes()).unwrap();
+                    Ok(secret)
+                } else {
+                    Ok(contents)
+                }
+            }
+
+            let session_secret = match conf.env.session_secret.clone() {
+                // in case it's not provided in env var
+                None => gen_session_secret().expect("to generate session secret"),
+                Some(v) => v,
+            };
+
+            let decoded =
+                hex::decode(session_secret).expect("Successful HEX Decoding of session secret");
 
             // use rand::Rng;
             // let mut secret = [0_u8; 128];
             // rand::thread_rng().fill(&mut secret);
             // dbg!(hex::encode(secret));
 
+            // !!! Remember that if site not accessed through HTTPS using public IP,
+            // cookie won't be preserved and you would debug it like an idiot once again
             SessionLayer::new(store, decoded.as_slice()).with_secure(true)
         })
 }

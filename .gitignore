@@ -9,3 +9,10 @@
 
 # frontend final assets
 /frontend/dist/
+
+# untared trunk executable
+/frontend/trunk
+
+# subdirectories containing secrets
+**/secrets/
+
