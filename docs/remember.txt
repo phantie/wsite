@@ -1,0 +1,12 @@
+- if site not accessed through HTTPS using public IP,
+    session cookie won't be preserved
+
+- endpoint hit endpoints return 404 on purpose against bots
+
+- frontend currently does not support conditionals/configuration
+
+
+TODO
+- fix occasional site failing to load and go between pages using browser navigator
+- figure out session "Put session" multiple times per request in logs
+- protect endpoint_hits
