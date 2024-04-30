@@ -6,4 +6,4 @@
 host: 0.0.0.0
 
 db:
-  storage_engine: SQLite
+  storage_engine: Sled

@@ -9,9 +9,4 @@
 TODO
 - figure out session "Put session" multiple times per request in logs
 
-- prevent 500 responses due to "database is locked" when SQLite is used
-    - revert to persistent storage usage for prod
-// or/and
-- don't just give up - retry 500 from frontend side
-
 - protect endpoint_hits

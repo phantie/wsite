@@ -1,21 +1,10 @@
 # local
 cargo run
 
-
 # prod test
-BE__ENV=prod BE__DB__STORAGE_ENGINE=Memory BE__DB__PATH="" cargo run --release
-
-# prod (detach process and redirect logs)
-BE__ENV=prod \
-BE__DB__STORAGE_ENGINE=Memory \
-BE__DB__PATH="/root/db" \
-nohup cargo run --release > /root/log.txt 2>&1 &
-
-
-# prod test with persistent storage (inconsistent/broken)
 BE__ENV=prod BE__DB__PATH="/root/db" cargo run --release
 
-# prod with persistent storage (detach process and redirect logs) (inconsistent/broken)
+# prod with (detach process and redirect logs)
 BE__ENV=prod \
 BE__DB__PATH="/root/db" \
 nohup cargo run --release > /root/log.txt 2>&1 &

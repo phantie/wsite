@@ -43,6 +43,7 @@ pub struct EnvConf {
 pub enum DbStorageEngine {
     Memory,
     SQLite,
+    Sled,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -57,6 +58,7 @@ impl DbConf {
             match self.storage_engine {
                 DbStorageEngine::Memory => "mem",
                 DbStorageEngine::SQLite => "sqlite",
+                DbStorageEngine::Sled => "sled",
             },
             &self.path,
             Default::default(),
