@@ -16,3 +16,6 @@
 # subdirectories containing secrets
 **/secrets/
 
+**/.direnv/
+
+result

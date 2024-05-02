@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+  "backend",
+  "frontend",
+  "common/auth",
+  "common/interfacing",
+  "common/domain",
+  "common/static_routes",
+]
+
+[workspace.dependencies]
