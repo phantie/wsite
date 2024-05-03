@@ -37,6 +37,11 @@ pub struct EnvConf {
     pub log: Log,
 
     pub features: EnvFeatures,
+
+    pub dir: String,
+    pub fallback: Option<String>,
+    #[serde(deserialize_with = "de_num")]
+    pub request_path_lru_size: std::num::NonZeroUsize,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -125,6 +130,9 @@ impl EnvConf {
             },
             features: EnvFeatures {},
             log: Log { pretty: false },
+            dir: "".to_string(), // TODO
+            fallback: None,
+            request_path_lru_size: std::num::NonZeroUsize::new(30).unwrap(),
         }
     }
 }

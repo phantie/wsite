@@ -31,7 +31,10 @@ pub fn router(conf: Conf, db: cozo::DbInstance) -> Router<AppState> {
         .route("/articles/:public_id", delete(delete_article))
         .route(routes.admin.articles.post().postfix(), post(new_article))
         .route("/admin/articles", put(update_article))
-        .route("/static/*path", get(serve_static))
+        .route(
+            "/static/*path",
+            get(crate::serve_files::serve_static::serve_static),
+        )
         // .route("/admin/endpoint_hits", get(endpoint_hits))
         .route(
             routes.admin.endpoint_hits.get().postfix(),
@@ -60,11 +63,14 @@ pub fn router(conf: Conf, db: cozo::DbInstance) -> Router<AppState> {
     Router::new()
         .nest("/api", api_router)
         .nest("/ws", ws_router)
-        .fallback(fallback)
+        .fallback(crate::serve_files::fallback::fallback)
         .layer(CompressionLayer::new())
         .layer(axum::middleware::from_fn(endpoint_hit_middleware))
         .layer(AddExtensionLayer::new(db.clone()))
         .layer(AddExtensionLayer::new(conf.clone()))
+        .layer(AddExtensionLayer::new(crate::serve_files::Cache::new(
+            conf.request_path_lru_size,
+        )))
         .layer(crate::trace::request_trace_layer())
         .layer({
             // let store = axum_sessions::async_session::MemoryStore::new();

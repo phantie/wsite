@@ -5,3 +5,11 @@ features:
 
 log:
   pretty: false
+
+
+# because infinity of request paths lead to fallback
+# we limit the number of them to cache
+#
+# note that, all files stored on disk get cached on demand in memory
+#
+request_path_lru_size: 30
