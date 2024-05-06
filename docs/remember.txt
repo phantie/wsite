@@ -5,8 +5,3 @@
 
 - frontend currently does not support conditionals/configuration
 
-
-TODO
-- figure out session "Put session" multiple times per request in logs
-
-- protect endpoint_hits

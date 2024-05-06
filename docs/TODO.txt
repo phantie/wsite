@@ -1,0 +1,52 @@
+- fix backend build compilation error when using "nix build"
+
+last 25 log lines:
+>    --> backend/src/db/q/mod.rs:286:18
+>     |
+> 286 |     let script = include_str!("endpoint_hits/ensure_table.cozo");
+>     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     |
+>     = note: this error originates in the macro `include_str` (in Nightly builds, run with -Z macro-backtrace for more info)
+>
+> error: couldn't read backend/src/db/q/endpoint_hits/put.cozo: No such file or directory (os error 2)
+>    --> backend/src/db/q/mod.rs:293:18
+>     |
+> 293 |     let script = include_str!("endpoint_hits/put.cozo");
+>     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     |
+>     = note: this error originates in the macro `include_str` (in Nightly builds, run with -Z macro-backtrace for more info)
+>
+> error: couldn't read backend/src/db/q/endpoint_hits/find.cozo: No such file or directory (os error 2)
+>    --> backend/src/db/q/mod.rs:308:18
+>     |
+> 308 |     let script = include_str!("endpoint_hits/find.cozo");
+>     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>     |
+>     = note: this error originates in the macro `include_str` (in Nightly builds, run with -Z macro-backtrace for more info)
+>
+
+
+
+- fix frontend build compilation error when using "nix build"
+
+error: couldn't read frontend/src/../md/md_post.md: No such file or directory (os error 2)
+  --> frontend/src/switch.rs:86:55
+   |
+86 | ...                   <MarkdownPreviewPage md={ include_str!("../md/md_post.md") } />
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `include_str` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: couldn't read frontend/src/../md/README.md: No such file or directory (os error 2)
+  --> frontend/src/switch.rs:96:39
+   |
+96 | ...                   <Post md={include_str!("../md/README.md")}/>
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `include_str` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+
+
+- expose "trunk" from crane instead of nixpkgs version
+- figure traces under INFO producing 3 traces with DEBUG
+- protect endpoint_hits

@@ -1,5 +1,7 @@
-# nix build .#myServer
-# nix build .#myClient
+#
+# nix build .#myServer -o "backend/build"
+# nix build .#myClient -o "frontend/build"
+#
 {
   description = "Build a cargo project";
 
@@ -64,7 +66,7 @@
         # to set "pname" and "version".
         commonArgs = {
           inherit src;
-          pname = "trunk-workspace";
+          pname = "workspace";
           version = "0.1.0";
           strictDeps = true;
 
@@ -79,7 +81,7 @@
         # Native packages
 
         nativeArgs = commonArgs // {
-          pname = "trunk-workspace-native";
+          pname = "workspace-native";
         };
 
         # Build *just* the cargo dependencies, so we can reuse
@@ -89,6 +91,7 @@
         # Simple JSON API that can be queried by the client
         myServer = craneLib.buildPackage (nativeArgs // {
           inherit cargoArtifacts;
+          pname = "workspace-server";
           cargoExtraArgs = "--package=backend";
         });
 
@@ -98,7 +101,7 @@
         # it's not possible to build the server on the
         # wasm32 target, so we only build the client.
         wasmArgs = commonArgs // {
-          pname = "trunk-workspace-wasm";
+          pname = "trunk-workspace";
           cargoExtraArgs = "--package=frontend";
           CARGO_BUILD_TARGET = "wasm32-unknown-unknown";
         };
@@ -110,7 +113,7 @@
         # Build the frontend of the application.
         # This derivation is a directory you can put on a webserver.
         myClient = craneLib.buildTrunkPackage (wasmArgs // {
-          pname = "trunk-workspace-client";
+          pname = "workspace-client";
           cargoArtifacts = cargoArtifactsWasm;
           trunkIndexPath = "frontend/index.html";
           # The version of wasm-bindgen-cli here must match the one from Cargo.lock.
