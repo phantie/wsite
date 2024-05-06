@@ -1,5 +1,11 @@
 Source code on <a href="https://github.com/phantie/wsite">Github</a>
 
+
+
+https://github.com/phantie/wsite/assets/43893037/a577ec54-6a67-4242-a449-0be58b4120ff
+
+
+
 [![CI-Tests](https://github.com/phantie/wsite/actions/workflows/testing.yml/badge.svg)](https://github.com/phantie/wsite/actions/workflows/testing.yml)
 
 Core technologies: Axum, Yew, CozoDB.
