@@ -45,7 +45,20 @@ error: couldn't read frontend/src/../md/README.md: No such file or directory (os
    |
    = note: this error originates in the macro `include_str` (in Nightly builds, run with -Z macro-backtrace for more info)
 
+- find a way to reuse derivations for rust/cargo/trunk/etc to stop redownload/recompile for every project
+ using the utility versions, example with rust:
 
+store % fd rust-default-1.76.0 -td
+rvn32d3qyw3ad2m7dgigfwg9jvwlwrr3-rust-default-1.76.0/
+6f9h1hwzjwllmkvrhml380g8fg12hsmc-rust-default-1.76.0/
+bc272lrqcr48njbz1yf5xl1l2vzcxvx8-rust-default-1.76.0/
+1vmq655g9lyh9578gv92qnpvgly851xf-rust-default-1.76.0/
+4njkk96ywvdg36zvjk27r45ajxqan290-rust-default-1.76.0/
+md2idg7ig83ljpl4150n10bp027psm22-rust-default-1.76.0/
+6qb5nh37lhr0ji3za8kw19pwcyldxqbg-rust-default-1.76.0/
+cfz8r8wvynwh9bcr0vg428bqsibgg6pp-rust-default-1.76.0/
+q9qvh51syxm9ldg85s6m9npwa1pyvvqq-rust-default-1.76.0/
+mhn66zfrs1zi2sj16bzmmzp9y8vcsj0z-rust-default-1.76.0/
 
 - expose "trunk" from crane instead of nixpkgs version
 - figure traces under INFO producing 3 traces with DEBUG
